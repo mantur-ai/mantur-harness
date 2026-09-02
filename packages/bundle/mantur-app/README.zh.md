@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途浏览器品牌插件，并禁用官方品牌条目、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
+本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器、Models 设置与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途浏览器品牌插件，并禁用官方品牌条目、官方首次运行弹窗、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
 
 ## 目录
 

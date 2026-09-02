@@ -1,8 +1,9 @@
 /**
  * Models settings and product-onboarding plugin, browser half. It registers
  * the Models page plus the ordered internal-testing and official-DeepSeek
- * onboarding dialogs, whose UI shares this package's modal wrapper. The Host
- * settings and credential contracts stay behind their existing wire APIs.
+ * onboarding dialogs, whose UI shares this package's modal wrapper. A Mantur
+ * artifact keeps the Models page but omits both official onboarding entries.
+ * The Host settings and credential contracts stay behind their existing wire APIs.
  * Export discipline:
  * packages/client/AGENTS.md.
  */
@@ -139,16 +140,21 @@ export function apply(ctx: ClientContext): void {
       'settings.models.footer': { kind: 'list', scope: 'root' },
     },
   }, ModelsSection))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'welcome-notice',
-    order: -100,
-    inject: welcomeInjected,
-  }, WelcomeNotice))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'deepseek-official',
-    order: 0,
-    inject: deepSeekOnboardingInjected,
-  }, DeepSeekOnboardingDialog))
+  // Product onboarding belongs to the official and local-development Web
+  // profiles. Mantur keeps this package's provider settings but supplies its
+  // own product entry path, so neither official dialog registers there.
+  if (process.env.DSH_CLIENT_BUILD_PROFILE !== 'mantur') {
+    ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
+      name: 'settings.onboarding',
+      id: 'welcome-notice',
+      order: -100,
+      inject: welcomeInjected,
+    }, WelcomeNotice))
+    ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
+      name: 'settings.onboarding',
+      id: 'deepseek-official',
+      order: 0,
+      inject: deepSeekOnboardingInjected,
+    }, DeepSeekOnboardingDialog))
+  }
 }

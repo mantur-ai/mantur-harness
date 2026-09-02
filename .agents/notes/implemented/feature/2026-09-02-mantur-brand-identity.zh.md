@@ -14,13 +14,17 @@
 
 `dsh-client-ui-brand-mantur` 占用通用侧边栏与空会话 Hero slot。它在侧边栏显示已确认的文字名称“漫途Agent”，让 Hero 前缀保持为空，把 Hero 标题替换为“故事起于一念，余下交给漫途”或其英文等价文案，移除预览版徽标，并隐藏官方鱼形标记。收起轨道保留既有面板导航图形，它是操作指示而非品牌标记。通用 Conversation shell 现在为标题与徽标声明 slot，并以既有文案作为 fallback；侧边栏 mark owner 则收到展开态或轨道态位置。
 
-漫途层只禁用官方品牌、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力，也保留模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
+漫途构建会发出产品自有的浏览器安装元数据：文档标题、manifest 名称与 manifest 短名称均为“漫途Agent”。在已审批漫途素材就绪前，它不包含官方 favicon 与 manifest 图标项。官方构建和本地开发构建保留既有元数据。
+
+漫途层只禁用官方品牌、官方首次运行弹窗、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力、Models 设置以及模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
+
+引导 slot 没有撤回操作，因此后挂载的产品插件无法移除 `ui-settings-models` 已注册的项。这个例外只改动一个上游所属产品文件：`packages/client/ui-settings-models/src/client/index.ts`。它保留 Models 分区，只在既有客户端构建 profile 为 `mantur` 时跳过两个引导注册。对应的聚焦 apply 测试是该门控的底座升级检查。
 
 本次不引入 Logo 或原生应用图标。在漫途提供已审批素材前，文字是唯一产品身份，桌面构建保留打包占位图标。
 
 ## 验证
 
-客户端单元测试覆盖 slot 注册与卸载、本地化文案、展开态标记与徽标不显示，以及轨道操作指示保留。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web Playwright 场景启动真实组装，验证中文品牌与标题，拒绝通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，在连接 Workspace 后确认模型与权限控件，并通过默认 Preset 组装 Agent 提示词。
+客户端单元测试覆盖 slot 注册与卸载、本地化文案、展开态标记与徽标不显示、轨道操作指示保留，以及仅在 Mantur 构建中省略官方引导。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web 记录会话场景以中文和英文启动真实组装，保持欢迎声明未确认，另行挂载缺少凭据的 DeepSeek 适配器，拒绝两个官方弹窗以及通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，并确认模型和权限控件。同一场景会重放已提交的模型轮次，并固定完整漫途系统提示词。PWA 测试验证漫途 manifest 以及官方 favicon 不存在。
 
 原生安装包验证仍由桌面载体的三运行器矩阵负责：macOS arm64、macOS x64 与 Windows x64。正式视觉素材、签名、notarization 与外部 release 发布仍是本身份层之外的前置条件。
 

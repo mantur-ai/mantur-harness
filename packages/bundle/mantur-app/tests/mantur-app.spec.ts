@@ -41,6 +41,7 @@ describe('dsh-mantur-app bundle', () => {
     expect(row('ui-plan')?.disabled).toBe(true)
     expect(row('ui-model-selection')?.disabled).not.toBe(true)
     expect(row('ui-permission')?.disabled).not.toBe(true)
+    expect(row('ui-settings-models')?.disabled).not.toBe(true)
     expect(row('web-runtime')?.config).toMatchObject({ surfaceContext: false, printUrl: true })
   })
 

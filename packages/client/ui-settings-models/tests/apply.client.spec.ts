@@ -118,6 +118,20 @@ describe('ui-settings-models apply', () => {
     expect(after.slots.entries('settings.section')).toHaveLength(1)
   })
 
+  it('keeps provider settings but omits official onboarding in a Mantur build', async () => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'mantur')
+    try {
+      const b = await bench()
+      declare(b.slots)
+      await b.ctx.plugin({ inject: [...inject], apply }).await()
+      expect(b.slots.entries('settings.section').map(entry => entry.options.id)).toEqual(['models'])
+      expect(b.slots.entries('settings.onboarding')).toEqual([])
+      await b.ctx.fiber.dispose()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('the label thunk follows the active locale without re-registration', async () => {
     const b = await bench()
     declare(b.slots)

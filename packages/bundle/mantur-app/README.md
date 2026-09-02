@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts the independent Mantur browser-brand plugin and disables the official brand row, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
+This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, Models settings, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts the independent Mantur browser-brand plugin and disables the official brand row, official first-run dialogs, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
 
 ## Table of Contents
 
