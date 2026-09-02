@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, Models settings, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts the independent Mantur browser-brand plugin and disables the official brand row, official first-run dialogs, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
+This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, Models settings, DeepSeek API-key setup, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts independent Mantur brand and account plugins and disables the official brand row, preview notice, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
 
 ## Table of Contents
 
@@ -55,6 +55,7 @@ Stable for a fixed working directory and underlying agent composition. The deskt
 - **Release assets remain pending** — the final macOS and Windows application icons require approved Mantur artwork.
 - **Three-platform installer verification remains pending** — macOS arm64, macOS x64, and Windows x64 packaging and signing must run on their native release runners.
 - **Capabilities remain installed** — Agent Preset and Plan packages are retained below this product layer; only their visible browser rows are disabled.
+- **Account scope is intentionally narrow** — this MVP provides sign-in, status, skip, and local sign-out; operator and skill access remain deferred.
 
 <a id="dev-note"></a>
 ### Dev Note

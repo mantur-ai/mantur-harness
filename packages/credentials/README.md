@@ -22,13 +22,14 @@ The `credentials/` group manages the secret values your configuration refers to 
 <a id="packages"></a>
 ## Packages
 
-Three packages provide the credential feature: one stores, looks up, and removes secrets at runtime while configuration only names them; the second is the default on-machine store; the third lets plugins obtain credentials that have to be asked for. Their READMEs cover day-to-day use; the subsystem reference owns the exhaustive contracts.
+Four packages provide the credential feature: one stores, looks up, and removes secrets at runtime while configuration only names them; the second is the default on-machine store; the third lets plugins obtain credentials that have to be asked for; the fourth implements ManturHub device authorization for the Mantur profile. Their READMEs cover day-to-day use; the subsystem reference owns the exhaustive contracts.
 
 | Package | Role | ctx key |
 |---|---|---|
 | [`credentials/`](credentials/README.md) | Store, look up, and remove secrets at runtime while configuration only names them | `ctx.credentials` |
 | [`credentials-local/`](credentials-local/README.md) | The default on-machine store: a private YAML file, environment overrides win | registers `ctx.credentials` |
 | [`authorization/`](authorization/README.md) | Plugin-owned flows that obtain a credential by asking a human | `ctx.authorization` |
+| [`authorization-manturhub/`](authorization-manturhub/README.md) | ManturHub device flow and secret-free account Remote | `ctx.manturAccount` |
 
 -----
 

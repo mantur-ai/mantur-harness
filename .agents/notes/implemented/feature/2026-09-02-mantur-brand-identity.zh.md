@@ -16,15 +16,15 @@
 
 漫途构建会发出产品自有的浏览器安装元数据：文档标题、manifest 名称与 manifest 短名称均为“漫途Agent”；favicon 与 manifest 图标使用已确认的 1024 px 透明 PNG。官方构建和本地开发构建保留既有元数据，并且不把未使用的漫途文件放入输出。
 
-漫途层只禁用官方品牌、官方首次运行弹窗、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力、Models 设置以及模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
+漫途层只禁用官方品牌、预览版公告、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力、Models 设置、DeepSeek 凭据引导以及模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
 
-引导 slot 没有撤回操作，因此后挂载的产品插件无法移除 `ui-settings-models` 已注册的项。这个例外只改动一个上游所属产品文件：`packages/client/ui-settings-models/src/client/index.ts`。它保留 Models 分区，只在既有客户端构建 profile 为 `mantur` 时跳过两个引导注册。对应的聚焦 apply 测试是该门控的底座升级检查。
+引导 slot 没有撤回操作，因此后挂载的产品插件无法移除 `ui-settings-models` 已注册的项。这个例外只改动一个上游所属产品文件：`packages/client/ui-settings-models/src/client/index.ts`。它保留 Models 分区与 DeepSeek 凭据引导，只在既有客户端构建 profile 为 `mantur` 时跳过预览版公告。对应的聚焦 apply 测试是该门控的底座升级检查。
 
 Web 公开目录与桌面资源目录保存已确认 PNG 的字节完全相同副本。桌面打包器将该文件用于 macOS 和 Windows 目标，聚焦资产测试则防止任一副本或目标配置独立漂移。当前没有矢量源文件。
 
 ## 验证
 
-客户端单元测试覆盖 slot 注册与卸载、本地化文案、Logo 位置、徽标不显示，以及仅在 Mantur 构建中省略官方引导。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web 记录会话场景以中文和英文启动真实组装，保持欢迎声明未确认，另行挂载缺少凭据的 DeepSeek 适配器，拒绝两个官方弹窗以及通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，确认两个漫途 Logo 位置，并保留模型和权限控件。同一场景会重放已提交的模型轮次，并固定完整漫途系统提示词。PWA 测试验证漫途 manifest、PNG 签名以及官方 favicon 不存在。
+客户端单元测试覆盖 slot 注册与卸载、本地化文案、Logo 位置、徽标不显示，以及仅在 Mantur 构建中省略预览公告。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web 记录会话场景以中文和英文启动真实组装，拒绝预览公告以及通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，确认两个漫途 Logo 位置，并保留模型和权限控件。缺少凭据的场景会验证漫途账号选择排在保留的 DeepSeek 凭据步骤之前。同一场景会重放已提交的模型轮次，并固定完整漫途系统提示词。PWA 测试验证漫途 manifest、PNG 签名以及官方 favicon 不存在。
 
 原生安装包验证仍由桌面载体的三运行器矩阵负责：macOS arm64、macOS x64 与 Windows x64。平台图标渲染、签名、notarization 与外部 release 发布仍是本身份层之外的原生运行器前置条件。
 

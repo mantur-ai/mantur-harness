@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器、Models 设置与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途浏览器品牌插件，并禁用官方品牌条目、官方首次运行弹窗、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
+本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器、Models 设置、DeepSeek API Key 配置与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途品牌与账号插件，并禁用官方品牌条目、预览版公告、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
 
 ## 目录
 
@@ -55,6 +55,7 @@ kind: "package-bundle"
 - **发行视觉资产待定**—最终 macOS 与 Windows 应用图标需要已批准的漫途素材。
 - **三平台安装包验证待完成**—macOS arm64、macOS x64 与 Windows x64 的打包和签名必须在各自原生发行 runner 上执行。
 - **能力仍保留安装**—Agent Preset 与 Plan 包保留在本产品层之下；只禁用它们可见的浏览器条目。
+- **账号范围刻意保持最小**—本 MVP 只提供登录、状态、跳过与本机退出；算子与 Skill 访问延后实现。
 
 <a id="dev-note"></a>
 ### 开发备注

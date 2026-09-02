@@ -48,6 +48,8 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await page.getByRole('heading', { name: '登录漫途账号' }).waitFor({ timeout: 10_000 })
+    await page.getByRole('button', { name: '暂时跳过' }).click()
   }, 120_000)
 
   afterAll(async () => {
@@ -82,7 +84,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  it('does not show official credential onboarding when the DeepSeek adapter has no key', async () => {
+  it('orders Mantur account choice before DeepSeek credential onboarding', async () => {
     const firstRun = await launchWebScaffold({
       extraOverlayPath: OVERLAY,
       extraInstallAnchors: [INSTALL_ANCHOR],
@@ -96,9 +98,12 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     try {
       await firstRunPage.goto(firstRun.authenticatedUrl, { waitUntil: 'load' })
       await firstRunPage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-      await firstRunPage.getByText('故事起于一念，余下交给漫途', { exact: true }).waitFor({ timeout: 10_000 })
+      await firstRunPage.getByRole('heading', { name: '登录漫途账号' }).waitFor({ timeout: 10_000 })
       expect(await firstRunPage.getByText('内测声明', { exact: true }).count()).toBe(0)
       expect(await firstRunPage.getByText('添加一个 API Key 开始使用', { exact: true }).count()).toBe(0)
+      await firstRunPage.getByRole('button', { name: '暂时跳过' }).click()
+      await firstRunPage.getByRole('heading', { name: '添加一个 API Key 开始使用' })
+        .waitFor({ timeout: 10_000 })
     } finally {
       await firstRunPage.close()
       await firstRun.close()
@@ -116,6 +121,8 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     try {
       await englishPage.goto(englishScaffold.authenticatedUrl, { waitUntil: 'load' })
       await englishPage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+      await englishPage.getByRole('heading', { name: 'Sign in to Mantur' }).waitFor({ timeout: 10_000 })
+      await englishPage.getByRole('button', { name: 'Not now' }).click()
       await englishPage.getByText('漫途Agent', { exact: true }).waitFor({ timeout: 10_000 })
       await englishPage.getByText('Every story starts with an idea. Mantur handles the rest.', { exact: true })
         .waitFor({ timeout: 10_000 })
