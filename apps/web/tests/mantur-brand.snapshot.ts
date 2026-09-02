@@ -55,7 +55,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     await scaffold?.close()
   })
 
-  it('shows the Mantur text brand without the official mark, preview badge, preset, or plan control', async () => {
+  it('shows the Mantur brand without the official mark, preview badge, preset, or plan control', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-mantur-brand'))
     await expect.poll(() => page.getByText('漫途Agent', { exact: true }).count(), { timeout: 10_000 })
       .toBe(1)
@@ -66,6 +66,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     expect(await page.getByText('添加一个 API Key 开始使用', { exact: true }).count()).toBe(0)
     expect(await page.getByText(/DeepSeek Harness/).count()).toBe(0)
     expect(await page.locator('[class*="fishHitbox"] svg').count()).toBe(0)
+    expect(await page.locator('img[src$="mantur-logo.png"]').count()).toBe(2)
     expect(await page.getByRole('button', { name: '标准模式' }).count()).toBe(0)
     expect(await page.getByRole('button', { name: /计划模式/ }).count()).toBe(0)
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)

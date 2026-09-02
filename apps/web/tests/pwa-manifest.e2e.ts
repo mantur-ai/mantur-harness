@@ -33,6 +33,12 @@ it('ships install metadata with the built web application', async () => {
       start_url: '/',
       scope: '/',
       display: 'fullscreen',
+      icons: [{
+        src: './mantur-logo.png',
+        sizes: '1024x1024',
+        type: 'image/png',
+        purpose: 'any',
+      }],
     }
     : {
       id: '/',
@@ -48,12 +54,16 @@ it('ships install metadata with the built web application', async () => {
         purpose: 'any',
       }],
     })
-  expect(index.includes('rel="icon"')).toBe(PROFILE !== 'mantur')
+  expect(index).toContain(PROFILE === 'mantur'
+    ? '<link rel="icon" type="image/png" href="./mantur-logo.png" />'
+    : '<link rel="icon" type="image/svg+xml" href="./favicon.svg" />')
 })
 
-it('ships a favicon that switches to a light mark under dark color scheme', async () => {
+it('ships the profile-owned favicon', async () => {
   if (PROFILE === 'mantur') {
     expect(existsSync(join(DIST_ROOT, 'favicon.svg'))).toBe(false)
+    const logo = await readFile(join(DIST_ROOT, 'mantur-logo.png'))
+    expect(logo.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
     return
   }
   const favicon = await readFile(join(DIST_ROOT, 'favicon.svg'), 'utf8')

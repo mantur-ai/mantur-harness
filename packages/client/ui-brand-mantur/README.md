@@ -1,5 +1,5 @@
 ---
-description: "Mantur Agent text-brand occupants for the sidebar and blank-session hero, for maintainers composing the Mantur desktop client."
+description: "Mantur Agent logo and product-copy occupants for the sidebar and blank-session hero, for maintainers composing the Mantur desktop client."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the generic sidebar with the localized `漫途Agent` product name and the blank-session hero with the Mantur product promise. It leaves the hero prefix empty, removes the official fish fallback, keeps the collapsed sidebar's ordinary panel control visible, and occupies the hero badge slot with no content so the Mantur composition does not show the Web Preview badge. It changes no layout, conversation, model, permission, or agent capability.
+This package fills the generic sidebar and blank-session hero with the approved blue infinity-loop logo, the localized `漫途Agent` product name, and the Mantur product promise. The collapsed sidebar shows the same logo until hover reveals its ordinary panel control, while the empty hero badge occupant keeps the Web Preview badge out of the Mantur composition. It changes no layout, conversation, model, permission, or agent capability.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ This package fills the generic sidebar with the localized `漫途Agent` product 
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this row only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The browser half registers `sidebar.brand.mark`, `sidebar.brand.name`, `conversation.hero.brand.mark`, `conversation.hero.headline`, and `conversation.hero.badge` after their owners declare them. Both locales render the confirmed product name `漫途Agent` in the sidebar, while the hero starts directly with the Chinese headline `故事起于一念，余下交给漫途` or its English equivalent. The package does not invent an abbreviation, monogram, logo, or application icon.
+Compose this row only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The browser half registers `sidebar.brand.mark`, `sidebar.brand.name`, `conversation.hero.brand.mark`, `conversation.hero.headline`, and `conversation.hero.badge` after their owners declare them. Both locales render the confirmed product name `漫途Agent` in the sidebar, while the hero places the approved logo before the Chinese headline `故事起于一念，余下交给漫途` or its English equivalent. The Mantur Web application must serve `mantur-logo.png` beside its built page.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -38,8 +38,8 @@ None; no text from this package reaches a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Formal visual assets are pending** — a confirmed logo and native application icon must replace no existing asset until Mantur supplies approved source artwork.
-- **Text name is deliberate** — the current brand surface uses the complete product name in both locales and does not treat a temporary glyph as a brand mark.
+- **The approved source is raster artwork** — Web and native packaging use byte-identical 1024 px PNG files until Mantur approves a vector source.
+- **The complete product name remains visible** — the logo supplements `漫途Agent` in the expanded sidebar instead of replacing its localized name.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -47,7 +47,7 @@ None; no text from this package reaches a provider request.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The collapsed rail receives the existing panel glyph as a navigation affordance, not as brand artwork. The expanded row renders no mark beside the product name, and the hero brand-mark occupant renders nothing so the headline has no prefix.
+The expanded row, collapsed rail, and hero render the same image URL. The sidebar shell owns the collapsed hover swap from the logo to its panel-navigation affordance.
 
 </details>
 

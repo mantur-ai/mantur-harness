@@ -50,14 +50,17 @@ describe('Mantur browser-brand plugin', () => {
     await fiber.dispose()
   })
 
-  it('keeps the product name in the sidebar and leaves the hero prefix empty', () => {
+  it('renders the approved logo with the localized product copy', () => {
     const t = (() => '漫途Agent') as never
     const sidebarName = render(<ManturSidebarName t={t} />)
     expect(sidebarName.getByText('漫途Agent')).toBeTruthy()
     sidebarName.unmount()
 
-    const hero = render(<ManturHeroBrand />)
-    expect(hero.container.childElementCount).toBe(0)
+    const hero = render(<ManturHeroBrand size={34} className="hero-mark" />)
+    const heroLogo = hero.container.querySelector('img')
+    expect(heroLogo?.getAttribute('src')).toBe('./mantur-logo.png')
+    expect(heroLogo?.getAttribute('class')).toBe('hero-mark')
+    expect(heroLogo?.getAttribute('width')).toBe('34')
     hero.unmount()
 
     const headline = render(<ManturHeroHeadline t={key => key === 'headline'
@@ -67,9 +70,9 @@ describe('Mantur browser-brand plugin', () => {
     headline.unmount()
 
     const expanded = render(<ManturSidebarMark size={24} placement="expanded" />)
-    expect(expanded.container.childElementCount).toBe(0)
+    expect(expanded.container.querySelector('img')?.getAttribute('src')).toBe('./mantur-logo.png')
     expanded.rerender(<ManturSidebarMark size={24} placement="rail" />)
-    expect(expanded.container.querySelector('svg')).not.toBeNull()
+    expect(expanded.container.querySelector('img')?.getAttribute('width')).toBe('24')
     expanded.unmount()
 
     const badge = render(<ManturHeroBadge />)

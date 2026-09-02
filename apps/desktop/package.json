@@ -53,6 +53,7 @@
     "mac": {
       "artifactName": "漫途Agent-macOS-${arch}.${ext}",
       "category": "public.app-category.productivity",
+      "icon": "resources/mantur-logo.png",
       "identity": null,
       "target": [
         "dmg",
@@ -61,6 +62,7 @@
     },
     "win": {
       "artifactName": "漫途Agent-Windows-${arch}.${ext}",
+      "icon": "resources/mantur-logo.png",
       "target": [
         "nsis"
       ]

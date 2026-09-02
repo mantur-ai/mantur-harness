@@ -25,11 +25,14 @@ function clientDocumentMetadata(): Plugin {
     transformIndexHtml(html) {
       const titled = html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
       return isMantur
-        ? titled.replace(/^\s*<link rel="icon"[^>]*>\s*$/mu, '')
+        ? titled.replace(/<link rel="icon"[^>]*>/u, '<link rel="icon" type="image/png" href="./mantur-logo.png" />')
         : titled
     },
     async closeBundle() {
-      if (!isMantur) return
+      if (!isMantur) {
+        await rm(src('./dist/mantur-logo.png'), { force: true })
+        return
+      }
       await Promise.all([
         writeFile(src('./dist/manifest.webmanifest'), `${JSON.stringify({
           id: '/',
@@ -38,6 +41,12 @@ function clientDocumentMetadata(): Plugin {
           start_url: '/',
           scope: '/',
           display: 'fullscreen',
+          icons: [{
+            src: './mantur-logo.png',
+            sizes: '1024x1024',
+            type: 'image/png',
+            purpose: 'any',
+          }],
         }, null, 2)}\n`),
         rm(src('./dist/favicon.svg'), { force: true }),
       ])

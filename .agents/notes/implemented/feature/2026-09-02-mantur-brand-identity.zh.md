@@ -12,21 +12,21 @@
 
 随附的 `mantur` profile 依次叠加 `dsh-base`、`dsh-web-app` 与 `dsh-mantur-app`。桌面载体启动该 profile；普通 `web` profile 保持不变。
 
-`dsh-client-ui-brand-mantur` 占用通用侧边栏与空会话 Hero slot。它在侧边栏显示已确认的文字名称“漫途Agent”，让 Hero 前缀保持为空，把 Hero 标题替换为“故事起于一念，余下交给漫途”或其英文等价文案，移除预览版徽标，并隐藏官方鱼形标记。收起轨道保留既有面板导航图形，它是操作指示而非品牌标记。通用 Conversation shell 现在为标题与徽标声明 slot，并以既有文案作为 fallback；侧边栏 mark owner 则收到展开态或轨道态位置。
+`dsh-client-ui-brand-mantur` 占用通用侧边栏与空会话 Hero slot。它显示已确认的对称蓝色无限环 Logo 和文字名称“漫途Agent”，把 Hero 标题替换为“故事起于一念，余下交给漫途”或其英文等价文案，移除预览版徽标，并隐藏官方鱼形标记。收起轨道先显示漫途 Logo，悬停时再显示既有面板导航图形。通用 Conversation shell 为标题与徽标声明 slot，并以既有文案作为 fallback；侧边栏 mark owner 则收到展开态或轨道态位置。
 
-漫途构建会发出产品自有的浏览器安装元数据：文档标题、manifest 名称与 manifest 短名称均为“漫途Agent”。在已审批漫途素材就绪前，它不包含官方 favicon 与 manifest 图标项。官方构建和本地开发构建保留既有元数据。
+漫途构建会发出产品自有的浏览器安装元数据：文档标题、manifest 名称与 manifest 短名称均为“漫途Agent”；favicon 与 manifest 图标使用已确认的 1024 px 透明 PNG。官方构建和本地开发构建保留既有元数据，并且不把未使用的漫途文件放入输出。
 
 漫途层只禁用官方品牌、官方首次运行弹窗、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力、Models 设置以及模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
 
 引导 slot 没有撤回操作，因此后挂载的产品插件无法移除 `ui-settings-models` 已注册的项。这个例外只改动一个上游所属产品文件：`packages/client/ui-settings-models/src/client/index.ts`。它保留 Models 分区，只在既有客户端构建 profile 为 `mantur` 时跳过两个引导注册。对应的聚焦 apply 测试是该门控的底座升级检查。
 
-本次不引入 Logo 或原生应用图标。在漫途提供已审批素材前，文字是唯一产品身份，桌面构建保留打包占位图标。
+Web 公开目录与桌面资源目录保存已确认 PNG 的字节完全相同副本。桌面打包器将该文件用于 macOS 和 Windows 目标，聚焦资产测试则防止任一副本或目标配置独立漂移。当前没有矢量源文件。
 
 ## 验证
 
-客户端单元测试覆盖 slot 注册与卸载、本地化文案、展开态标记与徽标不显示、轨道操作指示保留，以及仅在 Mantur 构建中省略官方引导。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web 记录会话场景以中文和英文启动真实组装，保持欢迎声明未确认，另行挂载缺少凭据的 DeepSeek 适配器，拒绝两个官方弹窗以及通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，并确认模型和权限控件。同一场景会重放已提交的模型轮次，并固定完整漫途系统提示词。PWA 测试验证漫途 manifest 以及官方 favicon 不存在。
+客户端单元测试覆盖 slot 注册与卸载、本地化文案、Logo 位置、徽标不显示，以及仅在 Mantur 构建中省略官方引导。组合包测试按生产顺序应用 Base、Web 与 Mantur patch，并断言结果配置项与模型 persona。不需密钥的已构建 Web 记录会话场景以中文和英文启动真实组装，保持欢迎声明未确认，另行挂载缺少凭据的 DeepSeek 适配器，拒绝两个官方弹窗以及通用标题、鱼形标记、预览版、Agent Preset 与 Plan UI，确认两个漫途 Logo 位置，并保留模型和权限控件。同一场景会重放已提交的模型轮次，并固定完整漫途系统提示词。PWA 测试验证漫途 manifest、PNG 签名以及官方 favicon 不存在。
 
-原生安装包验证仍由桌面载体的三运行器矩阵负责：macOS arm64、macOS x64 与 Windows x64。正式视觉素材、签名、notarization 与外部 release 发布仍是本身份层之外的前置条件。
+原生安装包验证仍由桌面载体的三运行器矩阵负责：macOS arm64、macOS x64 与 Windows x64。平台图标渲染、签名、notarization 与外部 release 发布仍是本身份层之外的原生运行器前置条件。
 
 ## 考虑过的替代方案
 
@@ -38,7 +38,7 @@
 
 **只修改全局部署 persona。** 拒绝，因为 Agent 作用域的 Preset persona 会在组装前遮蔽它。
 
-**创造临时漫途 Logo。** 拒绝，因为当前没有已审批视觉标记；任意的字母组合会变成无支持的产品素材。
+**派生字母组合或临时标记。** 拒绝，因为已确认的对称蓝色无限环是 Web 和原生包唯一的产品标记。
 
 ## 后果
 
@@ -46,4 +46,4 @@
 - 底层 Agent Preset 与 Plan 能力仍供组装和诊断使用，但它们的普通客户端控件不出现在 Mantur profile 中。
 - 漫途部署 persona 优先于非 complete Preset persona，Preset 工具与 skill 保持不变。
 - 其他 Web 部署保留现有品牌、首页标题、预览版徽标与控件。
-- 已审批 Logo 与原生图标素材可以稍后替换纯文字占位者，无需改变桌面运行时或 profile 结构。
+- 替换已确认的位图素材时必须同步 Web 与桌面资源副本，桌面运行时与 profile 结构保持不变。

@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。桌面包不会实现另一套 agent 运行时。
+桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。两个原生打包目标都使用已确认的蓝色无限环 Logo，桌面包不会实现另一套 agent 运行时。
 
 ## 不打包开发
 
@@ -60,6 +60,6 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 ## 已知限制
 
 - 这些是未签名的内部安装包。macOS Gatekeeper 和 Windows SmartScreen 可能显示警告；在提供签名以及 macOS notarization 身份之前，自动安装不是受支持的发布路径。
-- 默认 Electron 图标仍是临时值。应用标识与数据目录已稳定。
+- 已确认的图标源文件是 1024 px 透明 PNG。macOS 和 Windows 包会在原生构建时生成各自的平台图标格式；当前没有矢量源文件。
 - 包中已包含 updater，但手动工作流只上传私有构建产物，绝不创建 GitHub release。独立的已签名发布流程必须同时发布安装包、更新 archive、blockmap 与生成的更新元数据。
 - 每个目标只在其原生 runner 同时完成打包和 smoke 后有效。一个架构上的构建不能作为另一目标的证据。

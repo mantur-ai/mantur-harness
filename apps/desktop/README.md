@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. The desktop package does not implement another agent runtime.
+The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. Both native package targets use the approved blue infinity-loop logo, and the desktop package does not implement another agent runtime.
 
 ## Develop without packaging
 
@@ -60,6 +60,6 @@ Packaged applications check the `mantur-ai/mantur-harness` GitHub Releases feed 
 ## Known limitations
 
 - These are unsigned internal installers. macOS Gatekeeper and Windows SmartScreen can warn, and automatic installation is not a supported release path until signing and macOS notarization identities are supplied.
-- The default Electron icon is temporary. The application identifier and data directory are stable.
+- The approved icon source is a 1024 px transparent PNG. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
 - The package contains the updater, but the manual workflow uploads private build artifacts only and never creates a GitHub release. A separate signed release process must publish the installer, update archive, blockmap, and generated update metadata together.
 - Each target is valid only after its native runner completes both packaging and the smoke. A build on one architecture is not evidence for another target.

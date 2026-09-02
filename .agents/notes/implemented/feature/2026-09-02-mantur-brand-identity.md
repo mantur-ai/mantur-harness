@@ -12,21 +12,21 @@ The desktop installer is a Mantur product for people producing comic dramas, but
 
 The shipped `mantur` profile stacks `dsh-base`, `dsh-web-app`, and `dsh-mantur-app`. The desktop carrier launches that profile; the ordinary `web` profile remains unchanged.
 
-`dsh-client-ui-brand-mantur` occupies generic sidebar and blank-session Hero slots. It renders the confirmed text name `漫途Agent` in the sidebar, leaves the Hero prefix empty, replaces the Hero headline with `故事起于一念，余下交给漫途` or its English equivalent, removes the Preview badge, and suppresses the official fish mark. The collapsed rail keeps the existing panel-navigation glyph as an affordance, not a brand mark. The generic conversation shell now declares headline and badge slots with its existing copy as fallbacks, and the sidebar mark owner receives its expanded or rail placement.
+`dsh-client-ui-brand-mantur` occupies generic sidebar and blank-session Hero slots. It renders the approved symmetric blue infinity-loop logo and the confirmed text name `漫途Agent`, replaces the Hero headline with `故事起于一念，余下交给漫途` or its English equivalent, removes the Preview badge, and suppresses the official fish mark. The collapsed rail displays the Mantur logo until hover reveals the existing panel-navigation glyph. The generic conversation shell declares headline and badge slots with its existing copy as fallbacks, and the sidebar mark owner receives its expanded or rail placement.
 
-The Mantur build emits product-owned browser install metadata: the document title, manifest name, and manifest short name are `漫途Agent`. It omits the official favicon and manifest icon entry until approved Mantur artwork exists. Official and local-development builds retain their existing metadata.
+The Mantur build emits product-owned browser install metadata: the document title, manifest name, and manifest short name are `漫途Agent`; its favicon and manifest icon use the approved 1024 px transparent PNG. Official and local-development builds retain their existing metadata and omit the unused Mantur file from their output.
 
 The Mantur layer disables only the official brand, official first-run dialogs, Agent Preset client surface, and Plan client surface. It keeps their Host packages and agent composition capabilities, Models settings, and model and permission controls. The layer also omits generic Harness and Web-surface prompt sections. Its Host identity row replaces the effective non-complete preset persona after cooperative prompt transforms, so the default Standard preset cannot turn the model back into a generic coding agent. The resulting persona identifies Mantur ownership, local execution, and comic-drama work from story through production delivery.
 
 The onboarding slot has no withdrawal operation, so a later product plugin cannot remove entries already registered by `ui-settings-models`. The only upstream-owned product file changed for this exception is `packages/client/ui-settings-models/src/client/index.ts`: it leaves the Models section intact and skips its two onboarding registrations only when the existing client build profile is `mantur`. Its focused apply test is the upgrade check for that gate.
 
-No logo or native application icon is introduced. Until Mantur supplies approved artwork, text is the only product identity and the desktop build retains its packaging placeholder icon.
+The Web public directory and desktop resources directory carry byte-identical copies of the approved PNG. The desktop packager uses that file for both macOS and Windows targets, while the focused asset test prevents either copy or target configuration from drifting independently. A vector source remains unavailable.
 
 ## Verification
 
-Client unit tests cover slot registration, disposal, localized text, the absent expanded mark and badge, the retained rail affordance, and the Mantur-only omission of official onboarding. Bundle tests apply the Base, Web, and Mantur patches in production order and assert the resulting rows and model persona. A keyless built-Web recorded-session scenario boots the real composition in Chinese and English, leaves the welcome acknowledgement pending, separately mounts a credential-less DeepSeek adapter, rejects both official dialogs plus the generic headline, fish, Preview, Agent Preset, and Plan UI, and confirms model and permission controls. The same scenario replays a committed model turn and pins the complete Mantur system prompt. The PWA test verifies the Mantur manifest and absence of an official favicon.
+Client unit tests cover slot registration, disposal, localized text, logo placement, the absent badge, and the Mantur-only omission of official onboarding. Bundle tests apply the Base, Web, and Mantur patches in production order and assert the resulting rows and model persona. A keyless built-Web recorded-session scenario boots the real composition in Chinese and English, leaves the welcome acknowledgement pending, separately mounts a credential-less DeepSeek adapter, rejects both official dialogs plus the generic headline, fish, Preview, Agent Preset, and Plan UI, confirms both Mantur logo placements, and retains model and permission controls. The same scenario replays a committed model turn and pins the complete Mantur system prompt. The PWA test verifies the Mantur manifest, PNG signature, and absence of an official favicon.
 
-Native installer validation remains the three-runner matrix owned by the desktop carrier: macOS arm64, macOS x64, and Windows x64. Formal visual assets, signing, notarization, and external release publication remain prerequisites outside this identity layer.
+Native installer validation remains the three-runner matrix owned by the desktop carrier: macOS arm64, macOS x64, and Windows x64. Platform icon rendering, signing, notarization, and external release publication remain native-runner prerequisites outside this identity layer.
 
 ## Alternatives considered
 
@@ -38,7 +38,7 @@ Native installer validation remains the three-runner matrix owned by the desktop
 
 **Change only the global deployment persona.** Rejected because an agent-scoped preset persona shadows it before assembly.
 
-**Invent a temporary Mantur logo.** Rejected because no visual mark has been approved; an arbitrary monogram would become an unsupported product asset.
+**Derive a monogram or temporary mark.** Rejected because the approved symmetric blue infinity loop is the single product mark across Web and native packages.
 
 ## Consequences
 
@@ -46,4 +46,4 @@ Native installer validation remains the three-runner matrix owned by the desktop
 - The underlying Agent Preset and Plan capabilities remain available to composition and diagnostics, but their ordinary client controls are absent from the Mantur profile.
 - The Mantur deployment persona takes precedence over non-complete preset personas, while preset tools and skills remain intact.
 - Other Web deployments keep their existing brand, headline, Preview badge, and controls.
-- Approved logo and native icon artwork can later replace the text-only occupants without changing the desktop runtime or profile structure.
+- Replacing the approved raster artwork requires synchronized Web and desktop resource copies, while the desktop runtime and profile structure remain unchanged.
