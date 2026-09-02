@@ -54,4 +54,23 @@ describe('desktop runtime', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+
+  it('closes the child before a readiness timeout rejects', async () => {
+    const service = startDesktopService({
+      electronExecutable: process.execPath,
+      entry: fixture,
+      environment: { ...process.env, DESKTOP_TEST_SKIP_READY: '1' },
+      timeoutMs: 10,
+    })
+    let closed = false
+    void service.closed.then(() => { closed = true })
+
+    try {
+      await expect(service.ready).rejects.toThrow('dsh did not become ready within 10ms')
+      expect(closed).toBe(true)
+    } finally {
+      service.stop()
+      await service.closed
+    }
+  })
 })

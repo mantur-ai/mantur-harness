@@ -60,32 +60,35 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): () => void {
   updater.autoDownload = false
   updater.autoInstallOnAppQuit = false
   updater.allowPrerelease = true
+  let active = true
   let downloading = false
+  const isActive = (): boolean => active
 
   const onAvailable = (info: UpdateInfo): void => {
     if (downloading) return
     void options.prompts.confirmDownload(info.version).then(async (confirmed) => {
-      if (!confirmed || downloading) return
+      if (!active || !confirmed || downloading) return
       downloading = true
       options.log(`desktop update: downloading ${info.version}`)
       try {
         await updater.downloadUpdate()
       } catch (error) {
         downloading = false
-        options.log(`desktop update: download failed: ${String(error)}`)
+        if (isActive()) options.log(`desktop update: download failed: ${String(error)}`)
       }
     }).catch((error: unknown) => {
-      options.log(`desktop update: download prompt failed: ${String(error)}`)
+      if (active) options.log(`desktop update: download prompt failed: ${String(error)}`)
     })
   }
 
   const onDownloaded = (info: UpdateDownloadedEvent): void => {
     void options.prompts.confirmInstall(info.version).then(async (confirmed) => {
-      if (!confirmed) return
+      if (!active || !confirmed) return
       await options.beforeInstall()
+      if (!isActive()) return
       updater.quitAndInstall(false, true)
     }).catch((error: unknown) => {
-      options.log(`desktop update: install prompt failed: ${String(error)}`)
+      if (active) options.log(`desktop update: install prompt failed: ${String(error)}`)
     })
   }
 
@@ -100,13 +103,14 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): () => void {
   const check = (): void => {
     options.log('desktop update: checking')
     void updater.checkForUpdates().catch((error: unknown) => {
-      options.log(`desktop update: check failed: ${String(error)}`)
+      if (active) options.log(`desktop update: check failed: ${String(error)}`)
     })
   }
   const delay = setTimeout(check, options.checkDelayMs ?? UPDATE_CHECK_DELAY_MS)
   const interval = setInterval(check, options.checkIntervalMs ?? UPDATE_CHECK_INTERVAL_MS)
 
   return () => {
+    active = false
     clearTimeout(delay)
     clearInterval(interval)
     updater.off('update-available', onAvailable)

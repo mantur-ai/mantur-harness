@@ -15,7 +15,7 @@ export interface DesktopService {
   child: ChildProcessByStdio<null, Readable, Readable>
   /** Resolves after dsh exits and its persistent log finishes closing. */
   closed: Promise<void>
-  /** Resolves only after the Web profile announces its tokenized loopback URL. */
+  /** Resolves after Web readiness; rejects only after the failed child and log close. */
   ready: Promise<string>
   /** Request termination, escalating if dsh does not exit within the shutdown deadline. */
   stop: () => void
@@ -129,17 +129,24 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
 
     child.stdout.on('data', (chunk: Buffer) => { inspect(chunk, process.stdout) })
     child.stderr.on('data', (chunk: Buffer) => { inspect(chunk, process.stderr) })
+    const rejectAfterClose = (error: Error): void => {
+      if (!finish()) return
+      void closed.then(() => { reject(error) })
+    }
+
     child.once('error', (error) => {
-      if (finish()) reject(error)
+      rejectAfterClose(error)
     })
     child.once('exit', (code, signal) => {
-      if (finish()) {
-        reject(new Error(`dsh stopped before desktop readiness (code ${String(code)}, signal ${String(signal)}).\n${output}`))
-      }
+      rejectAfterClose(new Error(
+        `dsh stopped before desktop readiness (code ${String(code)}, signal ${String(signal)}).\n${output}`,
+      ))
     })
     timeout = setTimeout(() => {
+      if (!finish()) return
       stop()
-      if (finish()) reject(new Error(`dsh did not become ready within ${String(timeoutMs)}ms.\n${output}`))
+      const error = new Error(`dsh did not become ready within ${String(timeoutMs)}ms.\n${output}`)
+      void closed.then(() => { reject(error) })
     }, timeoutMs)
   })
 

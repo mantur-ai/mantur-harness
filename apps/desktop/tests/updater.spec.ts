@@ -70,4 +70,34 @@ describe('desktop automatic updates', () => {
     expect(beforeInstall).toHaveBeenCalledOnce()
     stop()
   })
+
+  it('suppresses pending prompt work after disposal', async () => {
+    const updater = new FakeUpdater()
+    let releaseDownload: ((confirmed: boolean) => void) | undefined
+    let releaseInstall: ((confirmed: boolean) => void) | undefined
+    const confirmDownload = vi.fn(() => new Promise<boolean>((resolve) => { releaseDownload = resolve }))
+    const confirmInstall = vi.fn(() => new Promise<boolean>((resolve) => { releaseInstall = resolve }))
+    const beforeInstall = vi.fn(async () => {})
+    const stop = startAutoUpdates({
+      updater,
+      prompts: { confirmDownload, confirmInstall },
+      beforeInstall,
+      log: vi.fn(),
+    })
+
+    updater.emit('update-available', { version: '1.2.3' })
+    updater.emit('update-downloaded', { version: '1.2.3' })
+    await vi.waitFor(() => {
+      expect(confirmDownload).toHaveBeenCalledOnce()
+      expect(confirmInstall).toHaveBeenCalledOnce()
+    })
+    stop()
+    releaseDownload?.(true)
+    releaseInstall?.(true)
+    await Promise.resolve()
+
+    expect(updater.downloadUpdate).not.toHaveBeenCalled()
+    expect(beforeInstall).not.toHaveBeenCalled()
+    expect(updater.quitAndInstall).not.toHaveBeenCalled()
+  })
 })

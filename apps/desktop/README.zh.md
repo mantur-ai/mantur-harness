@@ -53,9 +53,9 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 永久应用标识为 `ai.mantur.agent`。Electron 就绪前，载体会在操作系统的应用数据根目录下设置稳定的 `mantur-agent` 用户数据目录。其 `harness` 子目录是已安装应用使用的唯一 `DSH_HOME`，因此 `~/.dsh` 中的 CLI 或开发数据不会影响桌面启动。子进程从应用自有的中性目录启动，并把 stdout、stderr、恢复与 updater 诊断追加到同一用户数据根下的 `logs/harness.log`。
 
-如果启动错误只识别到过期的 `session_projcache` schema，本地化原生对话框会在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
+如果启动错误只识别到过期的 `session_projcache` schema，载体会先关闭失败的子进程并完成日志写入，再由本地化原生对话框在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
 
-已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
+已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。在任一对话框等待期间关闭 updater，会取消后续下载或安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
 
 ## 已知限制
 
