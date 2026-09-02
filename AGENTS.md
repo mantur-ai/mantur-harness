@@ -2,6 +2,17 @@
 
 DeepSeek Harness is an all-plugin Cordis agent harness. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 
+## Mantur drama fork policy
+
+- **Goal and scope.** Build the drama-production edition as a maintainable extension of DSH. Implement only verified needs; do not add speculative abstractions, silent fallbacks, or unrelated cleanup.
+- **Extension-first ownership.** Put drama behavior in plugins, Skills, profiles and configuration, and documented extension points. Modify official core only when existing extension mechanisms cannot express the requirement, and record the reason, affected upstream files, and upgrade test in an Agent Note.
+- **Git topology.** `origin/main` is the stable drama branch, local `master` tracks `upstream/master`, and working branches use `feat/<topic>` or `fix/<topic>`. Fetch official updates into `master`, merge tested `master` into `main` and active shared branches, and never push to `upstream`.
+- **Small reviewable changes.** Each branch owns one feature or fix. Avoid adjacent refactors, keep generated and vendored sources under their owning workflows, and keep product code, focused tests, documentation, and the required Agent Note in the same change.
+- **Plain commit messages.** Every commit subject uses `<type>(<scope>): <plain outcome>` with an optional scope and says in everyday language what changed. Add a brief body with `Changed:` and `Why:` when the subject alone is insufficient; vague subjects such as `update`, `misc`, `fix stuff`, and `WIP` are invalid.
+- **Done means verified.** Before a commit or push, review the diff for unrelated files and run the smallest relevant evidence. Merge to `main` only after the selected checks pass, and report checks that were not run as pending.
+
+The [Mantur fork decision](.agents/notes/implemented/process/2026-09-02-mantur-fork-development-policy.md) owns the rationale for these additions. All other repository rules below remain authoritative.
+
 ## Pre-release stance: foundation over blast radius
 
 **Remove at the first tagged release.** Until then, prefer correct foundations to compatibility shims: rename or repackage freely and update every reference. Backends reject old on-disk formats. SQLite uses monotonic `SCHEMA_VERSION`; `dsh-session` keeps `SESSION_FORMAT_VERSION` at `0` with no compatibility promise.
