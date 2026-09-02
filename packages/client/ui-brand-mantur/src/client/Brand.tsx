@@ -1,6 +1,5 @@
 /** Mantur text identity and collapsed-sidebar navigation affordance. */
 import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 
@@ -27,12 +26,11 @@ export function ManturSidebarName({ t }: ManturNameProps) {
 }
 
 /**
- * Render the full Mantur product name before the blank-session headline.
- * @param props - Hero geometry and standard locale seat.
- * @returns localized product-name text.
+ * Suppress the official hero mark without repeating the sidebar product name.
+ * @returns no content before the blank-session headline.
  */
-export function ManturHeroBrand({ t }: HeroBrandMarkOwnerProps & ManturNameProps) {
-  return <span>{t('name')}</span>
+export function ManturHeroBrand() {
+  return null
 }
 
 /**

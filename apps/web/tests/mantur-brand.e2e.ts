@@ -38,7 +38,7 @@ describe('web e2e: Mantur product identity', () => {
   it('shows the Mantur text brand without the official mark, preview badge, preset, or plan control', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-mantur-brand'))
     await expect.poll(() => page.getByText('漫途Agent', { exact: true }).count(), { timeout: 10_000 })
-      .toBeGreaterThanOrEqual(2)
+      .toBe(1)
     await page.getByText('故事起于一念，余下交给漫途', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await page.getByText('探索未至之境', { exact: true }).count()).toBe(0)
     expect(await page.getByText('预览版', { exact: true }).count()).toBe(0)

@@ -50,15 +50,14 @@ describe('Mantur browser-brand plugin', () => {
     await fiber.dispose()
   })
 
-  it('renders only the full product name and the collapsed navigation affordance', () => {
+  it('keeps the product name in the sidebar and leaves the hero prefix empty', () => {
     const t = (() => '漫途Agent') as never
     const sidebarName = render(<ManturSidebarName t={t} />)
     expect(sidebarName.getByText('漫途Agent')).toBeTruthy()
     sidebarName.unmount()
 
-    const hero = render(<ManturHeroBrand size={34} t={t} />)
-    expect(hero.getByText('漫途Agent')).toBeTruthy()
-    expect(hero.container.querySelector('svg')).toBeNull()
+    const hero = render(<ManturHeroBrand />)
+    expect(hero.container.childElementCount).toBe(0)
     hero.unmount()
 
     const headline = render(<ManturHeroHeadline t={key => key === 'headline'

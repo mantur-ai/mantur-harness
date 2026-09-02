@@ -12,7 +12,7 @@
 
 随附的 `mantur` profile 依次叠加 `dsh-base`、`dsh-web-app` 与 `dsh-mantur-app`。桌面载体启动该 profile；普通 `web` profile 保持不变。
 
-`dsh-client-ui-brand-mantur` 占用通用侧边栏与空会话 Hero slot。它显示已确认的文字名称“漫途Agent”，把 Hero 标题替换为“故事起于一念，余下交给漫途”或其英文等价文案，移除预览版徽标，并隐藏官方鱼形标记。收起轨道保留既有面板导航图形，它是操作指示而非品牌标记。通用 Conversation shell 现在为标题与徽标声明 slot，并以既有文案作为 fallback；侧边栏 mark owner 则收到展开态或轨道态位置。
+`dsh-client-ui-brand-mantur` 占用通用侧边栏与空会话 Hero slot。它在侧边栏显示已确认的文字名称“漫途Agent”，让 Hero 前缀保持为空，把 Hero 标题替换为“故事起于一念，余下交给漫途”或其英文等价文案，移除预览版徽标，并隐藏官方鱼形标记。收起轨道保留既有面板导航图形，它是操作指示而非品牌标记。通用 Conversation shell 现在为标题与徽标声明 slot，并以既有文案作为 fallback；侧边栏 mark owner 则收到展开态或轨道态位置。
 
 漫途层只禁用官方品牌、Agent Preset 客户端表面和 Plan 客户端表面。它保留这些宿主包与 Agent 组装能力，也保留模型和权限控件。该层还省略通用 Harness 与 Web 表面提示词段。其宿主身份项在协作式提示词转换后替换有效的非 complete Preset persona，因此默认 Standard Preset 不会把模型改回通用编码 Agent。最终 persona 明确漫途归属、本地执行，以及从故事到制作交付的漫剧工作。
 

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包使用本地化的 `漫途Agent` 产品名称与产品承诺占用通用侧边栏与空会话品牌 slot。它移除官方鱼形后备标记，保留收起侧边栏的普通面板按钮，并以空内容占用 hero badge slot，使漫途组装不显示 Web 预览版徽标。它不改变布局、对话、模型、权限或 Agent 能力。
+本包在通用侧边栏显示本地化的 `漫途Agent` 产品名称，并在空会话首页显示漫途产品承诺。它让首页标题前缀保持为空、移除官方鱼形后备标记、保留收起侧边栏的普通面板按钮，并以空内容占用 hero badge slot，使漫途组装不显示 Web 预览版徽标。它不改变布局、对话、模型、权限或 Agent 能力。
 
 ## 目录
 
@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-只通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组装本条目。浏览器端在所有者声明后注册 `sidebar.brand.mark`、`sidebar.brand.name`、`conversation.hero.brand.mark`、`conversation.hero.headline` 与 `conversation.hero.badge`。中英文 locale 都显示已确认的产品名称 `漫途Agent`；中文首页标题为“故事起于一念，余下交给漫途”，英文使用等价的产品承诺。本包不自行创造简称、字母组合、Logo 或应用图标。
+只通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组装本条目。浏览器端在所有者声明后注册 `sidebar.brand.mark`、`sidebar.brand.name`、`conversation.hero.brand.mark`、`conversation.hero.headline` 与 `conversation.hero.badge`。中英文 locale 都在侧边栏显示已确认的产品名称 `漫途Agent`，首页则直接以“故事起于一念，余下交给漫途”或其英文等价文案开头。本包不自行创造简称、字母组合、Logo 或应用图标。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -47,7 +47,7 @@ kind: "package-reference"
 <details>
 <summary>维护者工作上下文—点击展开</summary>
 
-收起轨道获得的是现有面板图形，它是导航操作指示，不是品牌图形。展开行只显示产品名，不显示标记。
+收起轨道获得的是现有面板图形，它是导航操作指示，不是品牌图形。展开行只显示产品名、不显示标记；首页品牌标记占位者不渲染内容，让标题前面没有文字。
 
 </details>
 
