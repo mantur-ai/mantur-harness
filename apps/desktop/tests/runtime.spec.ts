@@ -10,12 +10,12 @@ import { buildDshArguments, extractReadyUrl, startDesktopService } from '../src/
 const fixture = fileURLToPath(new URL('./fixtures/runtime-child.mjs', import.meta.url))
 
 describe('desktop runtime', () => {
-  it('launches only the existing loopback Web profile', () => {
+  it('launches only the shipped loopback Mantur profile', () => {
     expect(buildDshArguments('/app/dsh/lib/bin.js')).toEqual([
       '--expose-internals',
       '/app/dsh/lib/bin.js',
       '--profile',
-      'web',
+      'mantur',
       '--host',
       '127.0.0.1',
       '--port',

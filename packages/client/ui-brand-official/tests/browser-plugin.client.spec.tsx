@@ -83,9 +83,9 @@ describe('official browser-brand plugin', () => {
     expect(name.container.querySelector('svg')?.getAttribute('viewBox')).toBe('26 0 156 24')
     name.unmount()
 
-    const mark = render(<OfficialBrandMark size={34} />)
+    const mark = render(<OfficialBrandMark size={34} placement="expanded" />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('34')
-    mark.rerender(<OfficialBrandMark size={24} />)
+    mark.rerender(<OfficialBrandMark size={24} placement="rail" />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
   })
 })

@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-桌面应用让内部用户通过普通 macOS 或 Windows 安装包使用既有 Harness Web 界面。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile web` 应用。桌面包不会实现另一套 agent 运行时。
+桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。桌面包不会实现另一套 agent 运行时。
 
 ## 不打包开发
 
@@ -47,7 +47,7 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 ## 运行时设计
 
-主进程通过 `ELECTRON_RUN_AS_NODE=1` 复用 Electron 作为 Node 可执行文件，并以 `--profile web --host 127.0.0.1 --port 0 --no-open` 启动已构建的 `@deepseek-ai/dsh` 入口。就绪解析器只接受带 token 的 `127.0.0.1` URL。renderer 禁用 Node integration、启用 context isolation 与 sandbox，并把离开本地 origin 的导航交给操作系统浏览器。
+主进程通过 `ELECTRON_RUN_AS_NODE=1` 复用 Electron 作为 Node 可执行文件，并以 `--profile mantur --host 127.0.0.1 --port 0 --no-open` 启动已构建的 `@deepseek-ai/dsh` 入口。就绪解析器只接受带 token 的 `127.0.0.1` URL。renderer 禁用 Node integration、启用 context isolation 与 sandbox，并把离开本地 origin 的导航交给操作系统浏览器。
 
 安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭或重启应用时，Electron 会等待子进程终止后再退出。
 

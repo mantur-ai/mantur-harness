@@ -1,4 +1,4 @@
-/** Thin native window over the shipped dsh Web profile. */
+/** Thin native window over the shipped Mantur profile. */
 
 import { appendFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'

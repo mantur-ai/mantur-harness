@@ -1,4 +1,4 @@
-/** Start and supervise the existing dsh Web profile inside the Electron runtime. */
+/** Start and supervise the shipped Mantur Web profile inside the Electron runtime. */
 
 import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import { createWriteStream, mkdirSync } from 'node:fs'
@@ -51,13 +51,13 @@ export function extractReadyUrl(output: string): string | undefined {
   return READY_PATTERN.exec(output)?.[1]
 }
 
-/** Build the only supported application launch: the shipped dsh Web profile. */
+/** Build the only supported application launch: the shipped Mantur profile. */
 export function buildDshArguments(entry: string): string[] {
   return [
     '--expose-internals',
     entry,
     '--profile',
-    'web',
+    'mantur',
     '--host',
     '127.0.0.1',
     '--port',
@@ -67,7 +67,7 @@ export function buildDshArguments(entry: string): string[] {
 }
 
 /**
- * Start the Web profile and wait for its tokenized local URL.
+ * Start the Mantur profile and wait for its tokenized local URL.
  * @param options - Electron runtime, optional CLI entry, environment, and deadline.
  * @returns supervised child process and readiness promise.
  */

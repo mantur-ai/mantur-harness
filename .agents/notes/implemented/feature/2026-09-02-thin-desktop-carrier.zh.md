@@ -10,11 +10,11 @@ Status: implemented
 
 ## Decision
 
-`apps/desktop` 是现有 Web profile 外的轻量 Electron 载体。Electron 主进程使用 `--profile web`、随机 `127.0.0.1` 端口并关闭浏览器打开来启动已构建的 `@deepseek-ai/dsh` 入口。它只接受带 token 的 loopback 就绪 URL，并在启用 sandbox 与 context isolation、禁用 Node integration 的 renderer 中加载该 URL。原生进程负责窗口生命周期并终止子进程；DSH profile 负责所有 agent、工具、凭据、会话与 Web 行为。
+`apps/desktop` 是现有 Web 应用外的轻量 Electron 载体。Electron 主进程使用 `--profile mantur`、随机 `127.0.0.1` 端口并关闭浏览器打开来启动已构建的 `@deepseek-ai/dsh` 入口。它只接受带 token 的 loopback 就绪 URL，并在启用 sandbox 与 context isolation、禁用 Node integration 的 renderer 中加载该 URL。原生进程负责窗口生命周期并终止子进程；DSH profile 负责所有 agent、工具、凭据、会话与 Web 行为。
 
 Electron 还通过 `ELECTRON_RUN_AS_NODE=1` 提供子进程的 Node 运行时。这样每个安装包只含一套运行时，并保留所有受支持 Node 应用都通过具名 `dsh` profile 启动的规则。桌面依赖根包含既有 Python 部署闭包、Web 应用闭包与必需的 session-title peer；electron-builder 会为目标 Electron 运行时重建原生依赖。
 
-client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`，并同时写入仓库版本与 commit 元数据。它不会替换上游应用内 logo 或臆造图标，因此这些内部产物使用 electron-builder 的默认图标。载体声明稳定应用标识 `ai.mantur.agent`，并在 Electron 就绪前把其用户数据路径设为操作系统应用数据根目录下的 `mantur-agent` 目录。子进程只接收该目录的 `harness` 子目录作为 `DSH_HOME`，并从应用自有的中性目录启动；`~/.dsh` 下的 CLI 状态不会进入桌面启动。
+client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`，并同时写入仓库版本与 commit 元数据。Mantur 应用 profile 提供纯文字应用内身份；它不臆造原生图标，因此这些内部产物使用 electron-builder 的默认图标。载体声明稳定应用标识 `ai.mantur.agent`，并在 Electron 就绪前把其用户数据路径设为操作系统应用数据根目录下的 `mantur-agent` 目录。子进程只接收该目录的 `harness` 子目录作为 `DSH_HOME`，并从应用自有的中性目录启动；`~/.dsh` 下的 CLI 状态不会进入桌面启动。
 
 同一用户数据根目录还持有 Harness 与桌面诊断的持久合并日志。启动失败会先关闭子进程并完成日志写入。只有错误指向 schema 无效的 `session_projcache` 时，才会提供一项窄范围恢复：在用户通过原生对话框明确同意后，载体只删除该投影缓存并重试。会话日志、设置、凭据、profile 与 workspace 保持不变。其他错误只提供日志与退出。
 

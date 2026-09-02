@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The desktop application gives internal users a normal macOS or Windows installer for the existing Harness Web interface. Electron owns the native window and one child process; the child starts the shipped `dsh --profile web` application on a random loopback port. The desktop package does not implement another agent runtime.
+The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. The desktop package does not implement another agent runtime.
 
 ## Develop without packaging
 
@@ -47,7 +47,7 @@ The smoke starts `dsh` from the unpacked application's own dependency directory,
 
 ## Runtime design
 
-The main process reuses Electron as the Node executable with `ELECTRON_RUN_AS_NODE=1` and launches the built `@deepseek-ai/dsh` entry with `--profile web --host 127.0.0.1 --port 0 --no-open`. The readiness parser accepts only a tokenized `127.0.0.1` URL. The renderer keeps Node integration disabled, enables context isolation and sandboxing, and sends navigation outside the local origin to the operating-system browser.
+The main process reuses Electron as the Node executable with `ELECTRON_RUN_AS_NODE=1` and launches the built `@deepseek-ai/dsh` entry with `--profile mantur --host 127.0.0.1 --port 0 --no-open`. The readiness parser accepts only a tokenized `127.0.0.1` URL. The renderer keeps Node integration disabled, enables context isolation and sandboxing, and sends navigation outside the local origin to the operating-system browser.
 
 The installer carries the existing runtime dependency closure and built Web frontend. `asar` remains disabled because Loader profiles, plugin manifests, native modules, and subprocess helpers require ordinary files. Closing or restarting the application waits for the child process to terminate before Electron exits.
 
