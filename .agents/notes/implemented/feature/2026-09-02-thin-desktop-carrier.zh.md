@@ -1,0 +1,40 @@
+# Agent Note: 轻量桌面载体
+
+Status: implemented
+
+[English](2026-09-02-thin-desktop-carrier.md) | 中文
+
+## Problem
+
+不使用终端的 Harness 用户需要普通桌面安装包，但第二套桌面专用 agent 组装会重复 Web 应用、插件组合、持久化、安全策略与发布行为。跨平台安装包还需要原生证据，因为 Electron、原生模块、DMG 创建与 NSIS 在各操作系统和架构上的行为不同。
+
+## Decision
+
+`apps/desktop` 是现有 Web profile 外的轻量 Electron 载体。Electron 主进程使用 `--profile web`、随机 `127.0.0.1` 端口并关闭浏览器打开来启动已构建的 `@deepseek-ai/dsh` 入口。它只接受带 token 的 loopback 就绪 URL，并在启用 sandbox 与 context isolation、禁用 Node integration 的 renderer 中加载该 URL。原生进程负责窗口生命周期并终止子进程；DSH profile 负责所有 agent、工具、凭据、会话与 Web 行为。
+
+Electron 还通过 `ELECTRON_RUN_AS_NODE=1` 提供子进程的 Node 运行时。这样每个安装包只含一套运行时，并保留所有受支持 Node 应用都通过具名 `dsh` profile 启动的规则。桌面依赖根包含既有 Python 部署闭包、Web 应用闭包与必需的 session-title peer；electron-builder 会为目标 Electron 运行时重建原生依赖。
+
+client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`，并同时写入仓库版本与 commit 元数据。它不会替换上游应用内 logo、臆造图标或声明永久应用标识。因此，这些内部产物使用 electron-builder 的默认图标与派生标识。
+
+## Packaging and verification
+
+原生矩阵会从同一个检出 commit 运行 macOS arm64、macOS x64 与 Windows x64。每个 runner 都会执行完整漫途构建，对启动语法和品牌构建环境运行单元测试，只创建自己的原生安装包，再从解包应用的依赖目录启动 DSH。smoke 会执行进程 token 交换、请求已认证页面，并要求 HTTP 200、Web boot payload 与 `漫途Agent` 文档标题同时存在。
+
+产物是未签名的内部 DMG 与一键 NSIS 安装包。私有 desktop workspace 不属于 npm release family；工作流只把安装包作为私有 Actions artifact 保留，不包含 tag、release、签名、notarization、发布或 updater 路径。只有某个目标的原生打包和 packaged smoke 都通过后，才可认为该目标完成验证。
+
+## Alternatives considered
+
+**内嵌 Harness Host，并用 Electron IPC 替代 HTTP。** 否决。这样会创建桌面专用应用组装与 transport，重复既有 Web 认证和生命周期行为，并在一键安装证明需求之前造成更大的上游差异。
+
+**只在系统浏览器中打开现有 Web profile。** 否决。这样不能提供用户期望的已安装应用、单实例窗口与应用生命周期。
+
+**在 Electron 旁附带一套独立 Node 可执行文件。** 否决。Electron 已提供兼容的 Node mode，electron-builder 也会为它重建原生模块。第二套运行时会增大安装包，并增加另一套需要维护的版本与许可证载荷。
+
+**在一台 host 上交叉构建全部目标。** 否决。产生 archive 不能证明目标专属原生模块能够加载，也不能证明打包应用能够启动。原生 runner smoke 才是验收证据。
+
+## Consequences
+
+- 桌面用户可以获得普通安装包，而 Web profile 仍是唯一的交互式 Harness 应用实现。
+- loopback 子进程增加了一条本地 HTTP 生命周期，并通过本地化原生对话框显式呈现启动失败。
+- 完整运行时依赖闭包与解包文件使安装包大于专用客户端；这项成本避免了第二套应用运行时，并让 Loader 与原生模块路径保持为普通文件路径。
+- 正式品牌、稳定应用身份、签名、notarization、自动更新与公开发布仍是外部分发的显式前置条件，而不是内部基线中的隐藏默认值。

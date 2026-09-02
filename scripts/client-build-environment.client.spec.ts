@@ -140,6 +140,20 @@ describe('client build environment', () => {
     expect(repositoryCommitHash('/unused', { DSH_CLIENT_COMMIT_HASH: COMMIT_HASH })).toBe(COMMIT_HASH.slice(0, 7))
   })
 
+  it('owns the Mantur desktop title in its named client profile', () => {
+    expect(resolveClientBuildEnvironment({
+      DSH_BUILD_CLIENT_PROFILE: 'mantur',
+      DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
+      DSH_CLIENT_TITLE: 'inherited title',
+      DSH_CLIENT_VERSION: '1.2.3',
+    })).toEqual({
+      DSH_CLIENT_BUILD_PROFILE: 'mantur',
+      DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
+      DSH_CLIENT_TITLE: '漫途Agent',
+      DSH_CLIENT_VERSION: '1.2.3',
+    })
+  })
+
   it('owns repository version, commit, and dirty metadata for complete builds', () => {
     const fixtureRoot = repositoryFixture()
     const commit = git(fixtureRoot, ['rev-parse', '--short=7', 'HEAD'])

@@ -1,0 +1,63 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "Thin Electron carrier for the Mantur Agent desktop installers",
+  "version": "0.1.2-alpha.4",
+  "private": true,
+  "type": "module",
+  "main": "lib/main.js",
+  "scripts": {
+    "bundle": "tsdown",
+    "pack": "electron-builder --dir --publish never",
+    "dist:mac:arm64": "electron-builder --mac dmg --arm64 --publish never",
+    "dist:mac:x64": "electron-builder --mac dmg --x64 --publish never",
+    "dist:win:x64": "electron-builder --win nsis --x64 --publish never",
+    "smoke:packaged": "tsx scripts/smoke-packaged.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/cordis-plugin-group": "workspace:^",
+    "@deepseek-ai/dsh": "workspace:^",
+    "@deepseek-ai/dsh-session-title-llm": "workspace:^",
+    "dsh-python-runtime-closure": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "electron": "43.4.0",
+    "electron-builder": "26.15.7",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "build": {
+    "productName": "漫途Agent",
+    "asar": false,
+    "files": [
+      "lib/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "artifactName": "漫途Agent-macOS-${arch}.${ext}",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "artifactName": "漫途Agent-Windows-${arch}.${ext}",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    }
+  }
+}
