@@ -13,9 +13,11 @@ const OUTPUT_LIMIT = 64 * 1_024
 export interface DesktopService {
   /** Child process running the shipped dsh CLI through Electron's Node mode. */
   child: ChildProcessByStdio<null, Readable, Readable>
+  /** Resolves after dsh exits and its persistent log finishes closing. */
+  closed: Promise<void>
   /** Resolves only after the Web profile announces its tokenized loopback URL. */
   ready: Promise<string>
-  /** Request normal process termination. */
+  /** Request termination, escalating if dsh does not exit within the shutdown deadline. */
   stop: () => void
 }
 
@@ -31,8 +33,12 @@ export interface StartDesktopServiceOptions {
   cwd?: string
   /** Persistent combined stdout/stderr diagnostic log. */
   logPath?: string
+  /** Also copy dsh stdout and stderr to their parent terminal streams. */
+  mirrorOutput?: boolean
   /** Maximum wait for the Web readiness line. */
   timeoutMs?: number
+  /** Maximum wait between normal termination and forced termination. */
+  shutdownTimeoutMs?: number
 }
 
 /** Resolve the built CLI entry from the desktop application's dependency closure. */
@@ -68,6 +74,7 @@ export function buildDshArguments(entry: string): string[] {
 export function startDesktopService(options: StartDesktopServiceOptions): DesktopService {
   const entry = options.entry ?? resolveDshEntry()
   const timeoutMs = options.timeoutMs ?? 60_000
+  const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 2_000
   const child = spawn(options.electronExecutable, buildDshArguments(entry), {
     cwd: options.cwd,
     env: {
@@ -81,6 +88,7 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
   let output = ''
   let settled = false
   let timeout: NodeJS.Timeout | undefined
+  let shutdownTimer: NodeJS.Timeout | undefined
   const log = options.logPath === undefined
     ? undefined
     : (() => {
@@ -88,6 +96,21 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
       return createWriteStream(options.logPath, { flags: 'a' })
     })()
   log?.on('error', (error) => { console.error(error) })
+  const closed = new Promise<void>((resolve) => {
+    child.once('close', () => {
+      if (shutdownTimer !== undefined) clearTimeout(shutdownTimer)
+      if (log === undefined) resolve()
+      else log.end(resolve)
+    })
+  })
+  const stop = (): void => {
+    if (child.exitCode !== null || child.signalCode !== null || shutdownTimer !== undefined) return
+    child.kill('SIGTERM')
+    shutdownTimer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    }, shutdownTimeoutMs)
+    shutdownTimer.unref()
+  }
   const ready = new Promise<string>((resolve, reject) => {
     const finish = (): boolean => {
       if (settled) return false
@@ -95,36 +118,35 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
       if (timeout !== undefined) clearTimeout(timeout)
       return true
     }
-    const inspect = (chunk: Buffer | string): void => {
+    const inspect = (chunk: Buffer | string, destination: NodeJS.WriteStream): void => {
       log?.write(chunk)
+      if (options.mirrorOutput === true) destination.write(chunk)
       if (settled) return
       output = `${output}${String(chunk)}`.slice(-OUTPUT_LIMIT)
       const url = extractReadyUrl(output)
       if (url !== undefined && finish()) resolve(url)
     }
 
-    child.stdout.on('data', inspect)
-    child.stderr.on('data', inspect)
+    child.stdout.on('data', (chunk: Buffer) => { inspect(chunk, process.stdout) })
+    child.stderr.on('data', (chunk: Buffer) => { inspect(chunk, process.stderr) })
     child.once('error', (error) => {
       if (finish()) reject(error)
     })
-    child.once('close', () => { log?.end() })
     child.once('exit', (code, signal) => {
       if (finish()) {
         reject(new Error(`dsh stopped before desktop readiness (code ${String(code)}, signal ${String(signal)}).\n${output}`))
       }
     })
     timeout = setTimeout(() => {
-      child.kill()
+      stop()
       if (finish()) reject(new Error(`dsh did not become ready within ${String(timeoutMs)}ms.\n${output}`))
     }, timeoutMs)
   })
 
   return {
     child,
+    closed,
     ready,
-    stop: () => {
-      if (child.exitCode === null && !child.killed) child.kill()
-    },
+    stop,
   }
 }

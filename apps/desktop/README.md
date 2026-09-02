@@ -4,6 +4,26 @@ English | [中文](README.zh.md)
 
 The desktop application gives internal users a normal macOS or Windows installer for the existing Harness Web interface. Electron owns the native window and one child process; the child starts the shipped `dsh --profile web` application on a random loopback port. The desktop package does not implement another agent runtime.
 
+## Develop without packaging
+
+After `pnpm install`, build the repository artifacts once on a clean checkout:
+
+```sh
+pnpm run build:mantur
+```
+
+Use one command for ordinary desktop work after that initial build:
+
+```sh
+pnpm run desktop:dev
+```
+
+The command watches desktop TypeScript, resources, and build configuration. Each change runs an incremental desktop TypeScript build, bundles the Electron main process, stops the previous Electron and dsh processes, and starts the development application again. dsh stdout and stderr remain in the persistent Harness log and also appear directly in the terminal.
+
+Development uses the `mantur-agent-dev` user-data directory, while installed builds use `mantur-agent`; settings, sessions, credentials, and caches cannot cross between those modes. Electron's `app.isPackaged` check also keeps automatic update checks disabled in development. Run `pnpm run build:mantur` again when a change outside `apps/desktop` affects built Harness or Web artifacts.
+
+`desktop:dev` does not create a DMG, ZIP, or NSIS installer, sign or notarize an application, install anything into the operating system's application directory, or check for releases. Use native packaging only to validate installation, signing, notarization, release updates, or a release candidate.
+
 ## Build an internal installer
 
 Install the immutable dependency graph and build every host and client artifact with the Mantur title before invoking the native packager:
@@ -29,7 +49,7 @@ The smoke starts `dsh` from the unpacked application's own dependency directory,
 
 The main process reuses Electron as the Node executable with `ELECTRON_RUN_AS_NODE=1` and launches the built `@deepseek-ai/dsh` entry with `--profile web --host 127.0.0.1 --port 0 --no-open`. The readiness parser accepts only a tokenized `127.0.0.1` URL. The renderer keeps Node integration disabled, enables context isolation and sandboxing, and sends navigation outside the local origin to the operating-system browser.
 
-The installer carries the existing runtime dependency closure and built Web frontend. `asar` remains disabled because Loader profiles, plugin manifests, native modules, and subprocess helpers require ordinary files. Closing the application terminates the child process.
+The installer carries the existing runtime dependency closure and built Web frontend. `asar` remains disabled because Loader profiles, plugin manifests, native modules, and subprocess helpers require ordinary files. Closing or restarting the application waits for the child process to terminate before Electron exits.
 
 The permanent application identifier is `ai.mantur.agent`. Before Electron becomes ready, the carrier sets a stable `mantur-agent` user-data directory below the operating system's application-data root. Its `harness` child directory is the only `DSH_HOME` used by the installed application, so ambient CLI or development data under `~/.dsh` cannot affect desktop startup. The child starts in an application-owned neutral directory and appends stdout, stderr, recovery, and updater diagnostics to `logs/harness.log` below the same user-data root.
 

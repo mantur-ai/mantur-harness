@@ -20,6 +20,8 @@ client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`
 
 已安装构建通过 electron-updater 检查 `mantur-ai/mantur-harness` GitHub Releases。检查会在启动后开始，并每六小时重复。两个改变状态的步骤都需要分别同意：载体会先在下载前询问，再在停止 Harness 并重启进入安装器前第二次询问。后台检查与失败都会写入桌面日志。
 
+根目录的 `desktop:dev` 命令负责本地编辑循环，不会调用 electron-builder。监听器会重新运行桌面端 TypeScript 增量项目、bundle Electron 入口，并直接启动 Electron。源码或资源改动会终止活动 Electron 进程；Electron 先等待其 dsh 子进程关闭，再开始下一轮。开发 dsh 输出会同步显示在终端，同时保留在持久日志中。开发模式选用 `mantur-agent-dev` 用户数据目录，不会触及已安装应用的 `mantur-agent` 状态；`app.isPackaged` 会保持 updater 不活动。
+
 ## Packaging and verification
 
 原生矩阵会从同一个检出 commit 运行 macOS arm64、macOS x64 与 Windows x64。每个 runner 都会执行完整漫途构建，对启动语法和品牌构建环境运行单元测试，只创建自己的原生安装包，再从解包应用的依赖目录启动 DSH。smoke 会执行进程 token 交换、请求已认证页面，并要求 HTTP 200、Web boot payload、`漫途Agent` 文档标题、包内 updater 依赖与预期的 release feed 配置同时存在。
@@ -36,11 +38,14 @@ client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`
 
 **在一台 host 上交叉构建全部目标。** 否决。产生 archive 不能证明目标专属原生模块能够加载，也不能证明打包应用能够启动。原生 runner smoke 才是验收证据。
 
+**为每次开发改动构建原生安装包。** 否决。DMG、ZIP、NSIS、签名、notarization 与更新元数据不会为普通 Electron 入口改动提供证据。这些操作仍属于发布路径检查，开发命令则直接验证同一套未打包主进程和 dsh Web 启动。
+
 ## Consequences
 
 - 桌面用户可以获得普通安装包，而 Web profile 仍是唯一的交互式 Harness 应用实现。
 - loopback 子进程增加了一条本地 HTTP 生命周期，并通过本地化原生对话框显式呈现启动失败。
 - 已安装桌面状态与 CLI 状态隔离；schema 无效的会话投影缓存可执行一次由用户同意的可丢弃重置，而不是无期阻止应用启动。
 - 更新检查会自动运行，但下载与重启安装仍由用户决定。未签名内部产物不构成可用的外部更新通道。
+- 桌面端改动通过一条受监听的开发命令运行，不生成安装包；开发数据与已安装数据保持分离。
 - 完整运行时依赖闭包与解包文件使安装包大于专用客户端；这项成本避免了第二套应用运行时，并让 Loader 与原生模块路径保持为普通文件路径。
 - 正式图标品牌、签名、notarization 与 release 发布工作流仍是外部分发的显式前置条件，而不是内部基线中的隐藏默认值。

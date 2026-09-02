@@ -20,6 +20,8 @@ The same user-data root owns a persistent combined Harness and desktop diagnosti
 
 Installed builds use electron-updater against `mantur-ai/mantur-harness` GitHub Releases. Checks begin after startup and repeat every six hours. Both state-changing steps require separate approval: the carrier asks before downloading, then asks again before it stops Harness and restarts into the installer. Background checks and failures are written to the desktop log.
 
+The root `desktop:dev` command owns the local edit cycle without invoking electron-builder. A watcher reruns the incremental desktop TypeScript project, bundles the Electron entry, and starts Electron directly. A source or resource change terminates the active Electron process, which first waits for its dsh child to close, then begins the next cycle. Development dsh output is mirrored to the terminal while remaining in the persistent log. Development selects `mantur-agent-dev` as its user-data directory, leaving the installed `mantur-agent` state untouched; `app.isPackaged` keeps the updater inactive.
+
 ## Packaging and verification
 
 The native matrix runs macOS arm64, macOS x64, and Windows x64 from one checked-out commit. Each runner performs the full Mantur build, unit tests the launch grammar and branded build environment, creates only its native installer, and starts DSH from the unpacked application's dependency directory. The smoke performs the process-token exchange, requests the authenticated page, and requires HTTP 200, the Web boot payload, the `漫途Agent` document title, the packaged updater dependency, and the expected release-feed configuration.
@@ -36,11 +38,14 @@ The artifacts are unsigned internal DMG, macOS update ZIP, and one-click NSIS in
 
 **Cross-build every target on one host.** Rejected because producing an archive does not prove that target-specific native modules load or that the packaged application starts. Native runner smoke is the acceptance evidence.
 
+**Build a native installer for each development change.** Rejected because DMG, ZIP, NSIS, signing, notarization, and update metadata do not contribute evidence for ordinary Electron entry changes. Those operations remain release-path checks, while the development command exercises the same unpackaged main process and dsh Web launch directly.
+
 ## Consequences
 
 - Desktop users get ordinary installers while the Web profile remains the only interactive Harness application implementation.
 - The loopback child process adds one local HTTP lifecycle and makes startup failure visible in a native localized dialog.
 - Installed desktop state is isolated from CLI state; a schema-invalid session projection cache has one user-approved disposable reset instead of preventing application startup indefinitely.
 - Update checks are automatic, but downloading and restart installation remain user decisions. Unsigned internal artifacts do not constitute a working external update channel.
+- Desktop changes run through one watched development command without generating installers; development data and installed data remain separate.
 - The full runtime dependency closure and unpacked files make the installer larger than a dedicated client; this cost avoids a second application runtime and keeps Loader and native-module paths ordinary.
 - Formal icon branding, signing, notarization, and a release-publication workflow remain explicit prerequisites for external distribution rather than hidden defaults in the internal baseline.

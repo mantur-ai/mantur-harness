@@ -45,7 +45,7 @@ export interface UpdatePrompts {
 export interface StartAutoUpdatesOptions {
   updater: DesktopUpdater
   prompts: UpdatePrompts
-  beforeInstall: () => void
+  beforeInstall: () => Promise<void>
   log: (message: string) => void
   checkDelayMs?: number
   checkIntervalMs?: number
@@ -80,9 +80,9 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): () => void {
   }
 
   const onDownloaded = (info: UpdateDownloadedEvent): void => {
-    void options.prompts.confirmInstall(info.version).then((confirmed) => {
+    void options.prompts.confirmInstall(info.version).then(async (confirmed) => {
       if (!confirmed) return
-      options.beforeInstall()
+      await options.beforeInstall()
       updater.quitAndInstall(false, true)
     }).catch((error: unknown) => {
       options.log(`desktop update: install prompt failed: ${String(error)}`)

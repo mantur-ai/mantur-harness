@@ -4,6 +4,26 @@
 
 桌面应用让内部用户通过普通 macOS 或 Windows 安装包使用既有 Harness Web 界面。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile web` 应用。桌面包不会实现另一套 agent 运行时。
 
+## 不打包开发
+
+执行 `pnpm install` 后，先在干净检出上构建一次仓库产物：
+
+```sh
+pnpm run build:mantur
+```
+
+完成初始构建后，日常桌面端开发只需一条命令：
+
+```sh
+pnpm run desktop:dev
+```
+
+该命令会监听桌面端 TypeScript、资源和构建配置。每次改动都会执行桌面端 TypeScript 增量构建、bundle Electron 主进程、停止上一组 Electron 与 dsh 进程，再重新启动开发应用。dsh 的 stdout 和 stderr 仍会写入持久 Harness 日志，也会直接显示在终端。
+
+开发模式使用 `mantur-agent-dev` 用户数据目录，已安装构建使用 `mantur-agent`；设置、会话、凭据和缓存不会在两种模式间串用。Electron 的 `app.isPackaged` 检查也会禁用开发模式的自动更新检查。如果 `apps/desktop` 之外的改动影响已构建的 Harness 或 Web 产物，需要再次执行 `pnpm run build:mantur`。
+
+`desktop:dev` 不会创建 DMG、ZIP 或 NSIS 安装包，不会签名或 notarize 应用，不会向操作系统应用目录安装任何内容，也不会检查 release。只在验证安装、签名、notarization、release 更新或发布候选版时使用原生打包。
+
 ## 构建内部安装包
 
 调用原生打包器之前，先安装不可变依赖图，再使用漫途标题构建全部 host 与 client 产物：
@@ -29,7 +49,7 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 主进程通过 `ELECTRON_RUN_AS_NODE=1` 复用 Electron 作为 Node 可执行文件，并以 `--profile web --host 127.0.0.1 --port 0 --no-open` 启动已构建的 `@deepseek-ai/dsh` 入口。就绪解析器只接受带 token 的 `127.0.0.1` URL。renderer 禁用 Node integration、启用 context isolation 与 sandbox，并把离开本地 origin 的导航交给操作系统浏览器。
 
-安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭应用会终止子进程。
+安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭或重启应用时，Electron 会等待子进程终止后再退出。
 
 永久应用标识为 `ai.mantur.agent`。Electron 就绪前，载体会在操作系统的应用数据根目录下设置稳定的 `mantur-agent` 用户数据目录。其 `harness` 子目录是已安装应用使用的唯一 `DSH_HOME`，因此 `~/.dsh` 中的 CLI 或开发数据不会影响桌面启动。子进程从应用自有的中性目录启动，并把 stdout、stderr、恢复与 updater 诊断追加到同一用户数据根下的 `logs/harness.log`。
 

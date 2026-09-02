@@ -25,7 +25,7 @@ describe('desktop automatic updates', () => {
     const stop = startAutoUpdates({
       updater,
       prompts: { confirmDownload, confirmInstall: vi.fn(async () => false) },
-      beforeInstall: vi.fn(),
+      beforeInstall: vi.fn(async () => {}),
       log: vi.fn(),
       checkDelayMs: 10,
       checkIntervalMs: 100,
@@ -47,7 +47,9 @@ describe('desktop automatic updates', () => {
   it('downloads and installs only after separate confirmations', async () => {
     vi.useFakeTimers()
     const updater = new FakeUpdater()
-    const beforeInstall = vi.fn()
+    let releaseInstall: (() => void) | undefined
+    const installReady = new Promise<void>((resolve) => { releaseInstall = resolve })
+    const beforeInstall = vi.fn(async () => { await installReady })
     const stop = startAutoUpdates({
       updater,
       prompts: {
@@ -61,6 +63,9 @@ describe('desktop automatic updates', () => {
     updater.emit('update-available', { version: '1.2.3' })
     await vi.waitFor(() => { expect(updater.downloadUpdate).toHaveBeenCalledTimes(1) })
     updater.emit('update-downloaded', { version: '1.2.3' })
+    await vi.waitFor(() => { expect(beforeInstall).toHaveBeenCalledOnce() })
+    expect(updater.quitAndInstall).not.toHaveBeenCalled()
+    releaseInstall?.()
     await vi.waitFor(() => { expect(updater.quitAndInstall).toHaveBeenCalledWith(false, true) })
     expect(beforeInstall).toHaveBeenCalledOnce()
     stop()

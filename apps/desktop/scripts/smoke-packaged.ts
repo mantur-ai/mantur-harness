@@ -1,7 +1,6 @@
 /** Native smoke for the dependency closure inside one unpacked desktop application. */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { once } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startDesktopService } from '../src/runtime.ts'
@@ -62,8 +61,6 @@ const service = startDesktopService({
     NODE_PATH: '',
   },
 })
-const childClosed = once(service.child, 'close')
-
 try {
   const url = await service.ready
   const exchange = await fetch(url, { redirect: 'manual' })
@@ -81,7 +78,7 @@ try {
   console.log(`desktop packaged smoke: ${String(response.status)} ${new URL(url).origin}`)
 } finally {
   service.stop()
-  await childClosed
+  await service.closed
   if (!readFileSync(logPath, 'utf8').includes('dsh web: http://127.0.0.1:')) {
     throw new Error('packaged Harness output was not persisted to the desktop log')
   }

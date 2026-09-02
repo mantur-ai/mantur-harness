@@ -25,13 +25,20 @@ let quitting = false
 let stopUpdates: (() => void) | undefined
 
 app.setName(APP_NAME)
-app.setPath('userData', desktopUserDataPath(app.getPath('appData')))
+app.setPath('userData', desktopUserDataPath(
+  app.getPath('appData'),
+  app.isPackaged ? 'release' : 'development',
+))
 const paths = desktopPaths(app.getPath('userData'))
 
 function writeDesktopLog(message: string): void {
   void appendFile(paths.logPath, `${new Date().toISOString()} ${message}\n`).catch((error: unknown) => {
     console.error(error)
   })
+}
+
+function isQuitting(): boolean {
+  return quitting
 }
 
 function openExternal(url: string): void {
@@ -103,6 +110,7 @@ async function launch(): Promise<void> {
       cwd: paths.launchRoot,
       environment: { ...process.env, DSH_HOME: paths.dshHome },
       logPath: paths.logPath,
+      mirrorOutput: !app.isPackaged,
     })
     service.child.once('exit', (code, signal) => {
       if (quitting || serviceUrl === undefined) return
@@ -119,6 +127,7 @@ async function launch(): Promise<void> {
       startUpdates()
       return
     } catch (error) {
+      if (isQuitting()) return
       const action = await startupRecovery(error)
       if (action === 'reset-cache') {
         await resetProjectionCache(paths.dshHome)
@@ -132,6 +141,14 @@ async function launch(): Promise<void> {
   }
 }
 
+async function stopService(): Promise<void> {
+  const active = service
+  if (active === undefined) return
+  active.stop()
+  await active.closed
+  if (service === active) service = undefined
+}
+
 function startUpdates(): void {
   if (!app.isPackaged || stopUpdates !== undefined) return
   const copy = desktopCopy(app.getLocale())
@@ -139,9 +156,9 @@ function startUpdates(): void {
   stopUpdates = startAutoUpdates({
     updater: autoUpdater,
     log: writeDesktopLog,
-    beforeInstall: () => {
+    beforeInstall: async () => {
       quitting = true
-      service?.stop()
+      await stopService()
     },
     prompts: {
       confirmDownload: async (version) => {
@@ -200,11 +217,20 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   quitting = true
   stopUpdates?.()
-  service?.stop()
+  stopUpdates = undefined
+  if (service === undefined) return
+  event.preventDefault()
+  void stopService().then(() => { app.quit() }).catch((error: unknown) => {
+    console.error(error)
+    app.exit(1)
+  })
 })
+
+process.once('SIGINT', () => { app.quit() })
+process.once('SIGTERM', () => { app.quit() })
 
 process.on('uncaughtException', (error) => {
   console.error(error)

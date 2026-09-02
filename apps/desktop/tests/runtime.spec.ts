@@ -1,7 +1,13 @@
-/** Desktop dsh child-process contract. */
+/** Desktop dsh child-process contract and shutdown lifecycle. */
 
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { buildDshArguments, extractReadyUrl } from '../src/runtime.ts'
+import { buildDshArguments, extractReadyUrl, startDesktopService } from '../src/runtime.ts'
+
+const fixture = fileURLToPath(new URL('./fixtures/runtime-child.mjs', import.meta.url))
 
 describe('desktop runtime', () => {
   it('launches only the existing loopback Web profile', () => {
@@ -24,5 +30,28 @@ describe('desktop runtime', () => {
     )
     expect(extractReadyUrl('dsh web: http://192.168.1.3:4312/?token=secret-value\n')).toBeUndefined()
     expect(extractReadyUrl('dsh web: http://127.0.0.1:4312/\n')).toBeUndefined()
+  })
+
+  it('persists output and closes the child before shutdown completes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'mantur-desktop-runtime-'))
+    const logPath = join(root, 'harness.log')
+    const service = startDesktopService({
+      electronExecutable: process.execPath,
+      entry: fixture,
+      logPath,
+      timeoutMs: 2_000,
+    })
+
+    try {
+      await expect(service.ready).resolves.toBe('http://127.0.0.1:4312/?token=desktop-test')
+      service.stop()
+      await service.closed
+      expect(service.child.exitCode).toBe(0)
+      await expect(readFile(logPath, 'utf8')).resolves.toContain('desktop runtime stderr')
+    } finally {
+      service.stop()
+      await service.closed
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })

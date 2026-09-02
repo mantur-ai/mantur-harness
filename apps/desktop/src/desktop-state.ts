@@ -6,6 +6,12 @@ import { basename, dirname, join, resolve } from 'node:path'
 /** Stable directory name below Electron's per-user application-data root. */
 export const DESKTOP_USER_DATA_NAME = 'mantur-agent'
 
+/** Development directory name kept separate from installed application data. */
+export const DESKTOP_DEVELOPMENT_USER_DATA_NAME = 'mantur-agent-dev'
+
+/** Desktop execution mode that selects the owned user-data directory. */
+export type DesktopMode = 'development' | 'release'
+
 /** Files and directories owned by one installed desktop application. */
 export interface DesktopPaths {
   /** Stable Electron user-data directory across application upgrades. */
@@ -18,9 +24,10 @@ export interface DesktopPaths {
   logPath: string
 }
 
-/** Resolve the stable desktop user-data directory below an operating-system app-data root. */
-export function desktopUserDataPath(appData: string): string {
-  return join(appData, DESKTOP_USER_DATA_NAME)
+/** Resolve the mode-specific desktop user-data directory below an operating-system app-data root. */
+export function desktopUserDataPath(appData: string, mode: DesktopMode = 'release'): string {
+  const name = mode === 'development' ? DESKTOP_DEVELOPMENT_USER_DATA_NAME : DESKTOP_USER_DATA_NAME
+  return join(appData, name)
 }
 
 /** Resolve every desktop-owned path from Electron's configured user-data directory. */

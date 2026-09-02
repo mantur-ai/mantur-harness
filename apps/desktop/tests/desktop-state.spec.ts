@@ -36,6 +36,15 @@ describe('desktop state', () => {
     await expect(mkdir(paths.launchRoot)).rejects.toMatchObject({ code: 'EEXIST' })
   })
 
+  it('keeps development data separate from installed application data', () => {
+    expect(desktopUserDataPath('/application-data', 'development')).toBe(
+      join('/application-data', 'mantur-agent-dev'),
+    )
+    expect(desktopUserDataPath('/application-data', 'release')).toBe(
+      join('/application-data', 'mantur-agent'),
+    )
+  })
+
   it('removes only current and legacy projection caches after approval', async () => {
     const root = await mkdtemp(join(tmpdir(), 'mantur-desktop-state-'))
     roots.push(root)

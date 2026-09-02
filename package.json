@@ -155,6 +155,7 @@
     "desktop:dist:mac:arm64": "pnpm --filter @deepseek-ai/dsh-desktop run dist:mac:arm64",
     "desktop:dist:mac:x64": "pnpm --filter @deepseek-ai/dsh-desktop run dist:mac:x64",
     "desktop:dist:win:x64": "pnpm --filter @deepseek-ai/dsh-desktop run dist:win:x64",
+    "desktop:dev": "pnpm --filter @deepseek-ai/dsh-desktop run dev",
     "desktop:smoke": "pnpm --filter @deepseek-ai/dsh-desktop run smoke:packaged",
     "demo:ptc": "node scripts/demo-ptc.mjs",
     "demo:inspector": "node --import tsx/esm apps/cli/src/bin.ts web --patch ./packages/experimental/inspector/cordis.source.patch.yml",
