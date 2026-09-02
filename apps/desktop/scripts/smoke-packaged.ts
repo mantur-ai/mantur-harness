@@ -1,6 +1,6 @@
 /** Native smoke for the dependency closure inside one unpacked desktop application. */
 
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { once } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -8,12 +8,13 @@ import { startDesktopService } from '../src/runtime.ts'
 
 const desktopRoot = resolve(import.meta.dirname, '..')
 
-function packagedPaths(): { electronExecutable: string; resourcesRoot: string } {
+function packagedPaths(): { electronExecutable: string; resourcesRoot: string; updateConfig: string } {
   if (process.platform === 'darwin') {
     const app = join(desktopRoot, 'dist', process.arch === 'arm64' ? 'mac-arm64' : 'mac', '漫途Agent.app')
     return {
       electronExecutable: join(app, 'Contents', 'MacOS', '漫途Agent'),
       resourcesRoot: join(app, 'Contents', 'Resources', 'app'),
+      updateConfig: join(app, 'Contents', 'Resources', 'app-update.yml'),
     }
   }
   if (process.platform === 'win32') {
@@ -21,6 +22,7 @@ function packagedPaths(): { electronExecutable: string; resourcesRoot: string } 
     return {
       electronExecutable: join(directory, '漫途Agent.exe'),
       resourcesRoot: join(directory, 'resources', 'app'),
+      updateConfig: join(directory, 'resources', 'app-update.yml'),
     }
   }
   throw new Error(`desktop packaged smoke does not support ${process.platform}`)
@@ -28,15 +30,31 @@ function packagedPaths(): { electronExecutable: string; resourcesRoot: string } 
 
 const packaged = packagedPaths()
 const entry = join(packaged.resourcesRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+const updater = join(packaged.resourcesRoot, 'node_modules', 'electron-updater', 'out', 'main.js')
 if (!existsSync(packaged.electronExecutable)) {
   throw new Error(`packaged Electron executable is missing: ${packaged.electronExecutable}`)
 }
 if (!existsSync(entry)) throw new Error(`packaged dsh entry is missing: ${entry}`)
+if (!existsSync(updater)) throw new Error(`packaged updater entry is missing: ${updater}`)
+if (!existsSync(packaged.updateConfig)) {
+  throw new Error(`packaged updater configuration is missing: ${packaged.updateConfig}`)
+}
+const updateConfig = readFileSync(packaged.updateConfig, 'utf8')
+for (const expected of ['provider: github', 'owner: mantur-ai', 'repo: mantur-harness']) {
+  if (!updateConfig.includes(expected)) {
+    throw new Error(`packaged updater configuration is missing ${expected}`)
+  }
+}
 const dshHome = mkdtempSync(join(tmpdir(), 'mantur-agent-desktop-smoke-'))
+const launchRoot = join(dshHome, 'launch-root')
+const logPath = join(dshHome, 'harness.log')
+mkdirSync(launchRoot)
 
 const service = startDesktopService({
   electronExecutable: packaged.electronExecutable,
   entry,
+  cwd: launchRoot,
+  logPath,
   environment: {
     ...process.env,
     DSH_HOME: dshHome,
@@ -44,6 +62,7 @@ const service = startDesktopService({
     NODE_PATH: '',
   },
 })
+const childClosed = once(service.child, 'close')
 
 try {
   const url = await service.ready
@@ -62,6 +81,9 @@ try {
   console.log(`desktop packaged smoke: ${String(response.status)} ${new URL(url).origin}`)
 } finally {
   service.stop()
-  if (service.child.exitCode === null) await once(service.child, 'exit')
+  await childClosed
+  if (!readFileSync(logPath, 'utf8').includes('dsh web: http://127.0.0.1:')) {
+    throw new Error('packaged Harness output was not persisted to the desktop log')
+  }
   rmSync(dshHome, { recursive: true, force: true })
 }

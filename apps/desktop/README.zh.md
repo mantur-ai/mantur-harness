@@ -19,21 +19,27 @@ macOS x64 命令必须在 Intel Mac 上运行，Windows 命令必须在 x64 Wind
 
 | Runner | 命令 | 产物 |
 |---|---|---|
-| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `漫途Agent-macOS-arm64.dmg` |
-| macOS x64 | `pnpm run desktop:dist:mac:x64` | `漫途Agent-macOS-x64.dmg` |
+| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `漫途Agent-macOS-arm64.dmg`、`漫途Agent-macOS-arm64.zip` |
+| macOS x64 | `pnpm run desktop:dist:mac:x64` | `漫途Agent-macOS-x64.dmg`、`漫途Agent-macOS-x64.zip` |
 | Windows x64 | `pnpm run desktop:dist:win:x64` | `漫途Agent-Windows-x64.exe` |
 
-smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进程 token 换成会话 cookie，并要求带品牌标题的 Web 页面返回 HTTP 200。它使用空的临时 Harness home，避免开发者数据影响包检查结果。
+smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进程 token 换成会话 cookie，并要求带品牌标题的 Web 页面返回 HTTP 200。它还要求包内存在 updater 依赖与 GitHub release 配置。它使用空的临时 Harness home，避免开发者数据影响包检查结果。
 
 ## 运行时设计
 
 主进程通过 `ELECTRON_RUN_AS_NODE=1` 复用 Electron 作为 Node 可执行文件，并以 `--profile web --host 127.0.0.1 --port 0 --no-open` 启动已构建的 `@deepseek-ai/dsh` 入口。就绪解析器只接受带 token 的 `127.0.0.1` URL。renderer 禁用 Node integration、启用 context isolation 与 sandbox，并把离开本地 origin 的导航交给操作系统浏览器。
 
-安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭应用会终止子进程；用户配置与会话仍由正常的 DSH home 持有。
+安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭应用会终止子进程。
+
+永久应用标识为 `ai.mantur.agent`。Electron 就绪前，载体会在操作系统的应用数据根目录下设置稳定的 `mantur-agent` 用户数据目录。其 `harness` 子目录是已安装应用使用的唯一 `DSH_HOME`，因此 `~/.dsh` 中的 CLI 或开发数据不会影响桌面启动。子进程从应用自有的中性目录启动，并把 stdout、stderr、恢复与 updater 诊断追加到同一用户数据根下的 `logs/harness.log`。
+
+如果启动错误只识别到过期的 `session_projcache` schema，本地化原生对话框会在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
+
+已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
 
 ## 已知限制
 
-- 这些是未签名的内部安装包。在提供发布签名与 notarization 身份之前，macOS Gatekeeper 和 Windows SmartScreen 可能显示警告。
-- 默认 Electron 图标和 builder 派生的应用标识都是临时值。这里不定义正式图标或永久应用 ID。
-- 包中没有自动更新器或发布步骤。工作流只上传私有构建产物，绝不创建 release。
+- 这些是未签名的内部安装包。macOS Gatekeeper 和 Windows SmartScreen 可能显示警告；在提供签名以及 macOS notarization 身份之前，自动安装不是受支持的发布路径。
+- 默认 Electron 图标仍是临时值。应用标识与数据目录已稳定。
+- 包中已包含 updater，但手动工作流只上传私有构建产物，绝不创建 GitHub release。独立的已签名发布流程必须同时发布安装包、更新 archive、blockmap 与生成的更新元数据。
 - 每个目标只在其原生 runner 同时完成打包和 smoke 后有效。一个架构上的构建不能作为另一目标的证据。

@@ -1,9 +1,19 @@
 /** Thin native window over the shipped dsh Web profile. */
 
+import { appendFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, shell } from 'electron'
+import electronUpdater from 'electron-updater'
+import {
+  canResetProjectionCache,
+  desktopPaths,
+  desktopUserDataPath,
+  prepareDesktopPaths,
+  resetProjectionCache,
+} from './desktop-state.ts'
 import { desktopCopy } from './locales.ts'
 import { startDesktopService, type DesktopService } from './runtime.ts'
+import { startAutoUpdates } from './updater.ts'
 
 const APP_NAME = '漫途Agent'
 const STARTUP_PAGE = fileURLToPath(new URL('../resources/startup.html', import.meta.url))
@@ -12,8 +22,17 @@ let mainWindow: BrowserWindow | undefined
 let service: DesktopService | undefined
 let serviceUrl: string | undefined
 let quitting = false
+let stopUpdates: (() => void) | undefined
 
 app.setName(APP_NAME)
+app.setPath('userData', desktopUserDataPath(app.getPath('appData')))
+const paths = desktopPaths(app.getPath('userData'))
+
+function writeDesktopLog(message: string): void {
+  void appendFile(paths.logPath, `${new Date().toISOString()} ${message}\n`).catch((error: unknown) => {
+    console.error(error)
+  })
+}
 
 function openExternal(url: string): void {
   if (!/^https?:\/\//u.test(url)) return
@@ -53,36 +72,104 @@ function createWindow(target = STARTUP_PAGE): BrowserWindow {
   return window
 }
 
-async function showStartupError(error: unknown): Promise<void> {
+async function startupRecovery(error: unknown): Promise<'reset-cache' | 'show-log' | 'quit'> {
   const copy = desktopCopy(app.getLocale())
   const detail = error instanceof Error ? error.message : String(error)
-  await dialog.showMessageBox({
+  const resettable = canResetProjectionCache(error)
+  const buttons = resettable
+    ? [copy.resetCacheButton, copy.showLogButton, copy.quitButton]
+    : [copy.showLogButton, copy.quitButton]
+  const { response } = await dialog.showMessageBox({
     type: 'error',
     title: copy.startupFailedTitle,
     message: copy.startupFailedMessage,
     detail,
+    buttons,
+    defaultId: buttons.length - 1,
+    cancelId: buttons.length - 1,
+    noLink: true,
   })
+  if (resettable && response === 0) return 'reset-cache'
+  return response === buttons.length - 2 ? 'show-log' : 'quit'
 }
 
 async function launch(): Promise<void> {
   const window = createWindow()
-  service = startDesktopService({
-    electronExecutable: process.execPath,
-    environment: process.env,
-  })
-  service.child.once('exit', (code, signal) => {
-    if (quitting || serviceUrl === undefined) return
-    void showStartupError(new Error(
-      `dsh stopped while the desktop window was running (code ${String(code)}, signal ${String(signal)}).`,
-    )).finally(() => { app.quit() })
-  })
-  try {
-    serviceUrl = await service.ready
-    await window.loadURL(serviceUrl)
-  } catch (error) {
-    await showStartupError(error)
-    app.quit()
+  await prepareDesktopPaths(paths)
+  while (!quitting) {
+    serviceUrl = undefined
+    service = startDesktopService({
+      electronExecutable: process.execPath,
+      cwd: paths.launchRoot,
+      environment: { ...process.env, DSH_HOME: paths.dshHome },
+      logPath: paths.logPath,
+    })
+    service.child.once('exit', (code, signal) => {
+      if (quitting || serviceUrl === undefined) return
+      void startupRecovery(new Error(
+        `dsh stopped while the desktop window was running (code ${String(code)}, signal ${String(signal)}).`,
+      )).then((action) => {
+        if (action === 'show-log') shell.showItemInFolder(paths.logPath)
+        app.quit()
+      })
+    })
+    try {
+      serviceUrl = await service.ready
+      await window.loadURL(serviceUrl)
+      startUpdates()
+      return
+    } catch (error) {
+      const action = await startupRecovery(error)
+      if (action === 'reset-cache') {
+        await resetProjectionCache(paths.dshHome)
+        writeDesktopLog('desktop recovery: reset session projection cache after user approval')
+        continue
+      }
+      if (action === 'show-log') shell.showItemInFolder(paths.logPath)
+      app.quit()
+      return
+    }
   }
+}
+
+function startUpdates(): void {
+  if (!app.isPackaged || stopUpdates !== undefined) return
+  const copy = desktopCopy(app.getLocale())
+  const { autoUpdater } = electronUpdater
+  stopUpdates = startAutoUpdates({
+    updater: autoUpdater,
+    log: writeDesktopLog,
+    beforeInstall: () => {
+      quitting = true
+      service?.stop()
+    },
+    prompts: {
+      confirmDownload: async (version) => {
+        const result = await dialog.showMessageBox({
+          type: 'info',
+          title: copy.updateAvailableTitle,
+          message: copy.updateAvailableMessage(version),
+          buttons: [copy.downloadButton, copy.laterButton],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true,
+        })
+        return result.response === 0
+      },
+      confirmInstall: async (version) => {
+        const result = await dialog.showMessageBox({
+          type: 'info',
+          title: copy.updateReadyTitle,
+          message: copy.updateReadyMessage(version),
+          buttons: [copy.restartButton, copy.laterButton],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true,
+        })
+        return result.response === 0
+      },
+    },
+  })
 }
 
 const singleInstance = app.requestSingleInstanceLock()
@@ -95,7 +182,11 @@ if (!singleInstance) {
     mainWindow?.focus()
   })
   void app.whenReady().then(launch).catch((error: unknown) => {
-    void showStartupError(error).finally(() => { app.quit() })
+    writeDesktopLog(`desktop startup: ${String(error)}`)
+    void startupRecovery(error).then((action) => {
+      if (action === 'show-log') shell.showItemInFolder(paths.logPath)
+      app.quit()
+    })
   })
 }
 
@@ -111,6 +202,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   quitting = true
+  stopUpdates?.()
   service?.stop()
 })
 

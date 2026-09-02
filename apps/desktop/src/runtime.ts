@@ -1,6 +1,8 @@
 /** Start and supervise the existing dsh Web profile inside the Electron runtime. */
 
 import { spawn, type ChildProcessByStdio } from 'node:child_process'
+import { createWriteStream, mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
 import type { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
@@ -25,6 +27,10 @@ export interface StartDesktopServiceOptions {
   entry?: string
   /** Process environment inherited by dsh before desktop-owned values replace it. */
   environment?: NodeJS.ProcessEnv
+  /** Neutral application-owned working directory for the child process. */
+  cwd?: string
+  /** Persistent combined stdout/stderr diagnostic log. */
+  logPath?: string
   /** Maximum wait for the Web readiness line. */
   timeoutMs?: number
 }
@@ -63,6 +69,7 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
   const entry = options.entry ?? resolveDshEntry()
   const timeoutMs = options.timeoutMs ?? 60_000
   const child = spawn(options.electronExecutable, buildDshArguments(entry), {
+    cwd: options.cwd,
     env: {
       ...options.environment,
       ELECTRON_RUN_AS_NODE: '1',
@@ -74,6 +81,13 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
   let output = ''
   let settled = false
   let timeout: NodeJS.Timeout | undefined
+  const log = options.logPath === undefined
+    ? undefined
+    : (() => {
+      mkdirSync(dirname(options.logPath), { recursive: true })
+      return createWriteStream(options.logPath, { flags: 'a' })
+    })()
+  log?.on('error', (error) => { console.error(error) })
   const ready = new Promise<string>((resolve, reject) => {
     const finish = (): boolean => {
       if (settled) return false
@@ -82,6 +96,7 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
       return true
     }
     const inspect = (chunk: Buffer | string): void => {
+      log?.write(chunk)
       if (settled) return
       output = `${output}${String(chunk)}`.slice(-OUTPUT_LIMIT)
       const url = extractReadyUrl(output)
@@ -93,6 +108,7 @@ export function startDesktopService(options: StartDesktopServiceOptions): Deskto
     child.once('error', (error) => {
       if (finish()) reject(error)
     })
+    child.once('close', () => { log?.end() })
     child.once('exit', (code, signal) => {
       if (finish()) {
         reject(new Error(`dsh stopped before desktop readiness (code ${String(code)}, signal ${String(signal)}).\n${output}`))

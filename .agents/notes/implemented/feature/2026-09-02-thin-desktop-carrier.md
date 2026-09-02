@@ -14,13 +14,17 @@ Harness users who do not work from a terminal need a normal desktop installer, b
 
 Electron also supplies the child process's Node runtime through `ELECTRON_RUN_AS_NODE=1`. This keeps one runtime in each installer and preserves the rule that supported Node applications start through a named `dsh` profile. The desktop dependency root includes the existing Python deploy closure plus the Web application closure and the required session-title peer; electron-builder rebuilds native dependencies for the target Electron runtime.
 
-The client build profile `mantur` fixes `DSH_CLIENT_TITLE` to `漫途Agent` together with the repository version and commit metadata. It does not replace the upstream in-app logo, invent an icon, or declare a permanent application identifier. electron-builder therefore uses its default icon and derived identifier for these internal artifacts.
+The client build profile `mantur` fixes `DSH_CLIENT_TITLE` to `漫途Agent` together with the repository version and commit metadata. It does not replace the upstream in-app logo or invent an icon, so electron-builder uses its default icon for these internal artifacts. The carrier declares the stable application identifier `ai.mantur.agent` and sets Electron's user-data path to the `mantur-agent` directory below the operating system's application-data root before readiness. The child receives only that directory's `harness` child as `DSH_HOME` and starts in an application-owned neutral directory; ambient CLI state under `~/.dsh` does not enter desktop startup.
+
+The same user-data root owns a persistent combined Harness and desktop diagnostic log. A startup failure can offer one narrow recovery only when the error names a schema-invalid `session_projcache`: after explicit native-dialog approval, the carrier removes only that projection cache and retries. Session logs, settings, credentials, profiles, and workspaces remain untouched. All other errors offer the log and quit.
+
+Installed builds use electron-updater against `mantur-ai/mantur-harness` GitHub Releases. Checks begin after startup and repeat every six hours. Both state-changing steps require separate approval: the carrier asks before downloading, then asks again before it stops Harness and restarts into the installer. Background checks and failures are written to the desktop log.
 
 ## Packaging and verification
 
-The native matrix runs macOS arm64, macOS x64, and Windows x64 from one checked-out commit. Each runner performs the full Mantur build, unit tests the launch grammar and branded build environment, creates only its native installer, and starts DSH from the unpacked application's dependency directory. The smoke performs the process-token exchange, requests the authenticated page, and requires HTTP 200, the Web boot payload, and the `漫途Agent` document title.
+The native matrix runs macOS arm64, macOS x64, and Windows x64 from one checked-out commit. Each runner performs the full Mantur build, unit tests the launch grammar and branded build environment, creates only its native installer, and starts DSH from the unpacked application's dependency directory. The smoke performs the process-token exchange, requests the authenticated page, and requires HTTP 200, the Web boot payload, the `漫途Agent` document title, the packaged updater dependency, and the expected release-feed configuration.
 
-The artifacts are unsigned internal DMG and one-click NSIS installers. The private desktop workspace is excluded from the npm release family, and the workflow retains installers as private Actions artifacts with no tag, release, signing, notarization, publication, or updater path. A target is not considered validated until its native packaging and packaged smoke both pass.
+The artifacts are unsigned internal DMG, macOS update ZIP, and one-click NSIS installers. The private desktop workspace is excluded from the npm release family, and the workflow retains these as private Actions artifacts without creating a tag or GitHub release. A target is not considered validated until its native packaging and packaged smoke both pass. An external update channel separately requires signed releases, macOS notarization, and publication of each installer together with its update archive, blockmap, and generated metadata.
 
 ## Alternatives considered
 
@@ -36,5 +40,7 @@ The artifacts are unsigned internal DMG and one-click NSIS installers. The priva
 
 - Desktop users get ordinary installers while the Web profile remains the only interactive Harness application implementation.
 - The loopback child process adds one local HTTP lifecycle and makes startup failure visible in a native localized dialog.
+- Installed desktop state is isolated from CLI state; a schema-invalid session projection cache has one user-approved disposable reset instead of preventing application startup indefinitely.
+- Update checks are automatic, but downloading and restart installation remain user decisions. Unsigned internal artifacts do not constitute a working external update channel.
 - The full runtime dependency closure and unpacked files make the installer larger than a dedicated client; this cost avoids a second application runtime and keeps Loader and native-module paths ordinary.
-- Formal branding, stable application identity, signing, notarization, auto-update, and public release remain explicit prerequisites for an external distribution rather than hidden defaults in the internal baseline.
+- Formal icon branding, signing, notarization, and a release-publication workflow remain explicit prerequisites for external distribution rather than hidden defaults in the internal baseline.
