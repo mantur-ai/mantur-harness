@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -9,6 +9,10 @@ import {
 import * as clientEntry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
+
+vi.mock('@deepseek-ai/dsh-manturhub-marketplace/remote', () => ({
+  default: { package: '@deepseek-ai/dsh-manturhub-marketplace', descriptors: [] },
+}))
 
 async function bench() {
   const ctx = new Context()
