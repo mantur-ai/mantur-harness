@@ -14,7 +14,12 @@ const faults = vi.hoisted(() => ({
   restoreRename: false,
   stateCommit: false,
   stagedRename: false,
+  unsupportedNode: false,
 }))
+
+function hasPathSegment(path: string, segment: string): boolean {
+  return path.split(/[\\/]/u).includes(segment)
+}
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
@@ -24,16 +29,23 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       if (faults.destinationLstat && basename(path) === 'story-director') {
         throw Object.assign(new Error('permission denied'), { code: 'EACCES' })
       }
+      if (faults.unsupportedNode && basename(path) === 'SKILL.md') {
+        return {
+          isSymbolicLink: () => false,
+          isDirectory: () => false,
+          isFile: () => false,
+        } as Awaited<ReturnType<typeof original.lstat>>
+      }
       return await original.lstat(path)
     },
     rename: async (from: string, to: string) => {
-      if (faults.backupRename && to.includes('/.manturhub-recovery/')) {
+      if (faults.backupRename && hasPathSegment(to, '.manturhub-recovery')) {
         throw Object.assign(new Error('backup failed'), { code: 'EACCES' })
       }
       if (faults.stateCommit && basename(to) === 'installed-skills.json') {
         throw Object.assign(new Error('state commit failed'), { code: 'EIO' })
       }
-      if (faults.restoreRename && from.includes('/.manturhub-recovery/')) {
+      if (faults.restoreRename && hasPathSegment(from, '.manturhub-recovery')) {
         throw Object.assign(new Error('restore failed'), { code: 'EIO' })
       }
       if (faults.stagedRename && basename(from) === 'staged') {
@@ -48,7 +60,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       if (faults.removeDestination && basename(path) === 'story-director') {
         throw Object.assign(new Error('remove destination failed'), { code: 'EIO' })
       }
-      if (faults.recoveryCleanup && path.includes('/.manturhub-recovery/')) {
+      if (faults.recoveryCleanup && hasPathSegment(path, '.manturhub-recovery')) {
         throw new Error('recovery cleanup failed')
       }
       await original.rm(path, options)
@@ -69,6 +81,7 @@ afterEach(async () => {
   faults.restoreRename = false
   faults.stateCommit = false
   faults.stagedRename = false
+  faults.unsupportedNode = false
   await Promise.all(cleanups.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
@@ -126,6 +139,13 @@ describe('ManturHub marketplace installer filesystem failures', () => {
       .rejects.toMatchObject({ code: 'EIO' })
   })
 
+  it('rejects an unsupported staged filesystem node', async () => {
+    const target = await fixture()
+    faults.unsupportedNode = true
+    await expect(installSkill(target.ctx, 'story-director', '1.2.3', target.config))
+      .rejects.toThrow('unsupported file type')
+  })
+
   it('reports temporary cleanup failure without changing a committed result', async () => {
     const target = await fixture()
     const warning = vi.spyOn(target.ctx.logger, 'warn')
@@ -178,7 +198,7 @@ describe('ManturHub marketplace installer filesystem failures', () => {
     faults.removeDestination = true
 
     await expect(installSkill(target.ctx, 'story-director', '1.2.3', target.config))
-      .rejects.toThrow('.manturhub-recovery/')
+      .rejects.toThrow('.manturhub-recovery')
     const fs = await import('node:fs/promises')
     const entries = await fs.readdir(target.config.skillsRoot)
     expect(entries).toEqual(['story-director'])
