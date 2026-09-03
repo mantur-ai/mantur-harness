@@ -39,11 +39,27 @@ macOS x64 命令必须在 Intel Mac 上运行，Windows 命令必须在 x64 Wind
 
 | Runner | 命令 | 产物 |
 |---|---|---|
-| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `漫途Agent-macOS-arm64.dmg`、`漫途Agent-macOS-arm64.zip` |
-| macOS x64 | `pnpm run desktop:dist:mac:x64` | `漫途Agent-macOS-x64.dmg`、`漫途Agent-macOS-x64.zip` |
-| Windows x64 | `pnpm run desktop:dist:win:x64` | `漫途Agent-Windows-x64.exe` |
+| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `Mantur-Agent-macOS-arm64.dmg`、`Mantur-Agent-macOS-arm64.zip` |
+| macOS x64 | `pnpm run desktop:dist:mac:x64` | `Mantur-Agent-macOS-x64.dmg`、`Mantur-Agent-macOS-x64.zip` |
+| Windows x64 | `pnpm run desktop:dist:win:x64` | `Mantur-Agent-Windows-x64.exe` |
 
 smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进程 token 换成会话 cookie，并要求带品牌标题的 Web 页面返回 HTTP 200。它还要求包内存在 updater 依赖与 GitHub release 配置。它使用空的临时 Harness home，避免开发者数据影响包检查结果。
+
+## 发布已签名的 macOS release
+
+手动触发的 `Desktop release` GitHub Actions 工作流会在原生 macOS runner 上分别构建 arm64 与 x64。两个任务都会使用 Developer ID Application 身份签名应用、提交 Apple notarization，并验证签名、Gatekeeper 评估与 stapled ticket；它们还会在产物进入组装步骤前运行 packaged smoke。
+
+对外发布前，先在仓库设置中启用 Release Immutability。然后在 GitHub 的 `macos-release` 环境中配置一个变量和四个加密 secret：
+
+| 类型 | 名称 | 值 |
+|---|---|---|
+| 变量 | `APPLE_TEAM_ID` | Apple Developer Team ID |
+| Secret | `MACOS_CERTIFICATE` | 含 Developer ID Application 证书与私钥的 `.p12` 所对应的 Base64 内容 |
+| Secret | `MACOS_CERTIFICATE_PASSWORD` | 导出 `.p12` 时使用的密码 |
+| Secret | `APPLE_ID` | 用于 notarization 的 Apple ID |
+| Secret | `APPLE_APP_SPECIFIC_PASSWORD` | 该 Apple ID 的 App 专用密码 |
+
+工作流会把两份原生 `latest-mac.yml` 合并为一份可区分架构的更新通道，并把完整候选产物与 `SHA256SUMS` 保留七天。必须从精确匹配 `desktop-v<apps/desktop 版本>` 的 tag 运行。`publish=false` 会在组装候选产物后停止；`publish=true` 会创建 GitHub release，并同时上传 DMG、更新 ZIP、blockmap、更新元数据与哈希。工作流会拒绝使用已有 release 的 tag，不会替换已发布文件；仓库级 Release Immutability 则会继续阻止之后修改 tag 或产物。
 
 ## 运行时设计
 
@@ -59,7 +75,7 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 ## 已知限制
 
-- 这些是未签名的内部安装包。macOS Gatekeeper 和 Windows SmartScreen 可能显示警告；在提供签名以及 macOS notarization 身份之前，自动安装不是受支持的发布路径。
+- `Desktop package` 产物仍是未签名的内部安装包。macOS Gatekeeper 与 Windows SmartScreen 可能对这些文件显示警告；对外分发 macOS 客户端时只能使用 `Desktop release` 产物。
 - 已确认的图标源文件是 1024 px 透明 PNG。macOS 和 Windows 包会在原生构建时生成各自的平台图标格式；当前没有矢量源文件。
-- 包中已包含 updater，但手动工作流只上传私有构建产物，绝不创建 GitHub release。独立的已签名发布流程必须同时发布安装包、更新 archive、blockmap 与生成的更新元数据。
+- 已签名的 release 工作流只发布 macOS。Windows 在具备代码签名身份与受保护的发布路径之前不支持外部更新。
 - 每个目标只在其原生 runner 同时完成打包和 smoke 后有效。一个架构上的构建不能作为另一目标的证据。

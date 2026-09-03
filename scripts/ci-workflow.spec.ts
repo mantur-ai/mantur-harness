@@ -438,6 +438,103 @@ describe('E2B e2e workflow', () => {
   })
 })
 
+describe('Desktop release workflow', () => {
+  it('separates protected native signing from explicit GitHub publication', () => {
+    const workflow = loadWorkflow('.github/workflows/desktop-release.yml')
+    const dispatch = workflowEvent(workflow, 'workflow_dispatch')
+    const validate = workflowJob(workflow, 'validate')
+    const macos = workflowJob(workflow, 'macos')
+    const assemble = workflowJob(workflow, 'assemble')
+    const publish = workflowJob(workflow, 'publish')
+    if (!isRecord(dispatch.inputs)
+      || !isRecord(dispatch.inputs.publish)
+      || !Array.isArray(validate.steps)
+      || !Array.isArray(macos.steps)
+      || !Array.isArray(assemble.steps)
+      || !Array.isArray(publish.steps)) {
+      throw new TypeError('Desktop release workflow must define publish input and release steps')
+    }
+
+    expect(dispatch.inputs.publish).toMatchObject({ type: 'boolean', default: false })
+    expect(Object.keys(workflow.on as Record<string, unknown>)).toEqual(['workflow_dispatch'])
+    const authorize = validate.steps.filter(isRecord).find(step => step.name === 'Resolve and authorize desktop version')
+    expect(authorize).toMatchObject({
+      env: {
+        PUBLISH: '${{ inputs.publish }}',
+        REF_NAME: '${{ github.ref_name }}',
+        REF_TYPE: '${{ github.ref_type }}',
+      },
+    })
+    expect((authorize as { run?: string }).run).toContain('desktop-v$version')
+    expect(macos).toMatchObject({
+      environment: 'macos-release',
+      strategy: {
+        'fail-fast': false,
+        matrix: {
+          include: [
+            expect.objectContaining({ arch: 'arm64', runner: 'macos-15' }),
+            expect.objectContaining({ arch: 'x64', runner: 'macos-15-intel' }),
+          ],
+        },
+      },
+      env: {
+        APPLE_APP_SPECIFIC_PASSWORD: '${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}',
+        APPLE_ID: '${{ secrets.APPLE_ID }}',
+        APPLE_TEAM_ID: '${{ vars.APPLE_TEAM_ID }}',
+        CSC_KEY_PASSWORD: '${{ secrets.MACOS_CERTIFICATE_PASSWORD }}',
+        CSC_LINK: '${{ secrets.MACOS_CERTIFICATE }}',
+      },
+    })
+    const macosSteps = JSON.stringify(macos.steps)
+    expect(macosSteps).toContain('codesign --verify --deep --strict')
+    expect(macosSteps).toContain('spctl --assess --type execute')
+    expect(macosSteps).toContain('xcrun stapler validate')
+    const assembleSteps = assemble.steps.filter(isRecord)
+    const mergeArtifacts = assembleSteps.find(step => step.name === 'Merge native artifacts and update metadata')
+    if (typeof mergeArtifacts?.run !== 'string') {
+      throw new TypeError('Desktop release workflow must define the native artifact assembly script')
+    }
+    const requiredArtifacts = [
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg.blockmap',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip.blockmap',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg.blockmap',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip.blockmap',
+    ]
+    const artifactBlock = mergeArtifacts.run.match(/required_artifacts=\(\n([\s\S]*?)\n\s*\)/)
+    if (artifactBlock?.[1] === undefined) {
+      throw new TypeError('Desktop release workflow must declare the required native artifacts')
+    }
+    const declaredArtifacts = artifactBlock[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+    expect(declaredArtifacts).toEqual(requiredArtifacts)
+    expect(mergeArtifacts.run).toContain('[ -f "$artifact" ] || {')
+    expect(mergeArtifacts.run).toContain('Required desktop release artifact is missing: $artifact')
+    expect(mergeArtifacts.run).toContain('exit 1')
+    expect(mergeArtifacts.run).toContain('cp "$artifact" "release/$(basename "$artifact")"')
+    expect(mergeArtifacts.run).not.toContain('Mantur-Agent-macOS-arm64.*')
+    expect(mergeArtifacts.run).not.toContain('Mantur-Agent-macOS-x64.*')
+    expect(mergeArtifacts.run).toContain('scripts/desktop-release-update-info.ts')
+    expect(publish).toMatchObject({
+      if: 'inputs.publish',
+      needs: ['validate', 'assemble'],
+      environment: 'macos-release',
+      permissions: { contents: 'write' },
+    })
+    const publishSteps = JSON.stringify(publish.steps)
+    expect(publishSteps).toContain('sha256sum -c SHA256SUMS')
+    expect(publishSteps).toContain('gh release view')
+    expect(publishSteps).toContain('published desktop assets are never replaced')
+    expect(publishSteps).toContain('gh release create')
+    expect(publishSteps).toContain('--verify-tag')
+  })
+})
+
 describe('Python release workflows', () => {
   it('keeps complete wheel validation separate from protected public publication', () => {
     const workflow = loadWorkflow('.github/workflows/python-release.yml')
@@ -649,17 +746,17 @@ describe('Python release workflows', () => {
   })
 })
 
-describe('Issue lifecycle workflow', () => {
-  it('runs the lifecycle job on every PR/review event but gates token and board steps', () => {
+describe('Issue management workflows', () => {
+  it('keeps fork runs successful while preserving issue automation for non-fork repositories', () => {
     const lifecycle = loadWorkflow('.github/workflows/issue-lifecycle.yml')
     const policy = loadWorkflow('.github/workflows/issue-policy.yml')
     const lifecycleJob = workflowJob(lifecycle, 'lifecycle')
+    const policyJob = workflowJob(policy, 'policy')
     if (!Array.isArray(lifecycleJob.steps)) throw new TypeError('Issue lifecycle job must define steps')
+    if (!Array.isArray(policyJob.steps)) throw new TypeError('Issue policy job must define steps')
 
     // The job has no job-level `if`, so it is listed on every pull_request /
-    // pull_request_review event and reports success instead of a gray skip. The
-    // write-capable steps are gated at step level so approved/commented reviews
-    // never mint a Project/Issue App token nor touch the board.
+    // pull_request_review event and reports success instead of a gray skip.
     expect(lifecycle.on).toHaveProperty('pull_request')
     expect(lifecycle.on).toHaveProperty('pull_request_review')
     expect(lifecycleJob.if).toBeUndefined()
@@ -672,16 +769,32 @@ describe('Issue lifecycle workflow', () => {
     expect(lifecyclePullRequest.types).not.toContain('ready_for_review')
     expect(lifecyclePullRequest.types).toContain('review_requested')
     expect(lifecycleReview.types).toEqual(['submitted'])
-    const gated = "${{ github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested' }}"
-    const steps = lifecycleJob.steps.filter(isRecord)
-    const tokenStep = steps.find(s => s.name === 'Create project token')
-    const handleStep = steps.find(s => s.name === 'Handle repository event')
-    expect(tokenStep).toMatchObject({ if: gated })
-    expect(handleStep).toMatchObject({ if: gated })
+    const nonForkRepository = '${{ github.event.repository.fork == false }}'
+    const forkRepository = '${{ github.event.repository.fork == true }}'
+    const nonForkLifecycleEvent = "${{ github.event.repository.fork == false && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
+    const lifecycleSteps = lifecycleJob.steps.filter(isRecord)
+    const lifecycleNoop = lifecycleSteps.find(s => s.name === 'Skip issue lifecycle in forks')
+    const lifecycleCheckout = lifecycleSteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
+    const tokenStep = lifecycleSteps.find(s => s.name === 'Create project token')
+    const handleStep = lifecycleSteps.find(s => s.name === 'Handle repository event')
+    expect(lifecycleNoop).toMatchObject({ if: forkRepository })
+    expect(lifecycleNoop?.run).toContain('intentional no-op')
+    expect(lifecycleCheckout).toMatchObject({ if: nonForkRepository })
+    expect(tokenStep).toMatchObject({ if: nonForkLifecycleEvent })
+    expect(handleStep).toMatchObject({ if: nonForkLifecycleEvent })
 
-    // issue-policy owns PR validation; it is read-only and a real gate.
+    // In a non-fork repository, issue-policy owns PR validation as a read-only
+    // required check.
     const policyPullRequest = workflowEvent(policy, 'pull_request')
     expect(policyPullRequest.types).toContain('ready_for_review')
+    const policySteps = policyJob.steps.filter(isRecord)
+    const policyNoop = policySteps.find(s => s.name === 'Skip issue policy in forks')
+    const policyCheckout = policySteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
+    const policyValidation = policySteps.find(s => s.name === 'Validate pull request')
+    expect(policyNoop).toMatchObject({ if: forkRepository })
+    expect(policyNoop?.run).toContain('intentional no-op')
+    expect(policyCheckout).toMatchObject({ if: nonForkRepository })
+    expect(policyValidation).toMatchObject({ if: nonForkRepository })
   })
 })
 
