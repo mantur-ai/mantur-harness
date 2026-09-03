@@ -807,7 +807,13 @@ describe('lexicon', () => {
     await tick()
     expect(controller.menu.getSnapshot().groups[0]?.items).toEqual([{ name: 'old' }])
     const seen: number[] = []
-    controller.lexicon.subscribe(() => { seen.push(controller.lexicon.getSnapshot().size) })
+    controller.lexicon.subscribe(() => {
+      seen.push(controller.lexicon.getSnapshot().size)
+      // React can re-project the unchanged draft after the lexicon render.
+      // That replaces the controller's hit object without starting a new
+      // menu generation; the queued refresh must still fetch this generation.
+      controller.track('/', 1, { tier: 'plain' }, 1)
+    })
     roll = ['commit-helper']
     notify?.()
     await tick()
