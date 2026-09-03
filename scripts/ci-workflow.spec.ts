@@ -772,6 +772,7 @@ describe('Issue management workflows', () => {
     const nonForkRepository = '${{ github.event.repository.fork == false }}'
     const forkRepository = '${{ github.event.repository.fork == true }}'
     const nonForkLifecycleEvent = "${{ github.event.repository.fork == false && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
+    const nonForkHumanPullRequest = "${{ github.event.repository.fork == false && github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.type != 'App' }}"
     const lifecycleSteps = lifecycleJob.steps.filter(isRecord)
     const lifecycleNoop = lifecycleSteps.find(s => s.name === 'Skip issue lifecycle in forks')
     const lifecycleCheckout = lifecycleSteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
@@ -794,7 +795,39 @@ describe('Issue management workflows', () => {
     expect(policyNoop).toMatchObject({ if: forkRepository })
     expect(policyNoop?.run).toContain('intentional no-op')
     expect(policyCheckout).toMatchObject({ if: nonForkRepository })
-    expect(policyValidation).toMatchObject({ if: nonForkRepository })
+    expect(policyValidation).toMatchObject({ if: nonForkHumanPullRequest })
+  })
+
+  it('uses a read-only Project token only for human pull request policy metadata', () => {
+    const policy = loadWorkflow('.github/workflows/issue-policy.yml')
+    const policyJob = workflowJob(policy, 'policy')
+    if (!Array.isArray(policyJob.steps)) throw new TypeError('Issue policy job must define steps')
+    const steps = policyJob.steps.filter(isRecord)
+    const tokenStep = steps.find(step => step.name === 'Create Project read token')
+    const validateStep = steps.find(step => step.name === 'Validate pull request')
+    const humanPullRequest =
+      "${{ github.event.repository.fork == false && github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.type != 'App' }}"
+
+    expect(tokenStep).toMatchObject({
+      id: 'app-token',
+      if: humanPullRequest,
+      uses: 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
+      with: {
+        'client-id': '${{ vars.DSH_ISSUE_APP_CLIENT_ID }}',
+        'private-key': '${{ secrets.DSH_ISSUE_APP_PRIVATE_KEY }}',
+        owner: 'deepseek-harness',
+        repositories: 'deepseek-harness',
+        'permission-issues': 'read',
+        'permission-organization-projects': 'read',
+      },
+    })
+    expect(validateStep).toMatchObject({
+      if: humanPullRequest,
+      env: {
+        GITHUB_TOKEN: '${{ github.token }}',
+        PROJECT_TOKEN: '${{ steps.app-token.outputs.token }}',
+      },
+    })
   })
 })
 
