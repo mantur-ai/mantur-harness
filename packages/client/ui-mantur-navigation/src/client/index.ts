@@ -2,10 +2,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-authorization-manturhub/remote'
 import manturMarketplaceRemote from '@deepseek-ai/dsh-manturhub-marketplace/remote'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -26,7 +29,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'navigation.mantur'
 
 /** Required UI services and declarations. */
-export const inject = ['slots', 'locale', 'remote']
+export const inject = ['slots', 'locale', 'remote', 'sessions', 'workspaces', 'conversation']
 
 /** Fill Mantur navigation, workspace terminology, and the root marketplace page. */
 export async function apply(ctx: Context): Promise<void> {
@@ -43,7 +46,10 @@ export async function apply(ctx: Context): Promise<void> {
           yield scope.slots.register({ name: 'sidebar.workspaces.heading', locale: NS }, ProjectsHeading)
           yield scope.slots.register({
             name: 'main.page', locale: NS,
-            inject: () => ({ controller, hooks: { marketplace: controller.store } }),
+            inject: () => ({
+              controller,
+              hooks: { marketplace: controller.store, recipes: controller.recipes },
+            }),
           }, MarketplacePage)
         })))
   })

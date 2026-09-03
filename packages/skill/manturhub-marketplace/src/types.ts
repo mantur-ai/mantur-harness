@@ -1,4 +1,4 @@
-/** Browser-safe ManturHub Skill marketplace contracts. */
+/** Browser-safe ManturHub marketplace contracts. */
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
@@ -39,4 +39,64 @@ export interface ManturMarketplaceInstallResult {
   readonly slug: string
   readonly version: string
   readonly installed: true
+}
+
+/** JSON value retained from one published Recipe's reproducible parameters. */
+export type ManturRecipeJsonValue =
+  | null | boolean | number | string
+  | ManturRecipeJsonValue[]
+  | { readonly [key: string]: ManturRecipeJsonValue }
+
+/** Public Recipe category currently served by ManturHub. */
+export type ManturRecipeCategory = 'video' | 'image' | 'script'
+
+/** Public Recipe media kind currently served by ManturHub. */
+export type ManturRecipeSampleKind = 'video' | 'image'
+
+/** One public Recipe card returned by ManturHub. */
+export interface ManturMarketplaceRecipe {
+  readonly slug: string
+  readonly title: string
+  readonly summary: string
+  readonly category: ManturRecipeCategory
+  readonly tags: readonly string[]
+  readonly coverUrl: string
+  readonly sampleUrl: string
+  readonly sampleKind: ManturRecipeSampleKind
+  readonly operatorId: string
+  readonly costEstimate: string
+  readonly priceDumplings: number
+  readonly author: string
+  readonly copies: number
+  readonly publishedAt: string
+}
+
+/** Paginated public Recipe catalog returned to the browser. */
+export interface ManturMarketplaceRecipeCatalog {
+  readonly recipes: readonly ManturMarketplaceRecipe[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly totalPages: number
+  readonly availableTags: readonly string[]
+}
+
+/** Server-side filters for the public Recipe catalog. */
+export interface ManturMarketplaceRecipeQuery {
+  readonly page?: number
+  readonly category?: ManturRecipeCategory
+  readonly tag?: string
+  readonly query?: string
+}
+
+/** Public Recipe detail and the authoritative instructions submitted to Agent. */
+export interface ManturMarketplaceRecipeDetail extends ManturMarketplaceRecipe {
+  readonly sampleText: string
+  readonly promptTemplate: string
+  readonly parameters: ManturRecipeJsonValue
+  readonly sourceUrl: string
+  readonly sourceName: string
+  readonly sourceAvatarUrl: string
+  readonly models: readonly string[]
+  readonly agentPayload: string
 }

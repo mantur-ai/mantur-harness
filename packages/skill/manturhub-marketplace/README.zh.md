@@ -1,5 +1,5 @@
 ---
-description: "由 Host 持有的 ManturHub 技能目录投影与安全本地安装器。"
+description: "由 Host 持有的 ManturHub 技能与配方目录投影，以及安全本地技能安装器。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-这个 Host 插件提供浏览器安全的 ManturHub 技能目录、详情与安装 Remote。公开元数据通过校验后才投影到浏览器。安装时 API Key 只进入带认证的第一跳；批准的重定向下载不携带凭据；压缩包限制与根元数据通过校验后，技能目录及安装状态才会原子提交。
+这个 Host 插件提供浏览器安全的 ManturHub 技能与配方目录和详情 Remote，并负责技能安装。公开元数据通过校验后才投影到浏览器。配方媒体与来源路径基于已配置 Hub 的响应来源解析。安装时 API Key 只进入带认证的第一跳；批准的重定向下载不携带凭据；压缩包限制与根元数据通过校验后，技能目录及安装状态才会原子提交。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合本包。它依赖 `manturAccount`，读取公开目录与详情接口，并安装到 `<DSH_HOME>/skills/<slug>`。配置分别限制元数据字节数、压缩字节数、压缩包条目数、解压字节数以及两个请求阶段的超时。默认值与 ManturHub 官方 CLI 策略一致。
+通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合本包。它依赖 `manturAccount`，读取公开技能与配方目录和详情接口，并把技能安装到 `<DSH_HOME>/skills/<slug>`。配方列表固定使用 Hub 支持的每页 15 条，并接受页码、分类、标签与文本筛选。配置分别限制元数据字节数、压缩字节数、压缩包条目数、解压字节数以及两个请求阶段的超时。默认值与 ManturHub 官方 CLI 策略一致。
 
 目录接口接受线上使用的 `{ skills }` 封装和 CLI 兼容的原始数组；详情接受直接 Skill 或 `{ skill }`。`kind: suite` 条目会被排除，缺少 `kind` 时按 `skill` 处理。
 
@@ -66,7 +66,7 @@ ZIP 读取器会在写入每个条目前先校验中央目录元数据。它会�
 
 - 不提供强制覆盖、卸载或本地冲突合并操作。
 - Skill 包必须使用 ZIP；解压在进程内完成，不依赖平台归档命令。
-- 配方安装与算子执行不属于本包。
+- 配方交接、算子执行、报价确认和支付不属于这个 Host 包；它会把已发布的 `agent_payload` 原样返回给浏览器消费者。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -5,10 +5,13 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../api/remotes/tsconfig.client.json" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
+    { "path": "../../api/workspace-controller/tsconfig.client.json" },
     { "path": "../../skill/manturhub-marketplace" },
     { "path": "../locale" },
     { "path": "../store" },
     { "path": "../ui-layout" },
+    { "path": "../ui-conversation" },
     { "path": "../ui-primitives" },
     { "path": "../ui-renderer" },
     { "path": "../ui-sidebar" },

@@ -25,6 +25,7 @@ const OVERLAY = fileURLToPath(new URL('../../../packages/bundle/mantur-app/cordi
 const INSTALL_ANCHOR = fileURLToPath(new URL('../../../packages/bundle/mantur-app/package.json', import.meta.url))
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/mantur-brand', import.meta.url))
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/fresh-round-trip/session.jsonl', import.meta.url))
+const RECIPE_REPLAY_FIXTURE = fileURLToPath(new URL('../../../snapshots/web/lifecycle-chrome/session.jsonl', import.meta.url))
 const SYSTEM_PROMPT_EXPECTED = join(SNAPSHOT_DIR, 'system-prompt.expected.md')
 const TOOL_SCHEMAS_EXPECTED = fileURLToPath(
   new URL('../../../snapshots/web/fresh-round-trip/tool-schemas.expected.json', import.meta.url),
@@ -43,6 +44,35 @@ const marketplaceSkill = {
   intro_md: '从剧本分析开始，自动组织角色、场景和分镜。',
   assets: null,
   kind: 'skill',
+}
+
+const marketplaceRecipe = {
+  slug: 'rcp.image.cinematic-poster',
+  title: '宿命感双人电影海报',
+  summary: '替换两位角色与片名，复刻具有电影质感的双人关系海报。',
+  cat: 'image',
+  tags: ['电影感', '双人海报'],
+  cover_url: '/assets/recipe.svg',
+  sample_url: '/assets/recipe.svg',
+  sample_kind: 'image',
+  operator_id: 'mantur.image.generate',
+  cost_estimate: '约 0.08 元',
+  price_dumplings: 0,
+  author: '漫途创作实验室',
+  copies: 268,
+  published_at: '2026-09-03T08:00:00.000Z',
+}
+
+const marketplaceRecipeDetail = {
+  ...marketplaceRecipe,
+  sample_text: '低饱和电影光影，两位角色以近远景形成关系张力。',
+  prompt_template: '以 {角色甲} 与 {角色乙} 为主角，片名为 {片名}。',
+  params_json: { user_inputs: { 角色甲: '上传人物图', 角色乙: '上传人物图', 片名: '输入文字' } },
+  source_url: '/recipes/rcp.image.cinematic-poster',
+  source_name: 'ManturHub 精选',
+  source_avatar_url: '/assets/recipe.svg',
+  models: ['Seedream 4.0'],
+  agent_payload: '请用 ManturHub 复刻这份配方，并在运行前展示实时报价。',
 }
 
 /** Start a local ManturHub protocol fixture used by the real Host and Remote layers. */
@@ -67,6 +97,22 @@ async function startManturHubFixture(): Promise<{
     }
     if (request.method === 'GET' && url.pathname === '/api/v1/skills/story-director') {
       json(200, { skill: marketplaceSkill })
+      return
+    }
+    if (request.method === 'GET' && url.pathname === '/api/v1/recipes') {
+      json(200, {
+        recipes: [marketplaceRecipe], total: 1, page: 1, page_size: 15, total_pages: 1,
+        available_tags: marketplaceRecipe.tags,
+      })
+      return
+    }
+    if (request.method === 'GET' && url.pathname === `/api/v1/recipes/${marketplaceRecipe.slug}`) {
+      json(200, marketplaceRecipeDetail)
+      return
+    }
+    if (request.method === 'GET' && url.pathname === '/assets/recipe.svg') {
+      response.writeHead(200, { 'content-type': 'image/svg+xml' })
+      response.end('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="#e8efff"/></svg>')
       return
     }
     if (request.method === 'POST' && url.pathname === '/api/v1/cli/session') {
@@ -248,27 +294,97 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     const installFailure = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     expect(installFailure).toContain('alert')
     expect(installFailure).toContain('技能安装失败')
-    await compareOrRefreshGolden(
-      MARKETPLACE_EXPECTED,
-      [`## Catalog\n\n${catalog}`, `## Detail\n\n${detail}`, `## Login gate\n\n${loginGate}`, `## Install failure\n\n${installFailure}`].join('\n\n'),
-      MODE,
-    )
-
     await page.getByRole('button', { name: '关闭', exact: true }).click()
 
     await page.getByRole('button', { name: '配方广场' }).click()
     await page.getByRole('heading', { name: '配方广场' }).waitFor({ timeout: 10_000 })
     await page.getByText('从经过验证的优秀案例出发，替换成你的内容，让漫途复刻同款效果。')
       .waitFor({ timeout: 10_000 })
-    await page.getByText(/配方本身免费；使用配方复刻时按算子实时报价，并在开始前请你确认/)
-      .waitFor({ timeout: 10_000 })
+    await page.getByText('宿命感双人电影海报', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await page.getByRole('button', { name: '配方广场' }).getAttribute('aria-current')).toBe('page')
+    const recipeCatalog = await captureStableAria(page, 'main', scaffold.workspaceCwd)
+    await page.getByText('宿命感双人电影海报', { exact: true }).click()
+    await page.getByRole('button', { name: '交给 Agent 复刻' }).waitFor({ timeout: 10_000 })
+    const recipeDetail = (await captureStableAria(page, 'main', scaffold.workspaceCwd))
+      .split(manturHub.baseUrl).join('{{manturHubUrl}}')
+    await compareOrRefreshGolden(
+      MARKETPLACE_EXPECTED,
+      [
+        `## Catalog\n\n${catalog}`,
+        `## Detail\n\n${detail}`,
+        `## Login gate\n\n${loginGate}`,
+        `## Install failure\n\n${installFailure}`,
+        `## Recipe catalog\n\n${recipeCatalog}`,
+        `## Recipe detail\n\n${recipeDetail}`,
+      ].join('\n\n'),
+      MODE,
+    )
 
+    await page.getByRole('button', { name: '返回配方广场' }).click()
     await page.getByRole('button', { name: '返回对话' }).click()
     await page.getByText('故事起于一念，余下交给漫途', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await page.getByRole('heading', { name: '配方广场' }).count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
+
+  it('submits a Recipe as the durable first user message without duplicating a failed retry', async () => {
+    const fixture = await startManturHubFixture()
+    const recipeScaffold = await launchWebScaffold({
+      extraOverlayPath: OVERLAY,
+      extraInstallAnchors: [INSTALL_ANCHOR],
+      manturHubBaseUrl: fixture.baseUrl,
+      replayFixture: RECIPE_REPLAY_FIXTURE,
+      compareReplaySession: false,
+    })
+    const recipePage = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE })
+    const createRequests: string[] = []
+    recipePage.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/session/create') createRequests.push(request.url())
+    })
+    try {
+      await recipePage.goto(recipeScaffold.authenticatedUrl, { waitUntil: 'load' })
+      await recipePage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+      await recipePage.getByRole('heading', { name: '登录漫途账号' }).waitFor({ timeout: 10_000 })
+      await recipePage.getByRole('button', { name: '暂时跳过' }).click()
+      await connectFreshWorkspaceZh(recipePage, recipeScaffold.workspaceCwd)
+      const createRequestsBeforeRecipe = createRequests.length
+      const initialIds = new Set((await recipeScaffold.ctx.sessionPersistence.list()).map(header => header.id))
+
+      await recipePage.getByRole('button', { name: '配方广场' }).click()
+      await recipePage.getByText(marketplaceRecipe.title, { exact: true }).click()
+      const settled = recipeScaffold.whenTurnSettled()
+      await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()
+      const recipeSessionId = await settled
+      expect(initialIds.has(recipeSessionId)).toBe(false)
+      const loaded = await recipeScaffold.ctx.sessionPersistence.load(recipeSessionId)
+      const firstUserMessage = loaded.events.find(event => event.type === 'user/message'
+        && event.data.source.kind === 'user')
+      if (firstUserMessage?.type !== 'user/message') throw new Error('Recipe Session has no durable first user message')
+      const firstUserText = firstUserMessage.data.content
+        .filter(block => block.type === 'text')
+        .map(block => block.text)
+        .join('\n')
+      expect(firstUserText).toContain(`配方标识：${marketplaceRecipe.slug}`)
+      expect(firstUserText).toContain(`配方来源：${fixture.baseUrl}/recipes/${marketplaceRecipe.slug}`)
+      expect(firstUserText).toContain(marketplaceRecipeDetail.agent_payload)
+
+      await recipePage.getByRole('button', { name: '配方广场' }).click()
+      await recipePage.getByText(marketplaceRecipe.title, { exact: true }).click()
+      await recipePage.route('**/api/session/prompt', route => route.abort('failed'))
+      await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()
+      await recipePage.getByRole('alert').filter({ hasText: '新对话没有创建成功' }).waitFor({ timeout: 10_000 })
+      expect(createRequests).toHaveLength(createRequestsBeforeRecipe + 2)
+      await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()
+      await expect.poll(() => createRequests.length, { timeout: 5_000 }).toBe(createRequestsBeforeRecipe + 2)
+    } finally {
+      await recipePage.close()
+      await recipeScaffold.close()
+      await new Promise<void>((resolve, reject) => fixture.server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      }))
+    }
+  }, 120_000)
 
   it('renders the English Mantur surface while retaining model and permission selection', async () => {
     const englishScaffold = await launchWebScaffold({

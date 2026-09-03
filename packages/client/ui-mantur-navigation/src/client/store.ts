@@ -1,10 +1,16 @@
-/** Browser state for the ManturHub Skill marketplace. */
+/** Browser state for the ManturHub marketplaces. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ManturLoginAttemptId, ManturLoginStart } from '@deepseek-ai/dsh-authorization-manturhub/types'
+import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
-  ManturMarketplaceCatalog, ManturMarketplaceSkillDetail,
+  ManturMarketplaceCatalog, ManturMarketplaceRecipeCatalog, ManturMarketplaceRecipeDetail,
+  ManturMarketplaceRecipeQuery, ManturMarketplaceSkillDetail,
 } from '@deepseek-ai/dsh-manturhub-marketplace/types'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 
 /** Client-visible marketplace state. */
@@ -23,6 +29,21 @@ export type ManturMarketplaceState =
     readonly loginPhase?: 'starting' | 'authorizing' | 'failed' | undefined
   }
 
+/** Client-visible Recipe catalog, detail, and launch state. */
+export type ManturRecipeMarketplaceState =
+  | { readonly phase: 'idle' | 'loading' }
+  | { readonly phase: 'failed'; readonly query: ManturMarketplaceRecipeQuery }
+  | {
+    readonly phase: 'ready'
+    readonly catalog: ManturMarketplaceRecipeCatalog
+    readonly query: ManturMarketplaceRecipeQuery
+    readonly detail?: ManturMarketplaceRecipeDetail | undefined
+    readonly detailLoading?: string | undefined
+    readonly detailError?: string | undefined
+    readonly launching?: string | undefined
+    readonly launchError?: 'no-workspace' | 'failed' | undefined
+  }
+
 /** Convert one generated Remote result into its value. */
 function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: string; message: string } }): T {
   if (result.ok) return result.value
@@ -33,9 +54,13 @@ function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: 
 export class ManturMarketplaceStore {
   /** Snapshot consumed by the Skill page. */
   readonly store: SnapshotStore<ManturMarketplaceState> = createSnapshotStore({ phase: 'idle' })
+  /** Snapshot consumed by the Recipe page. */
+  readonly recipes: SnapshotStore<ManturRecipeMarketplaceState> = createSnapshotStore({ phase: 'idle' })
   private generation = 0
+  private recipeGeneration = 0
   private loginGeneration = 0
   private loginTimer: number | undefined
+  private pendingRecipeSession: { readonly workspaceId: WorkspaceId; readonly sessionId: SessionId } | undefined
 
   /** @param ctx - client context carrying the generated marketplace Remote. */
   constructor(private readonly ctx: Context) {}
@@ -49,6 +74,102 @@ export class ManturMarketplaceStore {
       if (generation === this.generation) this.store.set({ phase: 'ready', catalog })
     } catch {
       if (generation === this.generation) this.store.set({ phase: 'failed' })
+    }
+  }
+
+  /**
+   * Load one public Recipe page with server-side filters.
+   * @param query - page and optional category, tag, and text filters.
+   */
+  async loadRecipes(query: ManturMarketplaceRecipeQuery = {}): Promise<void> {
+    const generation = ++this.recipeGeneration
+    this.recipes.set({ phase: 'loading' })
+    try {
+      const catalog = unwrap(await this.ctx.remote.manturMarketplace.listRecipes(query))
+      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'ready', catalog, query })
+    } catch {
+      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'failed', query })
+    }
+  }
+
+  /**
+   * Load the selected Recipe's public detail.
+   * @param slug - Recipe selected from the current catalog page.
+   */
+  async openRecipeDetail(slug: string): Promise<void> {
+    const current = this.recipes.getSnapshot()
+    if (current.phase !== 'ready') return
+    const generation = ++this.recipeGeneration
+    this.recipes.set({ ...current, detail: undefined, detailError: undefined, detailLoading: slug })
+    try {
+      const detail = unwrap(await this.ctx.remote.manturMarketplace.recipeDetail(slug))
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ ...current, detail, detailLoading: undefined })
+      }
+    } catch {
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ ...current, detailError: slug, detailLoading: undefined })
+      }
+    }
+  }
+
+  /** Close the selected Recipe and retain the current catalog page. */
+  closeRecipeDetail(): void {
+    const current = this.recipes.getSnapshot()
+    if (current.phase !== 'ready') return
+    ++this.recipeGeneration
+    this.recipes.set({ phase: 'ready', catalog: current.catalog, query: current.query })
+  }
+
+  /**
+   * Start a new Session in the current Workspace and submit the Recipe's authoritative payload.
+   * @returns whether the Host accepted the first durable user message.
+   */
+  async startRecipe(): Promise<boolean> {
+    const current = this.recipes.getSnapshot()
+    if (current.phase !== 'ready' || current.detail === undefined || current.launching !== undefined) return false
+    const detail = current.detail
+    const sessions = this.ctx.get('sessions') as ISessions | undefined
+    const workspaces = this.ctx.get('workspaces') as IWorkspaces | undefined
+    if (sessions === undefined || workspaces === undefined) throw new Error('Recipe launch services are unavailable')
+    const currentSessionId = sessions.list.getSnapshot().current
+    const workspace = currentSessionId === undefined
+      ? undefined
+      : workspaces.list.getSnapshot().items.find(item => item.sessionIds.includes(currentSessionId))
+    if (workspace === undefined) {
+      this.recipes.set({ ...current, launchError: 'no-workspace' })
+      return false
+    }
+    this.recipes.set({ ...current, launching: detail.slug, launchError: undefined })
+    try {
+      if (this.pendingRecipeSession !== undefined
+        && this.pendingRecipeSession.workspaceId !== workspace.workspaceId) {
+        await workspaces.archiveSession(this.pendingRecipeSession.sessionId)
+        this.pendingRecipeSession = undefined
+      }
+      const sessionId = this.pendingRecipeSession?.sessionId
+        ?? await sessions.create({ workspaceId: workspace.workspaceId })
+      this.pendingRecipeSession = { workspaceId: workspace.workspaceId, sessionId }
+      const binding = sessions.binding(sessionId)
+      if (binding === undefined) throw new Error(`Recipe session "${sessionId}" resolved no binding`)
+      const conversation = binding.ctx.get('conversation') as IConversation | undefined
+      if (conversation === undefined) throw new Error('Recipe conversation service is unavailable')
+      await conversation.send([
+        `我要复刻 ManturHub 配方「${detail.title}」。`,
+        `配方标识：${detail.slug}`,
+        `配方来源：${detail.sourceUrl}`,
+        '',
+        detail.agentPayload,
+      ].join('\n'))
+      sessions.open(sessionId)
+      this.pendingRecipeSession = undefined
+      const latest = this.recipes.getSnapshot()
+      if (latest.phase === 'ready') this.recipes.set({ ...latest, launching: undefined, launchError: undefined })
+      return true
+    } catch {
+      const latest = this.recipes.getSnapshot()
+      if (latest.phase === 'ready') this.recipes.set({ ...latest, launching: undefined, launchError: 'failed' })
+      return false
     }
   }
 
@@ -162,6 +283,7 @@ export class ManturMarketplaceStore {
   /** Make in-flight Remote settlements stale. */
   dispose(): void {
     ++this.generation
+    ++this.recipeGeneration
     ++this.loginGeneration
     this.clearLoginTimer()
   }

@@ -3,14 +3,18 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import clsx from 'clsx'
 import {
-  IconChevronLeftOutline14, IconListPenOutline16, IconSearchOutline16,
+  IconChevronLeftOutline14, IconChevronRightOutline14, IconCopyOutline16,
+  IconListPenOutline16, IconPlayOutline16, IconSearchOutline16,
   IconSkillOutline16, Modal, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MainPageId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ManturRecipeJsonValue } from '@deepseek-ai/dsh-manturhub-marketplace/types'
 import type { ManturNavigationKey } from './locales.ts'
-import type { ManturMarketplaceState, ManturMarketplaceStore } from './store.ts'
+import type {
+  ManturMarketplaceState, ManturMarketplaceStore, ManturRecipeMarketplaceState,
+} from './store.ts'
 import css from './MarketplaceNavigation.module.css'
 
 /** Mantur root-page identifiers. */
@@ -33,7 +37,10 @@ export type MarketplacePageProps =
 /** Marketplace page dependencies supplied by the client plugin. */
 export interface MarketplacePageInjected {
   controller: ManturMarketplaceStore
-  hooks: { marketplace: SnapshotStore<ManturMarketplaceState> }
+  hooks: {
+    marketplace: SnapshotStore<ManturMarketplaceState>
+    recipes: SnapshotStore<ManturRecipeMarketplaceState>
+  }
 }
 
 interface NavigationItem {
@@ -99,7 +106,7 @@ const pageCopy: Record<ManturMarketPageId, PageCopy> = {
 }
 
 /** Render the selected Mantur marketplace as an independent root page. */
-export function MarketplacePage({ activePage, closePage, controller, useMarketplace, t }: MarketplacePageProps) {
+export function MarketplacePage({ activePage, closePage, controller, useMarketplace, useRecipes, t }: MarketplacePageProps) {
   // Registry disposal unmounts the active occupant before a replacement can
   // render, so the layout must not retain this plugin's page identifier.
   useEffect(() => () => { closePage() }, [closePage])
@@ -108,23 +115,7 @@ export function MarketplacePage({ activePage, closePage, controller, useMarketpl
   if (activePage === MANTUR_MARKET_PAGES.skills) {
     return <SkillMarketplace closePage={closePage} controller={controller} useMarketplace={useMarketplace} t={t} />
   }
-  const Icon = copy.icon
-  return (
-    <main className={css.page} aria-labelledby="mantur-marketplace-title">
-      <header className={css.pageHeader}>
-        <button type="button" className={css.back} onClick={closePage}>
-          <IconChevronLeftOutline14 />
-          <span>{t('backToConversation')}</span>
-        </button>
-      </header>
-      <section className={css.pageBody}>
-        <div className={css.pageIdentity} aria-hidden="true"><Icon size={24} /></div>
-        <h1 id="mantur-marketplace-title">{t(copy.title)}</h1>
-        <p className={css.description}>{t(copy.description)}</p>
-        <p className={css.empty}>{t(copy.empty)}</p>
-      </section>
-    </main>
-  )
+  return <RecipeMarketplace closePage={closePage} controller={controller} useRecipes={useRecipes} t={t} />
 }
 
 /** Render the live Skill catalog with reliable client-side filtering. */
@@ -308,6 +299,229 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
       </Modal>
     </main>
   )
+}
+
+const recipeCategories = ['', 'video', 'image', 'script'] as const
+
+function currentRecipeQuery(
+  query: string,
+  category: (typeof recipeCategories)[number],
+): { readonly category?: Exclude<typeof category, ''>; readonly query?: string } {
+  const trimmed = query.trim()
+  return {
+    ...(category === '' ? {} : { category }),
+    ...(trimmed === '' ? {} : { query: trimmed }),
+  }
+}
+
+/** Render the live Recipe library and its inline reproduction guide. */
+function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
+  readonly closePage: () => void
+  readonly controller: ManturMarketplaceStore
+  readonly useRecipes: MarketplacePageProps['useRecipes']
+  readonly t: MarketplacePageProps['t']
+}) {
+  const state = useRecipes(snapshot => snapshot)
+  const ready = state.phase === 'ready' ? state : undefined
+  const detail = ready?.detail
+  const detailError = ready?.detailError
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState<(typeof recipeCategories)[number]>('')
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void controller.loadRecipes(currentRecipeQuery(query, category))
+    }, 250)
+    return () => { window.clearTimeout(timer) }
+  }, [category, controller, query])
+
+  const loadPage = (page: number): void => {
+    void controller.loadRecipes({ page, ...currentRecipeQuery(query, category) })
+  }
+  const launch = async (): Promise<void> => {
+    if (await controller.startRecipe()) closePage()
+  }
+
+  return (
+    <main className={css.page} aria-labelledby="mantur-recipe-title">
+      <header className={css.pageHeader}>
+        <button type="button" className={css.back} onClick={detail === undefined ? closePage : () => { controller.closeRecipeDetail() }}>
+          <IconChevronLeftOutline14 />
+          <span>{detail === undefined ? t('backToConversation') : t('recipes.backToList')}</span>
+        </button>
+      </header>
+      {detail === undefined
+        ? (
+          <section className={css.recipeBody}>
+            <div className={css.recipeHeading}>
+              <div>
+                <h1 id="mantur-recipe-title">{t('recipes.title')}</h1>
+                <p>{t('recipes.description')}</p>
+              </div>
+              {ready !== undefined && <span>{t('recipes.total').replace('{count}', String(ready.catalog.total))}</span>}
+            </div>
+            <div className={css.recipeToolbar}>
+              <label className={css.search}>
+                <IconSearchOutline16 />
+                <input
+                  value={query}
+                  onChange={(event) => { setQuery(event.target.value) }}
+                  placeholder={t('recipes.search')}
+                  aria-label={t('recipes.search')}
+                />
+              </label>
+              <div className={css.categories} aria-label={t('recipes.categories')}>
+                {recipeCategories.map(value => (
+                  <button
+                    key={value || 'all'} type="button"
+                    className={category === value ? css.categoryActive : undefined}
+                    aria-pressed={category === value}
+                    onClick={() => { setCategory(value) }}
+                  >
+                    {value === '' ? t('recipes.all') : t(`recipes.category.${value}`)}
+                  </button>
+                ))}
+              </div>
+              <p className={css.recipePriceNote}>{t('recipes.priceNote')}</p>
+            </div>
+
+            {state.phase === 'failed'
+              ? <div className={css.status}><p>{t('recipes.failed')}</p><button type="button" onClick={() => { void controller.loadRecipes(state.query) }}>{t('recipes.retry')}</button></div>
+              : ready === undefined
+                ? <p className={css.status}>{t('recipes.loading')}</p>
+                : ready.detailLoading !== undefined
+                  ? <p className={css.status} role="status">{t('recipes.loadingDetail')}</p>
+                  : detailError !== undefined
+                    ? (
+                      <div className={css.status} role="alert">
+                        <p>{t('recipes.detailFailed')}</p>
+                        <button type="button" onClick={() => { void controller.openRecipeDetail(detailError) }}>{t('recipes.retryDetail')}</button>
+                        <button type="button" onClick={() => { controller.closeRecipeDetail() }}>{t('close')}</button>
+                      </div>
+                    )
+                    : ready.catalog.recipes.length === 0
+                      ? <p className={css.status}>{t('recipes.noMatches')}</p>
+                      : (
+                        <>
+                          <div className={css.recipeGrid}>
+                            {ready.catalog.recipes.map(recipe => (
+                              <article key={recipe.slug} className={css.recipeCard}>
+                                <button type="button" className={css.recipeCover} onClick={() => { void controller.openRecipeDetail(recipe.slug) }} aria-label={t('recipes.viewNamed').replace('{title}', recipe.title)}>
+                                  <img src={recipe.coverUrl} alt="" loading="lazy" />
+                                  {recipe.sampleKind === 'video' && <span className={css.mediaBadge}><IconPlayOutline16 size={14} />{t('recipes.video')}</span>}
+                                </button>
+                                <div className={css.recipeCardBody}>
+                                  <button type="button" className={css.recipeTitle} onClick={() => { void controller.openRecipeDetail(recipe.slug) }}>{recipe.title}</button>
+                                  <p>{recipe.summary}</p>
+                                  <div className={css.recipeTags}>
+                                    <span>{t(`recipes.category.${recipe.category}`)}</span>
+                                    {recipe.tags.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}
+                                  </div>
+                                  <div className={css.recipeMeta}>
+                                    <span><IconCopyOutline16 size={14} />{t('recipes.copies').replace('{count}', String(recipe.copies))}</span>
+                                    <span>{recipe.costEstimate || t('recipes.liveQuote')}</span>
+                                    <button type="button" onClick={() => { void controller.openRecipeDetail(recipe.slug) }}>
+                                      {t('recipes.recreate')}<IconChevronRightOutline14 />
+                                    </button>
+                                  </div>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                          {ready.catalog.totalPages > 1 && (
+                            <nav className={css.pagination} aria-label={t('recipes.pagination')}>
+                              <button type="button" disabled={ready.catalog.page <= 1} onClick={() => { loadPage(ready.catalog.page - 1) }}>{t('recipes.previous')}</button>
+                              <span>{t('recipes.page').replace('{page}', String(ready.catalog.page)).replace('{total}', String(ready.catalog.totalPages))}</span>
+                              <button type="button" disabled={ready.catalog.page >= ready.catalog.totalPages} onClick={() => { loadPage(ready.catalog.page + 1) }}>{t('recipes.next')}</button>
+                            </nav>
+                          )}
+                        </>
+                      )}
+          </section>
+        )
+        : (
+          <RecipeDetail
+            detail={detail}
+            launching={ready?.launching === detail.slug}
+            launchError={ready?.launchError}
+            launch={launch}
+            t={t}
+          />
+        )}
+    </main>
+  )
+}
+
+function RecipeDetail({ detail, launching, launchError, launch, t }: {
+  readonly detail: NonNullable<Extract<ManturRecipeMarketplaceState, { phase: 'ready' }>['detail']>
+  readonly launching: boolean
+  readonly launchError: 'no-workspace' | 'failed' | undefined
+  readonly launch: () => Promise<void>
+  readonly t: MarketplacePageProps['t']
+}) {
+  const parameters = detail.parameters !== null && typeof detail.parameters === 'object' && !Array.isArray(detail.parameters)
+    ? detail.parameters.user_inputs
+    : undefined
+  return (
+    <section className={css.recipeDetailBody}>
+      <div className={css.recipeDetailMedia}>
+        {detail.sampleKind === 'video'
+          ? <video src={detail.sampleUrl} poster={detail.coverUrl} controls preload="metadata" />
+          : <img src={detail.sampleUrl} alt={detail.title} />}
+      </div>
+      <article className={css.recipeDetailCopy}>
+        <div className={css.recipeTags}>
+          <span>{t(`recipes.category.${detail.category}`)}</span>
+          {detail.tags.map(tag => <span key={tag}>{tag}</span>)}
+        </div>
+        <h1 id="mantur-recipe-title">{detail.title}</h1>
+        <p className={css.recipeLead}>{detail.summary}</p>
+        <div className={css.recipeDetailMeta}>
+          <span>{t('recipes.author').replace('{author}', detail.author)}</span>
+          <span>{t('recipes.copies').replace('{count}', String(detail.copies))}</span>
+          <span>{detail.costEstimate || t('recipes.liveQuote')}</span>
+        </div>
+        <button type="button" className={css.recipeLaunch} disabled={launching} onClick={() => { void launch() }}>
+          {launching ? t('recipes.launching') : t('recipes.launch')}
+        </button>
+        {launchError !== undefined && <p className={css.recipeLaunchError} role="alert">{launchError === 'no-workspace' ? t('recipes.noWorkspace') : t('recipes.launchFailed')}</p>}
+        <a className={css.recipeSource} href={detail.sourceUrl} target="_blank" rel="noreferrer">{t('recipes.source').replace('{source}', detail.sourceName || t('recipes.sourceDefault'))}</a>
+      </article>
+      <div className={css.recipeSections}>
+        {detail.sampleText !== '' && <RecipeSection title={t('recipes.outcome')} body={detail.sampleText} />}
+        {parameters !== undefined && <RecipeInputs title={t('recipes.inputs')} value={parameters} />}
+        {detail.promptTemplate !== '' && <RecipeSection title={t('recipes.prompt')} body={detail.promptTemplate} code wide />}
+        <RecipeSection title={t('recipes.models')} body={[...detail.models, detail.operatorId].join(' · ')} />
+        <RecipeSection title={t('recipes.guide')} body={detail.agentPayload} wide />
+      </div>
+    </section>
+  )
+}
+
+function RecipeInputs({ title, value }: { readonly title: string; readonly value: ManturRecipeJsonValue }) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return <RecipeSection title={title} body={formatRecipeValue(value)} />
+  }
+  return (
+    <section>
+      <h2>{title}</h2>
+      <dl className={css.recipeInputs}>
+        {Object.entries(value).map(([name, input]) => <div key={name}><dt>{name}</dt><dd>{formatRecipeValue(input)}</dd></div>)}
+      </dl>
+    </section>
+  )
+}
+
+function formatRecipeValue(value: ManturRecipeJsonValue): string {
+  return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
+function RecipeSection({ title, body, code = false, wide = false }: {
+  readonly title: string
+  readonly body: string
+  readonly code?: boolean
+  readonly wide?: boolean
+}) {
+  return <section className={wide ? css.recipeSectionWide : undefined}><h2>{title}</h2>{code ? <pre>{body}</pre> : <p>{body}</p>}</section>
 }
 
 /** Render Mantur's product term for the generic workspace section. */

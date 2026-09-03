@@ -1,4 +1,4 @@
-/** ManturHub Skill marketplace Host Remote. */
+/** ManturHub marketplace Host Remote. */
 
 import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -10,7 +10,8 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import { z } from 'zod'
 import type {
   ManturMarketplaceCatalog, ManturMarketplaceInstallResult, ManturMarketplaceSkill,
-  ManturMarketplaceSkillDetail,
+  ManturMarketplaceRecipe, ManturMarketplaceRecipeCatalog, ManturMarketplaceRecipeDetail,
+  ManturMarketplaceRecipeQuery, ManturMarketplaceSkillDetail,
 } from './types.ts'
 import { installSkill, type InstallerConfig } from './installer.ts'
 
@@ -45,6 +46,8 @@ const defaultMaxUnpackedBytes = 500 * 1024 * 1024
 const defaultMetadataTimeoutMs = 30_000
 const defaultDownloadTimeoutMs = 120_000
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const recipeSlugPattern = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/
+const recipePageSize = 15
 
 const skillSchema = z.object({
   slug: z.string().regex(slugPattern),
@@ -67,9 +70,46 @@ const catalogSchema = z.union([skillListSchema, z.object({ skills: skillListSche
 const detailSchema = z.union([skillSchema, z.object({ skill: skillSchema })])
   .transform(value => 'skill' in value ? value.skill : value)
 
+const recipeSchema = z.object({
+  slug: z.string().regex(recipeSlugPattern),
+  title: z.string().min(1),
+  summary: z.string(),
+  cat: z.enum(['video', 'image', 'script']),
+  tags: z.array(z.string()),
+  cover_url: z.string().min(1),
+  sample_url: z.string().min(1),
+  sample_kind: z.enum(['video', 'image']),
+  operator_id: z.string().min(1),
+  cost_estimate: z.string(),
+  price_dumplings: z.number().nonnegative(),
+  author: z.string(),
+  copies: z.number().int().nonnegative(),
+  published_at: z.iso.datetime(),
+})
+
+const recipeCatalogSchema = z.object({
+  recipes: z.array(recipeSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  page_size: z.number().int().positive(),
+  total_pages: z.number().int().nonnegative(),
+  available_tags: z.array(z.string()),
+})
+
+const recipeDetailSchema = recipeSchema.extend({
+  sample_text: z.string(),
+  prompt_template: z.string(),
+  params_json: z.json(),
+  source_url: z.string().min(1),
+  source_name: z.string(),
+  source_avatar_url: z.string(),
+  models: z.array(z.string()),
+  agent_payload: z.string().min(1),
+})
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Host owner of the browser-safe ManturHub Skill marketplace. */
+    /** Host owner of the browser-safe ManturHub marketplaces. */
     manturMarketplace: ManturHubMarketplace
   }
 }
@@ -125,6 +165,35 @@ async function projectSkill(
     ...(value.assets?.logo_url === undefined || value.assets.logo_url === null
       ? {} : { logoUrl: value.assets.logo_url }),
     installed: await isInstalled(skillsRoot, value.slug),
+  }
+}
+
+/** Resolve a public ManturHub URL against the response origin. */
+function publicUrl(value: string, responseUrl: string): string {
+  const url = new URL(value, responseUrl)
+  if (!['http:', 'https:'].includes(url.protocol) || url.username !== '' || url.password !== '') {
+    throw new Error('ManturHub public URL must use HTTP(S) without credentials')
+  }
+  return url.href
+}
+
+/** Project a published Recipe into browser-owned field names and absolute media URLs. */
+function projectRecipe(value: z.infer<typeof recipeSchema>, responseUrl: string): ManturMarketplaceRecipe {
+  return {
+    slug: value.slug,
+    title: value.title,
+    summary: value.summary,
+    category: value.cat,
+    tags: value.tags,
+    coverUrl: publicUrl(value.cover_url, responseUrl),
+    sampleUrl: publicUrl(value.sample_url, responseUrl),
+    sampleKind: value.sample_kind,
+    operatorId: value.operator_id,
+    costEstimate: value.cost_estimate,
+    priceDumplings: value.price_dumplings,
+    author: value.author,
+    copies: value.copies,
+    publishedAt: value.published_at,
   }
 }
 
@@ -224,6 +293,85 @@ export class ManturHubMarketplace extends TypertRemoteService {
     } catch (error) {
       if (error instanceof RemoteError) throw error
       throw new RemoteError('gateway/internal', 'ManturHub Skill detail could not be loaded', {}, { cause: error })
+    }
+  }
+
+  /**
+   * Load one filtered page from the public Recipe catalog.
+   * @param query - page, category, tag, and text filters.
+   * @returns browser-safe Recipe summaries and pagination metadata.
+   */
+  @Remote
+  async listRecipes(query: ManturMarketplaceRecipeQuery): Promise<ManturMarketplaceRecipeCatalog> {
+    const page = query.page ?? 1
+    if (!Number.isSafeInteger(page) || page < 1
+      || (query.tag !== undefined && query.tag.trim() === '')
+      || (query.query !== undefined && query.query.trim() === '')) {
+      throw new RemoteError('gateway/bad-request', 'invalid ManturHub Recipe query', {})
+    }
+    const params = new URLSearchParams({ page: String(page), pageSize: String(recipePageSize), compact: 'true' })
+    if (query.category !== undefined) params.set('cat', query.category)
+    if (query.tag !== undefined) params.set('tag', query.tag.trim())
+    if (query.query !== undefined) params.set('q', query.query.trim())
+    try {
+      const response = await this.ctx.manturAccount.request(`/api/v1/recipes?${params.toString()}`, {
+        authenticated: false,
+        headers: { 'X-ManturHub-Client': 'mantur-agent' },
+        signal: AbortSignal.timeout(this.config.metadataTimeoutMs),
+      })
+      if (response === undefined || !response.ok) {
+        throw new Error(`ManturHub Recipe catalog request failed with HTTP ${response?.status ?? 'unknown'}`)
+      }
+      const parsed = recipeCatalogSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      return {
+        recipes: parsed.recipes.map(recipe => projectRecipe(recipe, response.url)),
+        total: parsed.total,
+        page: parsed.page,
+        pageSize: parsed.page_size,
+        totalPages: parsed.total_pages,
+        availableTags: parsed.available_tags,
+      }
+    } catch (error) {
+      if (error instanceof RemoteError) throw error
+      throw new RemoteError('gateway/internal', 'ManturHub Recipe catalog could not be loaded', {}, { cause: error })
+    }
+  }
+
+  /**
+   * Load one public Recipe and its authoritative Agent reproduction instructions.
+   * @param slug - validated Recipe slug selected in the browser.
+   * @returns browser-safe Recipe detail.
+   */
+  @Remote
+  async recipeDetail(slug: string): Promise<ManturMarketplaceRecipeDetail> {
+    if (!recipeSlugPattern.test(slug)) {
+      throw new RemoteError('gateway/bad-request', 'invalid ManturHub Recipe slug', {})
+    }
+    try {
+      const response = await this.ctx.manturAccount.request(`/api/v1/recipes/${encodeURIComponent(slug)}`, {
+        authenticated: false,
+        headers: { 'X-ManturHub-Client': 'mantur-agent' },
+        signal: AbortSignal.timeout(this.config.metadataTimeoutMs),
+      })
+      if (response === undefined || !response.ok) {
+        throw new Error(`ManturHub Recipe request failed with HTTP ${response?.status ?? 'unknown'}`)
+      }
+      const parsed = recipeDetailSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      if (parsed.slug !== slug) throw new Error('ManturHub returned a different Recipe slug')
+      return {
+        ...projectRecipe(parsed, response.url),
+        sampleText: parsed.sample_text,
+        promptTemplate: parsed.prompt_template,
+        parameters: parsed.params_json,
+        sourceUrl: publicUrl(parsed.source_url, response.url),
+        sourceName: parsed.source_name,
+        sourceAvatarUrl: publicUrl(parsed.source_avatar_url, response.url),
+        models: parsed.models,
+        agentPayload: parsed.agent_payload,
+      }
+    } catch (error) {
+      if (error instanceof RemoteError) throw error
+      throw new RemoteError('gateway/internal', 'ManturHub Recipe detail could not be loaded', {}, { cause: error })
     }
   }
 
