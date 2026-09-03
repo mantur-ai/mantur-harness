@@ -639,18 +639,22 @@ describe('Mantur marketplace store', () => {
     store.recipes.set(ready)
     await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
     expect(archiveSession).toHaveBeenCalledWith('session-recipe-1')
+    expect(store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: undefined, launchError: 'failed',
+    })
+    expect(sessions.open).not.toHaveBeenCalled()
 
     bindingMode = 'missing-conversation'
     store.recipes.set(ready)
     await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
     expect(sessions.create).toHaveBeenCalledTimes(2)
+    expect(store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: undefined, launchError: 'failed',
+    })
+    expect(sessions.open).not.toHaveBeenCalled()
   })
 
   it('does not overwrite Recipe state changed while submission settles', async () => {
-    const successfulSend = vi.fn().mockImplementation(() => {
-      successfulStore.recipes.set({ phase: 'failed', query: {} })
-      return Promise.resolve()
-    })
     const makeStore = (send: ReturnType<typeof vi.fn>) => {
       const sessions = {
         list: { getSnapshot: () => ({ current: 'session-current' }) },
@@ -672,19 +676,39 @@ describe('Mantur marketplace store', () => {
         query: {},
         detail: recipeDetail,
       })
-      return store
+      return { sessions, store }
     }
 
-    const successfulStore = makeStore(successfulSend)
-    await expect(successfulStore.startRecipe(zhLaunchCopy)).resolves.toBe(true)
-    expect(successfulStore.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
-
-    const failedSend = vi.fn().mockImplementation(() => {
-      failedStore.recipes.set({ phase: 'failed', query: {} })
-      return Promise.reject(new Error('failed'))
+    const successfulCompletion = Promise.withResolvers<undefined>()
+    const successfulEntered = Promise.withResolvers<undefined>()
+    const successful = makeStore(vi.fn(() => {
+      successfulEntered.resolve(undefined)
+      return successfulCompletion.promise
+    }))
+    const successfulLaunch = successful.store.startRecipe(zhLaunchCopy)
+    await successfulEntered.promise
+    expect(successful.store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: recipe.slug,
     })
-    const failedStore = makeStore(failedSend)
-    await expect(failedStore.startRecipe(zhLaunchCopy)).resolves.toBe(false)
-    expect(failedStore.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
+    successful.store.recipes.set({ phase: 'failed', query: {} })
+    successfulCompletion.resolve(undefined)
+    await expect(successfulLaunch).resolves.toBe(true)
+    expect(successful.store.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
+
+    const failedCompletion = Promise.withResolvers<undefined>()
+    const failedEntered = Promise.withResolvers<undefined>()
+    const failed = makeStore(vi.fn(() => {
+      failedEntered.resolve(undefined)
+      return failedCompletion.promise
+    }))
+    const failedLaunch = failed.store.startRecipe(zhLaunchCopy)
+    await failedEntered.promise
+    expect(failed.store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: recipe.slug,
+    })
+    failed.store.recipes.set({ phase: 'failed', query: {} })
+    failedCompletion.reject(new Error('failed'))
+    await expect(failedLaunch).resolves.toBe(false)
+    expect(failed.store.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
   })
 })

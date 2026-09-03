@@ -642,6 +642,8 @@ describe('Mantur marketplace navigation', () => {
         {...globalProps} {...catalogProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
       />,
     )
+    await vi.advanceTimersByTimeAsync(250)
+    catalogProps.controllerMocks.loadRecipes.mockClear()
     expect(screen.getByText('运行前实时报价')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: `查看配方：${imageRecipe.title}` }))
     fireEvent.click(screen.getByRole('button', { name: imageRecipe.title }))
@@ -651,10 +653,51 @@ describe('Mantur marketplace navigation', () => {
     expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ page: 1 })
     expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ page: 3 })
 
+    catalogProps.controllerMocks.loadRecipes.mockClear()
     fireEvent.change(screen.getByRole('textbox'), { target: { value: ' 旅行 ' } })
     fireEvent.click(screen.getByRole('button', { name: '图片' }))
+    await vi.advanceTimersByTimeAsync(249)
+    expect(catalogProps.controllerMocks.loadRecipes).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledOnce()
+    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ category: 'image', query: '旅行' })
+
+    const firstPageProps = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [imageRecipe], total: 3, page: 1, pageSize: 1, totalPages: 3, availableTags: [] },
+      query: {},
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...firstPageProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    vi.clearAllTimers()
+    const previous = screen.getByRole('button', { name: '上一页' })
+    expect(previous.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(previous)
+    expect(firstPageProps.controllerMocks.loadRecipes).not.toHaveBeenCalled()
+
+    const lastPageProps = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [imageRecipe], total: 3, page: 3, pageSize: 1, totalPages: 3, availableTags: [] },
+      query: {},
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...lastPageProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    vi.clearAllTimers()
+    const next = screen.getByRole('button', { name: '下一页' })
+    expect(next.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(next)
+    expect(lastPageProps.controllerMocks.loadRecipes).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '卸载前取消' } })
+    view.unmount()
     await vi.advanceTimersByTimeAsync(250)
-    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenLastCalledWith({ category: 'image', query: '旅行' })
+    expect(lastPageProps.controllerMocks.loadRecipes).not.toHaveBeenCalled()
   })
 
   it('renders Recipe detail variants and keeps failed launches on the page', async () => {
