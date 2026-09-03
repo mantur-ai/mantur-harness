@@ -1472,7 +1472,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/skill/manturhub-marketplace/src/index.ts:20`](../packages/skill/manturhub-marketplace/src/index.ts)
+来源：[`packages/skill/manturhub-marketplace/src/index.ts:21`](../packages/skill/manturhub-marketplace/src/index.ts)
 
 <a id="deepseek-aidsh-mcp-client"></a>
 

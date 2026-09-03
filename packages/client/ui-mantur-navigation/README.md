@@ -57,7 +57,7 @@ These pages own the shared extension points and the Mantur composition.
 <a id="model-experience"></a>
 ## Model Experience
 
-The selected Recipe becomes the first durable user message in a newly created Session. The message includes the Recipe title, slug, source URL, and the exact `agent_payload` returned by ManturHub, so the model can follow the current reproduction guide and the transcript retains its origin.
+None, as this package contributes no hidden model context; the selected Recipe instead becomes an ordinary durable first user message containing its title, slug, source URL, and exact ManturHub `agent_payload`.
 
 #### KV Cache effect
 

@@ -197,30 +197,32 @@ describe('ManturHub marketplace Host', () => {
   it('loads public Recipe pages and resolves media URLs against the configured Hub', async () => {
     const subject = await boot({ signedIn: false })
 
-    await expect(subject.service.listRecipes({ category: 'video', query: '旅行' })).resolves.toMatchObject({
+    const catalog = await subject.service.listRecipes({ category: 'video', query: '旅行' })
+    expect(catalog).toMatchObject({
       total: 1,
       page: 1,
       pageSize: 15,
       recipes: [{
         slug: recipe.slug,
         category: 'video',
-        coverUrl: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/assets\/recipe-cover\.jpg$/),
       }],
     })
+    expect(catalog.recipes[0]?.coverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/recipe-cover\.jpg$/)
     expect(subject.requests).toContain('/api/v1/recipes?page=1&pageSize=15&compact=true&cat=video&q=%E6%97%85%E8%A1%8C  mantur-agent')
   })
 
   it('loads public Recipe detail with the authoritative Agent payload', async () => {
     const subject = await boot({ signedIn: false })
 
-    await expect(subject.service.recipeDetail(recipe.slug)).resolves.toMatchObject({
+    const detail = await subject.service.recipeDetail(recipe.slug)
+    expect(detail).toMatchObject({
       slug: recipe.slug,
       sampleText: recipeDetail.sample_text,
       parameters: recipeDetail.params_json,
       models: recipeDetail.models,
       agentPayload: recipeDetail.agent_payload,
-      sourceUrl: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/recipes\/rcp\.video\.story-vlog$/),
     })
+    expect(detail.sourceUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/recipes\/rcp\.video\.story-vlog$/)
   })
 
   it('rejects malformed Recipe requests before contacting ManturHub', async () => {

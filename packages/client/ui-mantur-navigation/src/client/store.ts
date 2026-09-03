@@ -1,10 +1,7 @@
 /** Browser state for the ManturHub marketplaces. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ManturLoginAttemptId, ManturLoginStart } from '@deepseek-ai/dsh-authorization-manturhub/types'
-import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
   ManturMarketplaceCatalog, ManturMarketplaceRecipeCatalog, ManturMarketplaceRecipeDetail,
@@ -129,8 +126,8 @@ export class ManturMarketplaceStore {
     const current = this.recipes.getSnapshot()
     if (current.phase !== 'ready' || current.detail === undefined || current.launching !== undefined) return false
     const detail = current.detail
-    const sessions = this.ctx.get('sessions') as ISessions | undefined
-    const workspaces = this.ctx.get('workspaces') as IWorkspaces | undefined
+    const sessions = this.ctx.get('sessions')
+    const workspaces = this.ctx.get('workspaces')
     if (sessions === undefined || workspaces === undefined) throw new Error('Recipe launch services are unavailable')
     const currentSessionId = sessions.list.getSnapshot().current
     const workspace = currentSessionId === undefined
@@ -152,7 +149,7 @@ export class ManturMarketplaceStore {
       this.pendingRecipeSession = { workspaceId: workspace.workspaceId, sessionId }
       const binding = sessions.binding(sessionId)
       if (binding === undefined) throw new Error(`Recipe session "${sessionId}" resolved no binding`)
-      const conversation = binding.ctx.get('conversation') as IConversation | undefined
+      const conversation = binding.ctx.get('conversation')
       if (conversation === undefined) throw new Error('Recipe conversation service is unavailable')
       await conversation.send([
         `我要复刻 ManturHub 配方「${detail.title}」。`,

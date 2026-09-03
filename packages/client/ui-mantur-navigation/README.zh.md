@@ -57,7 +57,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-选中的配方会成为新建会话中的首条持久用户消息。消息包含配方标题、slug、来源 URL 和 ManturHub 返回的原始 `agent_payload`，因此模型可以遵循当前复刻说明，转录也能保留来源。
+无隐藏的模型上下文；选中的配方会作为普通的首条持久用户消息提交，其中包含标题、slug、来源 URL 和 ManturHub 返回的原始 `agent_payload`。
 
 #### KV Cache 影响
 

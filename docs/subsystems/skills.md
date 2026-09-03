@@ -267,6 +267,20 @@ Host service for catalog reads and local Skill installation.
 @Remote async detail(slug: string): Promise<ManturMarketplaceSkillDetail>
 
 /**
+ * Load one filtered page from the public Recipe catalog.
+ * @param query - page, category, tag, and text filters.
+ * @returns browser-safe Recipe summaries and pagination metadata.
+ */
+@Remote async listRecipes(query: ManturMarketplaceRecipeQuery): Promise<ManturMarketplaceRecipeCatalog>
+
+/**
+ * Load one public Recipe and its authoritative Agent reproduction instructions.
+ * @param slug - validated Recipe slug selected in the browser.
+ * @returns browser-safe Recipe detail.
+ */
+@Remote async recipeDetail(slug: string): Promise<ManturMarketplaceRecipeDetail>
+
+/**
  * Download and atomically install one Skill into this running client's DSH_HOME.
  * @param slug - validated Skill slug selected in the browser.
  * @returns Host-confirmed installed version.
