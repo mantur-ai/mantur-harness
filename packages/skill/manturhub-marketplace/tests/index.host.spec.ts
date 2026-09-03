@@ -1,11 +1,19 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ManturHubRequestOptions } from '@deepseek-ai/dsh-authorization-manturhub'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import ManturHubMarketplace from '../src/index.ts'
+
+const { lstatFixture } = vi.hoisted(() => ({ lstatFixture: vi.fn() }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  lstatFixture.mockImplementation(actual.lstat)
+  return { ...actual, lstat: lstatFixture }
+})
 
 const skill = {
   slug: 'story-director',
@@ -23,6 +31,7 @@ const skill = {
 const cleanups: Array<() => Promise<void>> = []
 
 afterEach(async () => {
+  vi.clearAllMocks()
   while (cleanups.length > 0) await cleanups.pop()!()
 })
 
@@ -96,8 +105,9 @@ describe('ManturHub marketplace metadata failures', () => {
 
   it('reports a local installation-state filesystem error', async () => {
     const target = await subject(() => Promise.resolve(json([skill])))
-    await writeFile(join(target.home, 'skills'), 'not a directory')
+    lstatFixture.mockRejectedValueOnce(Object.assign(new Error('fixture lstat failure'), { code: 'EACCES' }))
     await expect(target.service.list()).rejects.toMatchObject({ code: 'gateway/internal' })
+    expect(lstatFixture).toHaveBeenCalledWith(join(target.home, 'skills', skill.slug))
   })
 
   it.each([

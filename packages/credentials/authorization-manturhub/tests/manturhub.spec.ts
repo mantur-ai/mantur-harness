@@ -383,7 +383,10 @@ describe('ManturHub device authorization', () => {
     await expect(subject.service.status()).rejects.toThrow('could not be read')
   })
 
-  it('reports account verification and local sign-out failures', async () => {
+  // This case crosses three loopback requests and initializes the encrypted
+  // credential store under coverage. The settlement event remains the
+  // completion barrier; the outer budget stays above the 30 s request limit.
+  it('reports account verification and local sign-out failures', { timeout: 90_000 }, async () => {
     const hub = await fakeHub({ account: { status: 500, body: { error: 'broken' } } })
     const subject = await boot(hub.origin)
     const completion = nextAttemptSettlement(subject.ctx)

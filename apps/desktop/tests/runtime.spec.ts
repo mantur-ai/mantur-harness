@@ -46,7 +46,8 @@ describe('desktop runtime', () => {
       await expect(service.ready).resolves.toBe('http://127.0.0.1:4312/?token=desktop-test')
       service.stop()
       await service.closed
-      expect(service.child.exitCode).toBe(0)
+      if (process.platform === 'win32') expect(service.child.signalCode).toBe('SIGTERM')
+      else expect(service.child.exitCode).toBe(0)
       await expect(readFile(logPath, 'utf8')).resolves.toContain('desktop runtime stderr')
     } finally {
       service.stop()
