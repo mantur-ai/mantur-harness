@@ -649,17 +649,17 @@ describe('Python release workflows', () => {
   })
 })
 
-describe('Issue lifecycle workflow', () => {
-  it('runs the lifecycle job on every PR/review event but gates token and board steps', () => {
+describe('Issue management workflows', () => {
+  it('keeps fork runs successful while restricting issue automation to the official repository', () => {
     const lifecycle = loadWorkflow('.github/workflows/issue-lifecycle.yml')
     const policy = loadWorkflow('.github/workflows/issue-policy.yml')
     const lifecycleJob = workflowJob(lifecycle, 'lifecycle')
+    const policyJob = workflowJob(policy, 'policy')
     if (!Array.isArray(lifecycleJob.steps)) throw new TypeError('Issue lifecycle job must define steps')
+    if (!Array.isArray(policyJob.steps)) throw new TypeError('Issue policy job must define steps')
 
     // The job has no job-level `if`, so it is listed on every pull_request /
-    // pull_request_review event and reports success instead of a gray skip. The
-    // write-capable steps are gated at step level so approved/commented reviews
-    // never mint a Project/Issue App token nor touch the board.
+    // pull_request_review event and reports success instead of a gray skip.
     expect(lifecycle.on).toHaveProperty('pull_request')
     expect(lifecycle.on).toHaveProperty('pull_request_review')
     expect(lifecycleJob.if).toBeUndefined()
@@ -672,16 +672,32 @@ describe('Issue lifecycle workflow', () => {
     expect(lifecyclePullRequest.types).not.toContain('ready_for_review')
     expect(lifecyclePullRequest.types).toContain('review_requested')
     expect(lifecycleReview.types).toEqual(['submitted'])
-    const gated = "${{ github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested' }}"
-    const steps = lifecycleJob.steps.filter(isRecord)
-    const tokenStep = steps.find(s => s.name === 'Create project token')
-    const handleStep = steps.find(s => s.name === 'Handle repository event')
-    expect(tokenStep).toMatchObject({ if: gated })
-    expect(handleStep).toMatchObject({ if: gated })
+    const officialRepository = "${{ github.repository == 'deepseek-harness/deepseek-harness' }}"
+    const outsideOfficialRepository = "${{ github.repository != 'deepseek-harness/deepseek-harness' }}"
+    const officialLifecycleEvent = "${{ github.repository == 'deepseek-harness/deepseek-harness' && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
+    const lifecycleSteps = lifecycleJob.steps.filter(isRecord)
+    const lifecycleNoop = lifecycleSteps.find(s => s.name === 'Skip issue lifecycle outside official repository')
+    const lifecycleCheckout = lifecycleSteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
+    const tokenStep = lifecycleSteps.find(s => s.name === 'Create project token')
+    const handleStep = lifecycleSteps.find(s => s.name === 'Handle repository event')
+    expect(lifecycleNoop).toMatchObject({ if: outsideOfficialRepository })
+    expect(lifecycleNoop?.run).toContain('intentional no-op')
+    expect(lifecycleCheckout).toMatchObject({ if: officialRepository })
+    expect(tokenStep).toMatchObject({ if: officialLifecycleEvent })
+    expect(handleStep).toMatchObject({ if: officialLifecycleEvent })
 
-    // issue-policy owns PR validation; it is read-only and a real gate.
+    // In the official repository, issue-policy owns PR validation as a
+    // read-only required check.
     const policyPullRequest = workflowEvent(policy, 'pull_request')
     expect(policyPullRequest.types).toContain('ready_for_review')
+    const policySteps = policyJob.steps.filter(isRecord)
+    const policyNoop = policySteps.find(s => s.name === 'Skip issue policy outside official repository')
+    const policyCheckout = policySteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
+    const policyValidation = policySteps.find(s => s.name === 'Validate pull request')
+    expect(policyNoop).toMatchObject({ if: outsideOfficialRepository })
+    expect(policyNoop?.run).toContain('intentional no-op')
+    expect(policyCheckout).toMatchObject({ if: officialRepository })
+    expect(policyValidation).toMatchObject({ if: officialRepository })
   })
 })
 
