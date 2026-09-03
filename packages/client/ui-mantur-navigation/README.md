@@ -27,7 +27,7 @@ This browser-only plugin adds the Mantur sidebar's Skill Marketplace and Recipe 
 
 Compose this package only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The package fills `sidebar.navigation`, `sidebar.workspaces.heading`, and `main.page` after their owners declare them, then mounts the browser-safe marketplace Remote. Opening the Skill page loads the public catalog and local installation flags. Selecting a card loads its detail; an authenticated install writes through the Host service and updates the visible card only after Host confirmation. A signed-out install starts the existing ManturHub device-login flow. Page selection belongs to the layout's transient store, so every reload starts on the current conversation and keeps no marketplace route on disk.
 
-The Recipe page defines each entry as carrying a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost. It states that the Recipe itself is free and that operator execution uses a real-time quote confirmed before work starts.
+The Recipe page loads the public ManturHub catalog with server-side text and category filters, renders result samples and pagination, and opens an inline detail with replaceable inputs, prompt template, models, operators, and the authoritative reproduction guide. The Recipe itself is free; operator execution uses a real-time quote confirmed before work starts. “Recreate with Agent” creates a new Session in the current Project and submits the Hub-provided `agent_payload` with the Recipe slug and ManturHub marker as its first user message. The message includes the source URL only when ManturHub publishes one.
 
 -----
 
@@ -37,7 +37,7 @@ The Recipe page defines each entry as carrying a result sample, prompt template,
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The browser plugin installs one localized navigation occupant, one Projects-heading occupant, one root-page occupant, and one root-scoped marketplace controller. The controller owns catalog, detail, install, and device-login snapshots while generated Remotes keep credentials and filesystem access on the Host. The navigation writes the selected branded page identifier to the layout store; the root-page occupant renders the matching page and closes it through the owner action. When an active root-page occupant unmounts during plugin disposal or replacement, it also clears its page identifier so the conversation becomes visible. Disposing the plugin invalidates pending state changes, clears login polling, removes the three occupants, and removes its locale dictionary.
+The browser plugin installs one localized navigation occupant, one Projects-heading occupant, one root-page occupant, and one root-scoped marketplace controller. The controller owns separate Skill and Recipe catalog and detail snapshots while generated Remotes keep credentials and filesystem access on the Host. Recipe launch resolves the current Workspace through the existing controllers, creates a Session, opens it, and sends the reproduction request through the scoped Conversation service. The navigation writes the selected branded page identifier to the layout store; the root-page occupant renders the matching page and closes it through the owner action. When an active root-page occupant unmounts during plugin disposal or replacement, it also clears its page identifier so the conversation becomes visible. Disposing the plugin invalidates pending state changes, clears login polling, removes the three occupants, and removes its locale dictionary.
 
 </details>
 
@@ -57,17 +57,17 @@ These pages own the shared extension points and the Mantur composition.
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this package contributes browser presentation only and registers nothing model-facing.
+None, as this package contributes no hidden model context; the selected Recipe instead becomes an ordinary durable first user message. Its trace lines use the active UI language and contain the title, slug, ManturHub marker, and any source URL published by ManturHub; the following `agent_payload` remains exactly as published.
 
 #### KV Cache effect
 
-None; navigation and empty-page text never reaches a provider request.
+The Recipe message contributes ordinary user-prompt tokens once. Navigation, catalog cards, detail metadata, and other UI copy do not enter provider requests.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Recipe catalog data, recipe execution, quote confirmation, and payment remain deferred.
+- Recipe discovery and handoff are available. Operator execution, quote confirmation, and payment continue inside the Agent and ManturHub capabilities rather than this presentation package.
 - The Skill page supports installation but intentionally provides no forced overwrite or uninstall action. A tracked directory modified after installation and any pre-existing untracked directory require manual resolution.
 
 <a id="dev-note"></a>

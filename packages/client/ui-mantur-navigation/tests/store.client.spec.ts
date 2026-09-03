@@ -16,6 +16,42 @@ const listed = {
   installed: false,
 }
 
+const recipe = {
+  slug: 'rcp.video.story-vlog',
+  title: '电影感旅行 Vlog',
+  summary: '把旅行素材变成有叙事节奏的短片。',
+  category: 'video' as const,
+  tags: ['旅行', '电影感'],
+  coverUrl: 'https://hub.mantur.cn/assets/cover.jpg',
+  sampleUrl: 'https://hub.mantur.cn/assets/sample.mp4',
+  sampleKind: 'video' as const,
+  operatorId: 'op.video.generate',
+  costEstimate: '约 0.16 元',
+  priceDumplings: 0,
+  author: '漫途创作实验室',
+  copies: 128,
+  publishedAt: '2026-09-01T08:00:00.000Z',
+}
+
+const recipeDetail = {
+  ...recipe,
+  sampleText: '自然光和克制转场。',
+  promptTemplate: '将 {地点} 替换成你的内容。',
+  parameters: { user_inputs: { 地点: '海边' } },
+  sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog',
+  sourceName: 'ManturHub',
+  sourceAvatarUrl: 'https://hub.mantur.cn/assets/avatar.png',
+  models: ['seedance-1.0-pro'],
+  agentPayload: '请先获取最新配方，再替换占位符。',
+}
+
+const zhLaunchCopy = {
+  introduction: `我要复刻 ManturHub 配方「${recipe.title}」。`,
+  identifier: `配方标识：${recipe.slug}`,
+  platform: '配方平台：ManturHub',
+  source: `来源地址：${recipeDetail.sourceUrl}`,
+}
+
 afterEach(() => {
   vi.useRealTimers()
 })
@@ -25,6 +61,144 @@ function subject(remote: object): ManturMarketplaceStore {
 }
 
 describe('Mantur marketplace store', () => {
+  it('loads filtered Recipe pages, details, and retryable failures', async () => {
+    const listRecipes = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: recipe.tags },
+      })
+      .mockResolvedValueOnce({ ok: false, error: { code: 'gateway/internal', message: 'offline' } })
+    const recipeDetailRemote = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: recipeDetail })
+      .mockResolvedValueOnce({ ok: false, error: { code: 'gateway/internal', message: 'offline' } })
+    const store = subject({ manturMarketplace: { listRecipes, recipeDetail: recipeDetailRemote } })
+
+    await store.loadRecipes({ category: 'video', query: '旅行' })
+    expect(listRecipes).toHaveBeenCalledWith({ category: 'video', query: '旅行' })
+    expect(store.recipes.getSnapshot()).toMatchObject({ phase: 'ready', catalog: { recipes: [recipe] } })
+    await store.openRecipeDetail(recipe.slug)
+    expect(store.recipes.getSnapshot()).toMatchObject({ detail: recipeDetail })
+    store.closeRecipeDetail()
+    expect(store.recipes.getSnapshot()).not.toHaveProperty('detail')
+    await store.openRecipeDetail(recipe.slug)
+    expect(store.recipes.getSnapshot()).toMatchObject({ detailError: recipe.slug })
+    await store.loadRecipes({ category: 'video', query: '旅行' })
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'failed', query: { category: 'video', query: '旅行' } })
+  })
+
+  it('starts a new Session and submits traceable Recipe instructions as its first message', async () => {
+    const send = vi.fn().mockResolvedValue(undefined)
+    const open = vi.fn()
+    const sessions = {
+      list: { getSnapshot: () => ({ current: 'session-current' }) },
+      create: vi.fn().mockResolvedValue('session-recipe'),
+      binding: () => ({ ctx: { get: (name: string) => name === 'conversation' ? { send } : undefined } }),
+      open,
+    }
+    const workspaces = {
+      list: { getSnapshot: () => ({ items: [{ workspaceId: 'workspace-1', sessionIds: ['session-current'] }] }) },
+    }
+    const ctx = {
+      remote: {},
+      get: (name: string) => name === 'sessions' ? sessions : name === 'workspaces' ? workspaces : undefined,
+    } as unknown as Context
+    const store = new ManturMarketplaceStore(ctx)
+    store.recipes.set({
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail: recipeDetail,
+    })
+
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(true)
+    expect(sessions.create).toHaveBeenCalledWith({ workspaceId: 'workspace-1' })
+    expect(open).toHaveBeenCalledWith('session-recipe')
+    expect(send).toHaveBeenCalledWith(expect.stringContaining(`配方标识：${recipe.slug}`))
+    expect(send).toHaveBeenCalledWith(expect.stringContaining('配方平台：ManturHub'))
+    expect(send).toHaveBeenCalledWith(expect.stringContaining(`来源地址：${recipeDetail.sourceUrl}`))
+    expect(send).toHaveBeenCalledWith(expect.stringContaining(recipeDetail.agentPayload))
+  })
+
+  it('keeps ManturHub provenance without inventing a missing Recipe source URL', async () => {
+    const send = vi.fn().mockResolvedValue(undefined)
+    const sessions = {
+      list: { getSnapshot: () => ({ current: 'session-current' }) },
+      create: vi.fn().mockResolvedValue('session-recipe'),
+      binding: () => ({ ctx: { get: (name: string) => name === 'conversation' ? { send } : undefined } }),
+      open: vi.fn(),
+    }
+    const store = new ManturMarketplaceStore({
+      remote: {},
+      get: (name: string) => name === 'sessions'
+        ? sessions
+        : name === 'workspaces'
+          ? { list: { getSnapshot: () => ({ items: [{ workspaceId: 'workspace-1', sessionIds: ['session-current'] }] }) } }
+          : undefined,
+    } as unknown as Context)
+    const { sourceUrl: _sourceUrl, sourceName: _sourceName, sourceAvatarUrl: _sourceAvatarUrl, ...detail } = recipeDetail
+    store.recipes.set({
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail,
+    })
+
+    const enLaunchCopy = {
+      introduction: `I want to recreate the ManturHub Recipe “${recipe.title}”.`,
+      identifier: `Recipe ID: ${recipe.slug}`,
+      platform: 'Recipe platform: ManturHub',
+    }
+    await expect(store.startRecipe(enLaunchCopy)).resolves.toBe(true)
+    const message = String(send.mock.calls[0]?.[0])
+    expect(message).toContain(enLaunchCopy.introduction)
+    expect(message).toContain(enLaunchCopy.identifier)
+    expect(message).toContain(enLaunchCopy.platform)
+    expect(message).toContain(recipeDetail.agentPayload)
+    expect(message).not.toContain('Source URL:')
+    expect(message).not.toContain('undefined')
+  })
+
+  it('reports missing Workspaces and failed Recipe Session submission', async () => {
+    const selection: { current: string | undefined } = { current: undefined }
+    const send = vi.fn().mockRejectedValue(new Error('failed'))
+    const sessions = {
+      list: { getSnapshot: () => selection },
+      create: vi.fn().mockResolvedValue('session-recipe'),
+      binding: () => ({ ctx: { get: () => ({ send }) } }),
+      open: vi.fn(),
+    }
+    let items: object[] = []
+    const store = new ManturMarketplaceStore({
+      remote: {},
+      get: (name: string) => name === 'sessions'
+        ? sessions
+        : name === 'workspaces'
+          ? { list: { getSnapshot: () => ({ items }) } }
+          : undefined,
+    } as unknown as Context)
+    const ready = {
+      phase: 'ready' as const,
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail: recipeDetail,
+    }
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    expect(store.recipes.getSnapshot()).toMatchObject({ launchError: 'no-workspace' })
+
+    selection.current = 'session-current'
+    items = [{ workspaceId: 'workspace-1', sessionIds: ['session-current'] }]
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    expect(store.recipes.getSnapshot()).toMatchObject({ launchError: 'failed', launching: undefined })
+    expect(sessions.open).not.toHaveBeenCalled()
+
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    expect(sessions.create).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+
   it('loads, refreshes, and reports catalog failures', async () => {
     const list = vi.fn()
       .mockResolvedValueOnce({ ok: true, value: { skills: [listed], installedCount: 0, signedIn: false } })

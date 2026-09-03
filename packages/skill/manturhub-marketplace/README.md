@@ -1,5 +1,5 @@
 ---
-description: "Host-owned ManturHub Skill catalog projection and safe local installer."
+description: "Host-owned ManturHub Skill and Recipe catalog projection with safe local Skill installation."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This Host plugin exposes browser-safe ManturHub Skill catalog, detail, and installation Remotes. Public metadata is validated before projection. Installation keeps the API key on the authenticated first hop, downloads an approved redirect without credentials, verifies archive limits and root metadata, and atomically commits the Skill directory with installer state.
+This Host plugin exposes browser-safe ManturHub Skill and Recipe catalog and detail Remotes plus Skill installation. Public metadata is validated before projection. Recipe media and non-empty source paths resolve against the configured Hub response origin; empty source fields are omitted from the browser result. Installation keeps the API key on the authenticated first hop, downloads an approved redirect without credentials, verifies archive limits and root metadata, and atomically commits the Skill directory with installer state.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This Host plugin exposes browser-safe ManturHub Skill catalog, detail, and insta
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, reads public catalog and detail endpoints, and installs into `<DSH_HOME>/skills/<slug>`. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, and both request stages. The defaults match the official ManturHub CLI policy.
+Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, reads public Skill and Recipe catalog and detail endpoints, and installs Skills into `<DSH_HOME>/skills/<slug>`. Recipe list reads are fixed at the Hub-supported 15 entries per page and accept page, category, tag, and text filters. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, and both request stages. The defaults match the official ManturHub CLI policy.
 
 The list endpoint accepts the deployed `{ skills }` envelope and the CLI-compatible raw array. Detail accepts a direct Skill or `{ skill }`. Entries with `kind: suite` are excluded; a missing `kind` means `skill`.
 
@@ -66,7 +66,7 @@ Stable until installation commits a new Skill directory; later catalog tool outp
 
 - There is no forced overwrite, uninstall, or local-conflict merge operation.
 - Skill bundles must use ZIP. Extraction is implemented in-process and does not depend on platform archive commands.
-- Recipe installation and operator execution are outside this package.
+- Recipe handoff, operator execution, quote confirmation, and payment are outside this Host package; it returns the published `agent_payload` unchanged to its browser consumer.
 
 <a id="dev-note"></a>
 ### Dev Note

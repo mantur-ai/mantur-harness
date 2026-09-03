@@ -1264,6 +1264,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'browser-safe Skill detail.',
       },
       {
+        signature: '@Remote async listRecipes(query: ManturMarketplaceRecipeQuery): Promise<ManturMarketplaceRecipeCatalog>',
+        description: 'Load one filtered page from the public Recipe catalog.',
+        parameters: [{ name: 'query', description: 'page, category, tag, and text filters.' }],
+        returns: 'browser-safe Recipe summaries and pagination metadata.',
+      },
+      {
+        signature: '@Remote async recipeDetail(slug: string): Promise<ManturMarketplaceRecipeDetail>',
+        description: 'Load one public Recipe and its authoritative Agent reproduction instructions.',
+        parameters: [{ name: 'slug', description: 'validated Recipe slug selected in the browser.' }],
+        returns: 'browser-safe Recipe detail.',
+      },
+      {
         signature: '@Remote async installSkill(slug: string): Promise<ManturMarketplaceInstallResult>',
         description: 'Download and atomically install one Skill into this running client\'s DSH_HOME.',
         parameters: [{ name: 'slug', description: 'validated Skill slug selected in the browser.' }],
@@ -4473,12 +4485,40 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManturMarketplaceInstallResult {\n    readonly slug: string;\n    readonly version: string;\n    readonly installed: true;\n}',
   },
   {
+    name: 'ManturMarketplaceRecipe',
+    declaration: 'export interface ManturMarketplaceRecipe {\n    readonly slug: string;\n    readonly title: string;\n    readonly summary: string;\n    readonly category: ManturRecipeCategory;\n    readonly tags: readonly string[];\n    readonly coverUrl: string;\n    readonly sampleUrl: string;\n    readonly sampleKind: ManturRecipeSampleKind;\n    readonly operatorId: string;\n    readonly costEstimate: string;\n    readonly priceDumplings: number;\n    readonly author: string;\n    readonly copies: number;\n    readonly publishedAt: string;\n}',
+  },
+  {
+    name: 'ManturMarketplaceRecipeCatalog',
+    declaration: 'export interface ManturMarketplaceRecipeCatalog {\n    readonly recipes: readonly ManturMarketplaceRecipe[];\n    readonly total: number;\n    readonly page: number;\n    readonly pageSize: number;\n    readonly totalPages: number;\n    readonly availableTags: readonly string[];\n}',
+  },
+  {
+    name: 'ManturMarketplaceRecipeDetail',
+    declaration: 'export interface ManturMarketplaceRecipeDetail extends ManturMarketplaceRecipe {\n    readonly sampleText: string;\n    readonly promptTemplate: string;\n    readonly parameters: ManturRecipeJsonValue;\n    readonly sourceUrl?: string;\n    readonly sourceName?: string;\n    readonly sourceAvatarUrl?: string;\n    readonly models: readonly string[];\n    readonly agentPayload: string;\n}',
+  },
+  {
+    name: 'ManturMarketplaceRecipeQuery',
+    declaration: 'export interface ManturMarketplaceRecipeQuery {\n    readonly page?: number;\n    readonly category?: ManturRecipeCategory;\n    readonly tag?: string;\n    readonly query?: string;\n}',
+  },
+  {
     name: 'ManturMarketplaceSkill',
     declaration: 'export interface ManturMarketplaceSkill {\n    readonly slug: string;\n    readonly name: string;\n    readonly description: string;\n    readonly category: string;\n    readonly version: string;\n    readonly triggers: readonly string[];\n    readonly logoUrl?: string;\n    readonly installed: boolean;\n}',
   },
   {
     name: 'ManturMarketplaceSkillDetail',
     declaration: 'export interface ManturMarketplaceSkillDetail extends ManturMarketplaceSkill {\n    readonly usesOperators: readonly string[];\n    readonly introduction?: string;\n}',
+  },
+  {
+    name: 'ManturRecipeCategory',
+    declaration: 'export type ManturRecipeCategory = \'video\' | \'image\' | \'script\';',
+  },
+  {
+    name: 'ManturRecipeJsonValue',
+    declaration: 'export type ManturRecipeJsonValue = null | boolean | number | string | ManturRecipeJsonValue[] | {\n    readonly [key: string]: ManturRecipeJsonValue;\n};',
+  },
+  {
+    name: 'ManturRecipeSampleKind',
+    declaration: 'export type ManturRecipeSampleKind = \'video\' | \'image\';',
   },
   {
     name: 'ManualCompactAgentContext',

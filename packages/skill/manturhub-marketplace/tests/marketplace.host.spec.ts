@@ -25,6 +25,8 @@ interface HubOptions {
   ) => Promise<Response | undefined>
   readonly catalog?: unknown
   readonly detail?: unknown
+  readonly recipeCatalog?: unknown
+  readonly recipeDetail?: unknown
   readonly redirect?: string | null
 }
 
@@ -39,6 +41,35 @@ const skill = {
   intro_md: '先理解故事，再生成镜头。',
   assets: null,
   kind: 'skill',
+}
+
+const recipe = {
+  slug: 'rcp.video.story-vlog',
+  title: '电影感旅行 Vlog',
+  summary: '把普通旅行素材变成有叙事节奏的短片。',
+  cat: 'video',
+  tags: ['旅行', '电影感'],
+  cover_url: '/assets/recipe-cover.jpg',
+  sample_url: '/assets/recipe-sample.mp4',
+  sample_kind: 'video',
+  operator_id: 'op.video.generate',
+  cost_estimate: '约 0.16 元',
+  price_dumplings: 0,
+  author: '漫途创作实验室',
+  copies: 128,
+  published_at: '2026-09-01T08:00:00.000Z',
+}
+
+const recipeDetail = {
+  ...recipe,
+  sample_text: '自然光、手持镜头和克制转场。',
+  prompt_template: '将 {地点} 与 {人物} 替换成你的内容。',
+  params_json: { user_inputs: { 地点: '海边', 人物: '旅行者' } },
+  source_url: '/recipes/rcp.video.story-vlog',
+  source_name: 'ManturHub',
+  source_avatar_url: '/assets/avatar.png',
+  models: ['seedance-1.0-pro'],
+  agent_payload: '请先读取最新配方，再替换占位符并报价。',
 }
 
 function bundle(files: Record<string, string> = {
@@ -74,6 +105,17 @@ async function fakeHub(options: HubOptions = {}): Promise<{
     requests.push(`${request.url} ${request.headers['x-api-key'] ?? ''} ${request.headers['x-manturhub-client'] ?? ''}`)
     if (request.url === '/api/v1/skills') {
       sendJson(response, options.catalog ?? { skills: [skill, { ...skill, slug: 'team-suite', kind: 'suite' }] })
+      return
+    }
+    if (request.url?.startsWith('/api/v1/recipes?')) {
+      sendJson(response, options.recipeCatalog ?? {
+        recipes: [recipe], total: 1, page: 1, page_size: 15, total_pages: 1,
+        available_tags: recipe.tags,
+      })
+      return
+    }
+    if (request.url === `/api/v1/recipes/${recipe.slug}`) {
+      sendJson(response, options.recipeDetail ?? recipeDetail)
       return
     }
     if (request.url === `/api/v1/skills/${skill.slug}`) {
@@ -152,6 +194,72 @@ async function boot(options: HubOptions & {
 }
 
 describe('ManturHub marketplace Host', () => {
+  it('loads public Recipe pages and resolves media URLs against the configured Hub', async () => {
+    const subject = await boot({ signedIn: false })
+
+    const catalog = await subject.service.listRecipes({ category: 'video', query: '旅行' })
+    expect(catalog).toMatchObject({
+      total: 1,
+      page: 1,
+      pageSize: 15,
+      recipes: [{
+        slug: recipe.slug,
+        category: 'video',
+      }],
+    })
+    expect(catalog.recipes[0]?.coverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/recipe-cover\.jpg$/)
+    expect(subject.requests).toContain('/api/v1/recipes?page=1&pageSize=15&compact=true&cat=video&q=%E6%97%85%E8%A1%8C  mantur-agent')
+  })
+
+  it('loads public Recipe detail with the authoritative Agent payload', async () => {
+    const subject = await boot({ signedIn: false })
+
+    const detail = await subject.service.recipeDetail(recipe.slug)
+    expect(detail).toMatchObject({
+      slug: recipe.slug,
+      sampleText: recipeDetail.sample_text,
+      parameters: recipeDetail.params_json,
+      models: recipeDetail.models,
+      agentPayload: recipeDetail.agent_payload,
+    })
+    expect(detail.sourceUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/recipes\/rcp\.video\.story-vlog$/)
+  })
+
+  it('omits empty Recipe source metadata returned by production', async () => {
+    const subject = await boot({
+      signedIn: false,
+      recipeDetail: {
+        ...recipeDetail,
+        source_url: '',
+        source_name: '',
+        source_avatar_url: '',
+      },
+    })
+
+    const detail = await subject.service.recipeDetail(recipe.slug)
+    expect(detail).not.toHaveProperty('sourceUrl')
+    expect(detail).not.toHaveProperty('sourceName')
+    expect(detail).not.toHaveProperty('sourceAvatarUrl')
+  })
+
+  it('rejects malformed Recipe requests before contacting ManturHub', async () => {
+    const subject = await boot()
+    await expect(subject.service.listRecipes({ page: 0 })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(subject.service.listRecipes({ query: '   ' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(subject.service.recipeDetail('../private')).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    expect(subject.requests).toEqual([])
+  })
+
+  it('rejects unsafe public URLs returned in Recipe metadata', async () => {
+    const subject = await boot({
+      recipeCatalog: {
+        recipes: [{ ...recipe, cover_url: 'javascript:alert(1)' }],
+        total: 1, page: 1, page_size: 15, total_pages: 1, available_tags: [],
+      },
+    })
+    await expect(subject.service.listRecipes({})).rejects.toThrow('could not be loaded')
+  })
+
   it('accepts the deployed catalog envelope and excludes suites', async () => {
     const subject = await boot()
 

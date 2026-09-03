@@ -8,7 +8,9 @@ import {
   ProjectsHeading,
 } from '../src/client/MarketplaceNavigation.tsx'
 import { zh } from '../src/client/locales.ts'
-import type { ManturMarketplaceState, ManturMarketplaceStore } from '../src/client/store.ts'
+import type {
+  ManturMarketplaceState, ManturMarketplaceStore, ManturRecipeMarketplaceState,
+} from '../src/client/store.ts'
 
 afterEach(cleanup)
 
@@ -24,11 +26,38 @@ const emptyReady: ManturMarketplaceState = {
   catalog: { skills: [], installedCount: 0, signedIn: false },
 }
 
-type ControllerMocks = {
-  [K in 'load' | 'openDetail' | 'closeDetail' | 'install' | 'startLogin' | 'cancelLogin']: ReturnType<typeof vi.fn>
+const recipe = {
+  slug: 'rcp.video.story-vlog',
+  title: '电影感旅行 Vlog',
+  summary: '把旅行素材变成有叙事节奏的短片。',
+  category: 'video' as const,
+  tags: ['旅行', '电影感'],
+  coverUrl: 'https://hub.mantur.cn/assets/cover.jpg',
+  sampleUrl: 'https://hub.mantur.cn/assets/sample.mp4',
+  sampleKind: 'video' as const,
+  operatorId: 'op.video.generate',
+  costEstimate: '约 0.16 元',
+  priceDumplings: 0,
+  author: '漫途创作实验室',
+  copies: 128,
+  publishedAt: '2026-09-01T08:00:00.000Z',
 }
 
-function marketplaceProps(state: ManturMarketplaceState = emptyReady) {
+type ControllerMocks = {
+  [K in
+    | 'load' | 'openDetail' | 'closeDetail' | 'install' | 'startLogin' | 'cancelLogin'
+    | 'loadRecipes' | 'openRecipeDetail' | 'closeRecipeDetail' | 'startRecipe'
+  ]: ReturnType<typeof vi.fn>
+}
+
+function marketplaceProps(
+  state: ManturMarketplaceState = emptyReady,
+  recipeState: ManturRecipeMarketplaceState = {
+    phase: 'ready',
+    catalog: { recipes: [], total: 0, page: 1, pageSize: 15, totalPages: 0, availableTags: [] },
+    query: {},
+  },
+) {
   const controller = {
     load: vi.fn(),
     openDetail: vi.fn(),
@@ -36,11 +65,16 @@ function marketplaceProps(state: ManturMarketplaceState = emptyReady) {
     install: vi.fn(),
     startLogin: vi.fn(),
     cancelLogin: vi.fn(),
+    loadRecipes: vi.fn(),
+    openRecipeDetail: vi.fn(),
+    closeRecipeDetail: vi.fn(),
+    startRecipe: vi.fn(),
   } satisfies ControllerMocks
   return {
     controller: controller as unknown as ManturMarketplaceStore,
     controllerMocks: controller,
     useMarketplace: ((selector: (value: ManturMarketplaceState) => unknown) => selector(state)) as never,
+    useRecipes: ((selector: (value: ManturRecipeMarketplaceState) => unknown) => selector(recipeState)) as never,
   }
 }
 
@@ -93,7 +127,7 @@ describe('Mantur marketplace navigation', () => {
     )
     expect(screen.getByRole('heading', { name: '配方广场' })).toBeTruthy()
     expect(screen.getByText('从经过验证的优秀案例出发，替换成你的内容，让漫途复刻同款效果。')).toBeTruthy()
-    expect(screen.getByText('每份配方包含效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本。配方本身免费；使用配方复刻时按算子实时报价，并在开始前请你确认。')).toBeTruthy()
+    expect(screen.getByText('还没有找到匹配的配方，换个关键词试试。')).toBeTruthy()
   })
 
   it('returns to conversation when the active marketplace occupant unloads', () => {
@@ -110,6 +144,124 @@ describe('Mantur marketplace navigation', () => {
 
     view.unmount()
     expect(closePage).toHaveBeenCalledOnce()
+  })
+
+  it('renders real Recipe cards and opens the inline detail', () => {
+    const recipeState: ManturRecipeMarketplaceState = {
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: recipe.tags },
+      query: {},
+    }
+    const props = marketplaceProps(emptyReady, recipeState)
+    render(
+      <MarketplacePage
+        {...globalProps}
+        {...props}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: '配方广场' })).toBeTruthy()
+    expect(screen.getByText('电影感旅行 Vlog')).toBeTruthy()
+    expect(screen.getByText('约 0.16 元')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: '搜索想复刻的画面、风格或用途' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '全部' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: '复刻同款' }))
+    expect(props.controllerMocks.openRecipeDetail).toHaveBeenCalledWith(recipe.slug)
+  })
+
+  it('starts a Recipe in a new conversation from its reproduction guide', async () => {
+    const detail = {
+      ...recipe,
+      sampleText: '自然光和克制转场。',
+      promptTemplate: '将 {地点} 替换成你的内容。',
+      parameters: { user_inputs: { 地点: '海边' } },
+      sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog',
+      sourceName: 'ManturHub',
+      sourceAvatarUrl: 'https://hub.mantur.cn/assets/avatar.png',
+      models: ['seedance-1.0-pro'],
+      agentPayload: '请先获取最新配方，再替换占位符。',
+    }
+    const props = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail,
+    })
+    props.controllerMocks.startRecipe.mockResolvedValue(true)
+    const closePage = vi.fn()
+    render(
+      <MarketplacePage
+        {...globalProps}
+        {...props}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={closePage}
+        t={t}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: '电影感旅行 Vlog' })).toBeTruthy()
+    expect(screen.getByText('你可以替换')).toBeTruthy()
+    expect(screen.getByText('地点')).toBeTruthy()
+    expect(screen.getByText('海边')).toBeTruthy()
+    const source = screen.getByRole('link', { name: '查看来源：ManturHub' })
+    expect(source.getAttribute('href')).toBe(detail.sourceUrl)
+    expect(source.querySelector('img')?.getAttribute('src')).toBe(detail.sourceAvatarUrl)
+    fireEvent.click(screen.getByRole('button', { name: '交给 Agent 复刻' }))
+    await vi.waitFor(() => {
+      expect(props.controllerMocks.startRecipe).toHaveBeenCalledWith({
+        introduction: `我要复刻 ManturHub 配方「${detail.title}」。`,
+        identifier: `配方标识：${detail.slug}`,
+        platform: '配方平台：ManturHub',
+        source: `来源地址：${detail.sourceUrl}`,
+      })
+    })
+    expect(closePage).toHaveBeenCalledOnce()
+  })
+
+  it('renders only Recipe source metadata that the Hub publishes', () => {
+    const { sourceUrl: _sourceUrl, sourceName: _sourceName, sourceAvatarUrl: _sourceAvatarUrl, ...detail } = {
+      ...recipe,
+      sampleText: '',
+      promptTemplate: '',
+      parameters: {},
+      sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog',
+      sourceName: 'ManturHub',
+      sourceAvatarUrl: 'https://hub.mantur.cn/assets/avatar.png',
+      models: [],
+      agentPayload: '请按配方执行。',
+    }
+    const catalog = { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] }
+    const props = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog,
+      query: {},
+      detail: { ...detail, sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog' },
+    })
+    const view = render(
+      <MarketplacePage
+        {...globalProps}
+        {...props}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )
+
+    const anonymousSource = screen.getByRole('link', { name: '查看来源' })
+    expect(anonymousSource.querySelector('img')).toBeNull()
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, { phase: 'ready', catalog, query: {}, detail })}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: /查看来源/ })).toBeNull()
   })
 
   it('shows loading and retryable catalog failures', () => {
