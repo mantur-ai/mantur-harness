@@ -173,6 +173,10 @@ describe('CI workflow', () => {
       isRecord(step) && typeof step.run === 'string'
     ))
     const nativeTestCommand = nativeTestCommands.map(step => step.run).join('\n')
+    const nativeVitestCommands = nativeTestCommand.split('\n').filter(command => command.includes('pnpm exec vitest run'))
+    expect(nativeVitestCommands).toHaveLength(2)
+    expect(nativeVitestCommands[0]).toContain('workflow-worker-thread.spec.ts')
+    expect(nativeVitestCommands[1]).toContain('process-exit.spec.ts')
     expect(nativeTestCommand).toContain('--no-file-parallelism')
     expect(nativeTestCommand).toContain('--testTimeout 90000')
     expect(nativeTestCommand).toContain('tool-pwsh/tests/loader.spec.ts')
