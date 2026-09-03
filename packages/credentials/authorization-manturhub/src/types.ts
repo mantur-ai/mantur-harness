@@ -7,10 +7,7 @@ export type ManturLoginAttemptId = Branded<'ManturLoginAttemptId'>
 
 /** Account fields safe to show in the Mantur client. */
 export interface ManturAccount {
-  readonly id: string
   readonly email: string
-  readonly name?: string
-  readonly avatarUrl?: string
 }
 
 /** Current durable ManturHub account state. */

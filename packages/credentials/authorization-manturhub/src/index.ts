@@ -40,7 +40,6 @@ interface StoredGrant {
 interface Attempt {
   readonly id: ManturLoginAttemptId
   readonly ready: PromiseWithResolvers<ManturLoginStart>
-  start?: ManturLoginStart
   progress: ManturLoginProgress
 }
 
@@ -51,22 +50,26 @@ const deviceSessionSchema = z.object({
   device_code: z.string().min(1),
   user_code: z.string().min(1),
   verify_url: z.url(),
-  interval: z.number().int().min(1),
-  expires_in: z.number().int().positive(),
+  interval: z.number().int().min(1).default(5),
+  expires_in: z.number().int().positive().default(600),
 })
 
-const devicePollSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('pending') }),
+const nonReadyPollStatusSchema = z.enum([
+  'pending',
+  'slow_down',
+  'access_denied',
+  'denied',
+  'expired',
+])
+
+const devicePollSchema = z.union([
+  z.object({ status: nonReadyPollStatusSchema }),
+  z.object({ error: nonReadyPollStatusSchema }),
   z.object({ status: z.literal('ready'), key: z.string().min(1) }),
-  z.object({ status: z.literal('expired') }),
-  z.object({ status: z.literal('invalid') }),
 ])
 
 const accountSchema = z.object({
-  id: z.string().min(1),
   email: z.string().min(1),
-  name: z.string().nullish(),
-  avatarUrl: z.url().nullish(),
 })
 
 const storedGrantSchema = z.object({
@@ -130,34 +133,29 @@ async function requireJson(response: Response): Promise<unknown> {
 
 /** Wait for the server-directed polling interval, withdrawing promptly. */
 function wait(ms: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return Promise.reject(abortError(signal))
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(done, ms)
-    signal.addEventListener('abort', abort, { once: true })
-    function done(): void {
-      signal.removeEventListener('abort', abort)
-      resolve()
-    }
-    function abort(): void {
-      clearTimeout(timer)
-      reject(abortError(signal))
-    }
+  signal.throwIfAborted()
+  const timeout = Promise.withResolvers<void>()
+  const aborted = Promise.withResolvers<void>()
+  const timer = setTimeout(timeout.resolve, ms)
+  const onAbort: EventListener = aborted.reject
+  signal.addEventListener('abort', onAbort, { once: true })
+  return Promise.race([timeout.promise, aborted.promise]).finally(() => {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', onAbort)
   })
-}
-
-/** Normalize DOM abort reasons into the Error rejection required by callers. */
-function abortError(signal: AbortSignal): Error {
-  return signal.reason instanceof Error ? signal.reason : new Error('ManturHub login was cancelled')
 }
 
 /** Project the exact account fields allowed onto the browser wire and record. */
 function projectAccount(value: z.infer<typeof accountSchema>): ManturAccount {
-  return {
-    id: value.id,
-    email: value.email,
-    ...(value.name == null ? {} : { name: value.name }),
-    ...(value.avatarUrl == null ? {} : { avatarUrl: value.avatarUrl }),
-  }
+  return { email: value.email }
+}
+
+/** Normalize ManturHub's status and OAuth-style error response fields. */
+function parsePoll(value: unknown):
+  | { readonly status: z.infer<typeof nonReadyPollStatusSchema> }
+  | { readonly status: 'ready'; readonly key: string } {
+  const parsed = devicePollSchema.parse(value)
+  return 'error' in parsed ? { status: parsed.error } : parsed
 }
 
 /** Parse this plugin's private grant record and fail on foreign or damaged data. */
@@ -191,7 +189,7 @@ export class ManturHubAuthorization extends TypertRemoteService {
       key: MANTUR_ACCOUNT_CREDENTIAL,
       label: 'ManturHub',
       methods: [{ id: 'device-code', label: 'Device code' }],
-      run: session => this.runDeviceFlow(session),
+      run: session => this.runDeviceFlow(session, this.currentAttempt),
     }), 'authorization-manturhub: device flow')
     ctx.effect(() => () => {
       if (this.currentAttempt !== undefined) ctx.authorization.cancel(MANTUR_ACCOUNT_CREDENTIAL)
@@ -241,23 +239,18 @@ export class ManturHubAuthorization extends TypertRemoteService {
         notify: () => {},
         prompt: () => Promise.reject(new Error('ManturHub device authorization does not prompt in the client')),
       },
-    }).then(async (outcome) => {
+    }).then((outcome) => {
       if (outcome.status === 'cancelled') {
         attempt.progress = { status: 'cancelled' }
         attempt.ready.reject(new Error('ManturHub login was cancelled'))
         return
       }
-      const status = await this.status()
-      if (status.status !== 'signed-in') throw new Error('authorized ManturHub record is absent')
-      attempt.progress = { status: 'authorized', account: status.account }
     }).catch((error: unknown) => {
       this.ctx.logger.warn('authorization-manturhub: device login failed')
       this.ctx.logger.warn(error)
       attempt.progress = { status: 'failed' }
       attempt.ready.reject(error)
-    }).finally(() => {
-      if (this.currentAttempt === attempt) this.currentAttempt = undefined
-    })
+    }).finally(() => { this.currentAttempt = undefined })
 
     try {
       return await attempt.ready.promise
@@ -298,21 +291,24 @@ export class ManturHubAuthorization extends TypertRemoteService {
   }
 
   /** Publish the first browser instruction to the matching process-local attempt. */
-  private publishStart(verificationUrl: URL, userCode: string, expiresInSeconds: number): void {
-    const attempt = this.currentAttempt
-    if (attempt === undefined || attempt.start !== undefined) return
+  private publishStart(
+    attempt: Attempt | undefined,
+    verificationUrl: URL,
+    userCode: string,
+    expiresInSeconds: number,
+  ): void {
+    if (attempt === undefined) return
     const start: ManturLoginStart = {
       attemptId: attempt.id,
       verificationUrl: verificationUrl.toString(),
       userCode,
       expiresAt: Date.now() + expiresInSeconds * 1000,
     }
-    attempt.start = start
     attempt.ready.resolve(start)
   }
 
   /** Run the provider protocol and commit its grant before resolving. */
-  private async runDeviceFlow(session: AuthorizationSession): Promise<void> {
+  private async runDeviceFlow(session: AuthorizationSession, attempt: Attempt | undefined): Promise<void> {
     const created = deviceSessionSchema.parse(await requireJson(await fetch(
       new URL('/api/v1/cli/session', this.config.baseUrl),
       { method: 'POST', redirect: 'error', signal: session.signal },
@@ -321,42 +317,44 @@ export class ManturHubAuthorization extends TypertRemoteService {
     if (verificationUrl.origin !== this.config.baseUrl.origin) {
       throw new Error('ManturHub returned a verification URL on another origin')
     }
-    this.publishStart(verificationUrl, created.user_code, created.expires_in)
+    this.publishStart(attempt, verificationUrl, created.user_code, created.expires_in)
     session.notify({
       message: 'Continue in your browser to authorize Mantur Agent.',
       url: verificationUrl.toString(),
       code: created.user_code,
     })
 
+    let pollIntervalSeconds = created.interval
     while (true) {
       const response = await fetch(new URL(
         `/api/v1/cli/poll?device_code=${encodeURIComponent(created.device_code)}`,
         this.config.baseUrl,
       ), { redirect: 'error', signal: session.signal })
-      const poll = devicePollSchema.parse(await responseJson(response))
-      if (poll.status === 'expired' || poll.status === 'invalid') {
+      const poll = parsePoll(await responseJson(response))
+      if (poll.status === 'ready') {
+        if (!response.ok) throw new Error(`ManturHub login poll failed with HTTP ${response.status}`)
+        const account = projectAccount(accountSchema.parse(await requireJson(await fetch(
+          new URL('/api/v1/me', this.config.baseUrl),
+          {
+            headers: { 'x-api-key': poll.key },
+            redirect: 'error',
+            signal: session.signal,
+          },
+        ))))
+        const payload: StoredGrant = { version: 1, apiKey: poll.key, account }
+        await this.ctx.credentials.modifyRecord(
+          MANTUR_ACCOUNT_CREDENTIAL,
+          () => Promise.resolve({ kind: 'grant', payload }),
+        )
+        if (attempt !== undefined) attempt.progress = { status: 'authorized', account }
+        return
+      }
+      if (poll.status === 'expired' || poll.status === 'access_denied' || poll.status === 'denied') {
         throw new Error(`ManturHub device login ${poll.status}`)
       }
       if (!response.ok) throw new Error(`ManturHub login poll failed with HTTP ${response.status}`)
-      if (poll.status === 'pending') {
-        await wait(created.interval * 1000, session.signal)
-        continue
-      }
-
-      const account = projectAccount(accountSchema.parse(await requireJson(await fetch(
-        new URL('/api/v1/me', this.config.baseUrl),
-        {
-          headers: { 'x-api-key': poll.key },
-          redirect: 'error',
-          signal: session.signal,
-        },
-      ))))
-      const payload: StoredGrant = { version: 1, apiKey: poll.key, account }
-      await this.ctx.credentials.modifyRecord(
-        MANTUR_ACCOUNT_CREDENTIAL,
-        () => Promise.resolve({ kind: 'grant', payload }),
-      )
-      return
+      if (poll.status === 'slow_down') pollIntervalSeconds += 5
+      await wait(pollIntervalSeconds * 1000, session.signal)
     }
   }
 }

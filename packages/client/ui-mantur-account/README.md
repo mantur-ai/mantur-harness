@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 This browser package adds the first Mantur onboarding step and a Mantur Account settings page. A user can sign in through a system-browser device flow or choose Not now; either path transfers onboarding to the existing DeepSeek API-key step. The Settings page shows sanitized account status and supports local sign-out.
 
-The browser receives only an attempt id, verification URL, user code, expiry, progress, and sanitized account identity. It never receives the ManturHub API key.
+The browser receives only an attempt id, verification URL, user code, expiry, progress, and account email. It never receives the ManturHub API key.
 
 ## Table of Contents
 

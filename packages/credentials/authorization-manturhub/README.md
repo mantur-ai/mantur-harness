@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This Host package registers one `ctx.authorization` device-code flow for `https://hub.mantur.ai`. The flow creates and polls a ManturHub device session, verifies the account, and commits the returned API key only as a Host credential record. Its generated `manturAccount` Remote returns device instructions, sanitized account identity, progress, and local sign-out; it never returns the API key.
+This Host package registers one `ctx.authorization` device-code flow for `https://hub.mantur.ai`. The flow creates and polls a ManturHub device session, verifies the account, and commits the returned API key only as a Host credential record. Its generated `manturAccount` Remote returns device instructions, account email, progress, and local sign-out; it never returns the API key.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ This Host package registers one `ctx.authorization` device-code flow for `https:
 
 ## Configuration
 
-`baseUrl` defaults to `https://hub.mantur.ai`. Tests and private deployments may select another HTTP(S) origin. A verification URL on another origin is rejected.
+`baseUrl` defaults to `https://hub.mantur.ai`. Tests and private deployments may select another HTTP(S) origin. A verification URL on another origin is rejected. A session that omits `interval` or `expires_in` uses the installed ManturHub CLI values of 5 seconds and 600 seconds. `slow_down` adds 5 seconds to the active polling interval; denial and expiry end the attempt without a credential.
 
 ## Model Experience
 

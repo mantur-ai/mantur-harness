@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { AccountOnboarding } from '../src/client/AccountOnboarding.tsx'
 import { AccountSection } from '../src/client/AccountSection.tsx'
 import { apply, inject } from '../src/client/index.ts'
@@ -49,10 +50,22 @@ describe('ui-mantur-account apply', () => {
       component: AccountOnboarding,
       options: { id: 'mantur-account', order: -100 },
     })
-    expect(subject.slots.entries('settings.section')[0]).toMatchObject({
+    const onboarding = subject.slots.entries('settings.onboarding')[0]!
+    const injectOnboarding = onboarding.inject as () => {
+      controller: unknown
+      hooks: { account: unknown }
+      t: unknown
+    }
+    const injected = injectOnboarding()
+    expect(injected.controller).toBeDefined()
+    expect(injected.hooks.account).toBeDefined()
+    expect(typeof injected.t).toBe('function')
+    const section = subject.slots.entries('settings.section')[0]!
+    expect(section).toMatchObject({
       component: AccountSection,
       options: { id: 'mantur-account', order: 5 },
     })
+    expect(resolveSlotLabel(section.options.label)).toBe('漫途账号')
     expect(subject.locale.bind('settings.manturAccount')('login')).toBe('登录漫途账号')
     await fiber.dispose()
     expect(subject.slots.entries('settings.onboarding')).toEqual([])

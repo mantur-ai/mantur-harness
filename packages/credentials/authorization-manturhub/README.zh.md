@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-这个 Host 包为 `https://hub.mantur.ai` 注册一个 `ctx.authorization` 设备码 flow。Flow 创建并轮询 ManturHub 设备会话、核验账号，并且只把返回的 API Key 提交到 Host 凭据记录。生成的 `manturAccount` Remote 只返回设备登录说明、经过筛选的账号信息、进度和本机退出能力，绝不返回 API Key。
+这个 Host 包为 `https://hub.mantur.ai` 注册一个 `ctx.authorization` 设备码 flow。Flow 创建并轮询 ManturHub 设备会话、核验账号，并且只把返回的 API Key 提交到 Host 凭据记录。生成的 `manturAccount` Remote 只返回设备登录说明、账号邮箱、进度和本机退出能力，绝不返回 API Key。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 
 ## 配置
 
-`baseUrl` 默认为 `https://hub.mantur.ai`。测试与私有部署可以指定另一个 HTTP(S) origin。来自其他 origin 的验证地址会被拒绝。
+`baseUrl` 默认为 `https://hub.mantur.ai`。测试与私有部署可以指定另一个 HTTP(S) origin。来自其他 origin 的验证地址会被拒绝。会话缺少 `interval` 或 `expires_in` 时，使用已安装 ManturHub CLI 的 5 秒与 600 秒值。`slow_down` 会给当前轮询间隔增加 5 秒；拒绝与过期会在不写入凭据的情况下结束本次尝试。
 
 <a id="model-experience"></a>
 ## 模型体验
