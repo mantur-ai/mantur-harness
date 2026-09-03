@@ -613,10 +613,14 @@ export function ChatView({
   // initializer a function initial value would need never exists.
   const followRef = useRef<(() => void) | null>(null)
   followRef.current = () => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     if (local !== null && atBottomRef.current) {
       const el = scrollerOf(local)
+      if (scrollSamplePendingRef.current) {
+        const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+        const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
+        if (movedByReader) return
+      }
       el.scrollTop = el.scrollHeight
       observedTopRef.current = el.scrollTop
       chatScroll.save(null)

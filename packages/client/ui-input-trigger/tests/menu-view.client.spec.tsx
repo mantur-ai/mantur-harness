@@ -201,6 +201,13 @@ describe('MenuView', () => {
     expect(options[0]!.getAttribute('aria-selected')).toBe('false')
   })
 
+  it('exposes whether any candidate source is still loading', () => {
+    const { menu } = mount(openState())
+    expect(screen.getByRole('listbox').getAttribute('aria-busy')).toBe('true')
+    act(() => { menu.set(openState({ groups: [{ source: 'command', status: 'ready', items: [] }] })) })
+    expect(screen.getByRole('listbox').getAttribute('aria-busy')).toBe('false')
+  })
+
   it('omits aria-activedescendant without a highlight', () => {
     mount(openState({ highlight: null }))
     expect(screen.getByRole('listbox').getAttribute('aria-activedescendant')).toBeNull()

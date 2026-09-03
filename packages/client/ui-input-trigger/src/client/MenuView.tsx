@@ -104,6 +104,7 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
         className={css.viewport}
         role="listbox"
         aria-label={t('suggestions.aria')}
+        aria-busy={state.groups.some(group => group.status === 'pending')}
         aria-activedescendant={highlight !== null ? optionId(highlight.source, highlight.index) : undefined}
       >
         {state.groups.map(group => (group.status === 'ready' && group.items.length === 0)

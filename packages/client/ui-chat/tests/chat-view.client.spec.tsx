@@ -2373,6 +2373,36 @@ describe('ChatView', () => {
     expect(observe).toHaveBeenCalledTimes(1)
   })
 
+  it('follows pinned growth during pending programmatic scroll delivery but preserves reader movement', () => {
+    let notify: (() => void) | undefined
+    class ResizeObserverStub {
+      constructor(callback: ResizeObserverCallback) {
+        notify = () => { callback([], this as unknown as ResizeObserver) }
+      }
+
+      observe = vi.fn()
+      disconnect = vi.fn()
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
+    const view = render(<h.ChatView {...h.props} />)
+    const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
+    const metrics = installScrollMetrics(scroller, 1_000, 300)
+    act(() => { h.setSession({ running: true }) })
+    expect(scroller.scrollTop).toBe(700)
+
+    fireEvent.scroll(scroller)
+    metrics.setHeight(1_200)
+    act(() => { notify?.() })
+    expect(scroller.scrollTop).toBe(900)
+
+    scroller.scrollTop = 600
+    fireEvent.scroll(scroller)
+    metrics.setHeight(1_400)
+    act(() => { notify?.() })
+    expect(scroller.scrollTop).toBe(600)
+  })
+
   it('pinned dynamic-height updates select the latest Turn without reading row geometry', () => {
     let notify: (() => void) | undefined
     let nextFrame = 0
