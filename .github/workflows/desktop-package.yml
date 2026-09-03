@@ -23,18 +23,18 @@ jobs:
             runner: macos-15
             script: desktop:dist:mac:arm64
             artifacts: |
-              apps/desktop/dist/漫途Agent-macOS-arm64.dmg
-              apps/desktop/dist/漫途Agent-macOS-arm64.zip
+              apps/desktop/dist/Mantur-Agent-macOS-arm64.dmg
+              apps/desktop/dist/Mantur-Agent-macOS-arm64.zip
           - target: macos-x64
             runner: macos-15-intel
             script: desktop:dist:mac:x64
             artifacts: |
-              apps/desktop/dist/漫途Agent-macOS-x64.dmg
-              apps/desktop/dist/漫途Agent-macOS-x64.zip
+              apps/desktop/dist/Mantur-Agent-macOS-x64.dmg
+              apps/desktop/dist/Mantur-Agent-macOS-x64.zip
           - target: windows-x64
             runner: windows-2025
             script: desktop:dist:win:x64
-            artifacts: apps/desktop/dist/漫途Agent-Windows-x64.exe
+            artifacts: apps/desktop/dist/Mantur-Agent-Windows-x64.exe
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       DSH_TELEMETRY_DISABLED: '1'

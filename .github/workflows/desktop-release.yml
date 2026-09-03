@@ -1,0 +1,215 @@
+name: Desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the signed and notarized macOS build to GitHub Releases. Must run from the matching desktop-v* tag.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ inputs.publish && 'desktop-publication' || format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve and authorize desktop version
+        id: version
+        env:
+          PUBLISH: ${{ inputs.publish }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          if [ "$PUBLISH" = true ]; then
+            [ "$REF_TYPE" = tag ] && [ "$REF_NAME" = "desktop-v$version" ] || {
+              echo "::error::Publication must run from tag desktop-v$version."
+              exit 1
+            }
+          fi
+
+  macos:
+    name: Signed macOS / ${{ matrix.arch }}
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    environment: macos-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            script: desktop:dist:mac:arm64
+            app: apps/desktop/dist/mac-arm64/漫途Agent.app
+          - arch: x64
+            runner: macos-15-intel
+            script: desktop:dist:mac:x64
+            app: apps/desktop/dist/mac/漫途Agent.app
+    env:
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Require signing and notarization credentials
+        run: |
+          set -euo pipefail
+          for name in APPLE_APP_SPECIFIC_PASSWORD APPLE_ID APPLE_TEAM_ID CSC_KEY_PASSWORD CSC_LINK; do
+            [ -n "${!name:-}" ] || {
+              echo "::error::$name is not configured in the macos-release environment."
+              exit 1
+            }
+          done
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Mantur client and desktop carrier
+        run: pnpm run build:mantur
+
+      - name: Test desktop launch contract
+        run: pnpm exec vitest run apps/desktop/tests/runtime.spec.ts scripts/client-build-environment.client.spec.ts
+
+      - name: Build, sign, and notarize native installer
+        run: pnpm run ${{ matrix.script }}
+
+      - name: Verify Developer ID signature and notarization ticket
+        env:
+          APP_PATH: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          spctl --assess --type execute --verbose=2 "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+
+      - name: Smoke packaged dependency closure
+        run: pnpm run desktop:smoke
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-macos-${{ matrix.arch }}
+          path: |
+            apps/desktop/dist/Mantur-Agent-macOS-${{ matrix.arch }}.dmg
+            apps/desktop/dist/Mantur-Agent-macOS-${{ matrix.arch }}.dmg.blockmap
+            apps/desktop/dist/Mantur-Agent-macOS-${{ matrix.arch }}.zip
+            apps/desktop/dist/Mantur-Agent-macOS-${{ matrix.arch }}.zip.blockmap
+            apps/desktop/dist/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: Assemble macOS release
+    needs: [validate, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-macos-*
+          path: release-input
+
+      - name: Merge native artifacts and update metadata
+        run: |
+          set -euo pipefail
+          mkdir release
+          cp release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.* release/
+          cp release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.* release/
+          pnpm exec tsx scripts/desktop-release-update-info.ts \
+            release-input/desktop-macos-arm64/latest-mac.yml \
+            release-input/desktop-macos-x64/latest-mac.yml \
+            release/latest-mac.yml
+          find release -maxdepth 1 -type f ! -name SHA256SUMS -exec sha256sum {} \; \
+            | sed 's#  release/#  #' \
+            | sort -k2 > release/SHA256SUMS
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-${{ needs.validate.outputs.version }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    if: inputs.publish
+    needs: [validate, assemble]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: macos-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-${{ needs.validate.outputs.version }}
+          path: release
+
+      - name: Verify release artifact hashes
+        run: cd release && sha256sum -c SHA256SUMS
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; published desktop assets are never replaced."
+            exit 1
+          fi
+          prerelease=()
+          case "$VERSION" in
+            *-*) prerelease=(--prerelease) ;;
+          esac
+          gh release create "$TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "漫途Agent $VERSION" \
+            --generate-notes \
+            "${prerelease[@]}"

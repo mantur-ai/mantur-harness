@@ -438,6 +438,73 @@ describe('E2B e2e workflow', () => {
   })
 })
 
+describe('Desktop release workflow', () => {
+  it('separates protected native signing from explicit GitHub publication', () => {
+    const workflow = loadWorkflow('.github/workflows/desktop-release.yml')
+    const dispatch = workflowEvent(workflow, 'workflow_dispatch')
+    const validate = workflowJob(workflow, 'validate')
+    const macos = workflowJob(workflow, 'macos')
+    const assemble = workflowJob(workflow, 'assemble')
+    const publish = workflowJob(workflow, 'publish')
+    if (!isRecord(dispatch.inputs)
+      || !isRecord(dispatch.inputs.publish)
+      || !Array.isArray(validate.steps)
+      || !Array.isArray(macos.steps)
+      || !Array.isArray(assemble.steps)
+      || !Array.isArray(publish.steps)) {
+      throw new TypeError('Desktop release workflow must define publish input and release steps')
+    }
+
+    expect(dispatch.inputs.publish).toMatchObject({ type: 'boolean', default: false })
+    expect(Object.keys(workflow.on as Record<string, unknown>)).toEqual(['workflow_dispatch'])
+    const authorize = validate.steps.filter(isRecord).find(step => step.name === 'Resolve and authorize desktop version')
+    expect(authorize).toMatchObject({
+      env: {
+        PUBLISH: '${{ inputs.publish }}',
+        REF_NAME: '${{ github.ref_name }}',
+        REF_TYPE: '${{ github.ref_type }}',
+      },
+    })
+    expect((authorize as { run?: string }).run).toContain('desktop-v$version')
+    expect(macos).toMatchObject({
+      environment: 'macos-release',
+      strategy: {
+        'fail-fast': false,
+        matrix: {
+          include: [
+            expect.objectContaining({ arch: 'arm64', runner: 'macos-15' }),
+            expect.objectContaining({ arch: 'x64', runner: 'macos-15-intel' }),
+          ],
+        },
+      },
+      env: {
+        APPLE_APP_SPECIFIC_PASSWORD: '${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}',
+        APPLE_ID: '${{ secrets.APPLE_ID }}',
+        APPLE_TEAM_ID: '${{ vars.APPLE_TEAM_ID }}',
+        CSC_KEY_PASSWORD: '${{ secrets.MACOS_CERTIFICATE_PASSWORD }}',
+        CSC_LINK: '${{ secrets.MACOS_CERTIFICATE }}',
+      },
+    })
+    const macosSteps = JSON.stringify(macos.steps)
+    expect(macosSteps).toContain('codesign --verify --deep --strict')
+    expect(macosSteps).toContain('spctl --assess --type execute')
+    expect(macosSteps).toContain('xcrun stapler validate')
+    expect(JSON.stringify(assemble.steps)).toContain('scripts/desktop-release-update-info.ts')
+    expect(publish).toMatchObject({
+      if: 'inputs.publish',
+      needs: ['validate', 'assemble'],
+      environment: 'macos-release',
+      permissions: { contents: 'write' },
+    })
+    const publishSteps = JSON.stringify(publish.steps)
+    expect(publishSteps).toContain('sha256sum -c SHA256SUMS')
+    expect(publishSteps).toContain('gh release view')
+    expect(publishSteps).toContain('published desktop assets are never replaced')
+    expect(publishSteps).toContain('gh release create')
+    expect(publishSteps).toContain('--verify-tag')
+  })
+})
+
 describe('Python release workflows', () => {
   it('keeps complete wheel validation separate from protected public publication', () => {
     const workflow = loadWorkflow('.github/workflows/python-release.yml')

@@ -51,17 +51,17 @@
       }
     ],
     "mac": {
-      "artifactName": "漫途Agent-macOS-${arch}.${ext}",
+      "artifactName": "Mantur-Agent-macOS-${arch}.${ext}",
       "category": "public.app-category.productivity",
       "icon": "resources/mantur-logo.png",
-      "identity": null,
+      "notarize": true,
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
-      "artifactName": "漫途Agent-Windows-${arch}.${ext}",
+      "artifactName": "Mantur-Agent-Windows-${arch}.${ext}",
       "icon": "resources/mantur-logo.png",
       "target": [
         "nsis"

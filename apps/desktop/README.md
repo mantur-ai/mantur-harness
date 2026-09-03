@@ -39,11 +39,27 @@ Run the x64 macOS command on an Intel Mac and the Windows command on x64 Windows
 
 | Runner | Command | Artifact |
 |---|---|---|
-| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `漫途Agent-macOS-arm64.dmg`, `漫途Agent-macOS-arm64.zip` |
-| macOS x64 | `pnpm run desktop:dist:mac:x64` | `漫途Agent-macOS-x64.dmg`, `漫途Agent-macOS-x64.zip` |
-| Windows x64 | `pnpm run desktop:dist:win:x64` | `漫途Agent-Windows-x64.exe` |
+| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `Mantur-Agent-macOS-arm64.dmg`, `Mantur-Agent-macOS-arm64.zip` |
+| macOS x64 | `pnpm run desktop:dist:mac:x64` | `Mantur-Agent-macOS-x64.dmg`, `Mantur-Agent-macOS-x64.zip` |
+| Windows x64 | `pnpm run desktop:dist:win:x64` | `Mantur-Agent-Windows-x64.exe` |
 
 The smoke starts `dsh` from the unpacked application's own dependency directory, exchanges the printed process token for a session cookie, and requires the branded Web page to return HTTP 200. It also requires the packaged updater dependency and GitHub release configuration. It uses an empty temporary Harness home so developer data cannot make the package check pass or fail.
+
+## Publish a signed macOS release
+
+The manual `Desktop release` GitHub Actions workflow builds arm64 and x64 on native macOS runners. Both jobs sign the application with a Developer ID Application identity, submit it to Apple's notarization service, validate the signature, Gatekeeper assessment, and stapled ticket, and run the packaged smoke before their artifacts can be assembled.
+
+Before public distribution, enable Release Immutability in the repository settings. Configure the `macos-release` GitHub environment with one variable and four encrypted secrets:
+
+| Kind | Name | Value |
+|---|---|---|
+| Variable | `APPLE_TEAM_ID` | Apple Developer Team ID |
+| Secret | `MACOS_CERTIFICATE` | Base64-encoded `.p12` containing the Developer ID Application certificate and private key |
+| Secret | `MACOS_CERTIFICATE_PASSWORD` | Password used to export the `.p12` |
+| Secret | `APPLE_ID` | Apple ID used for notarization |
+| Secret | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
+
+The workflow combines both native `latest-mac.yml` files into one architecture-aware update channel and retains the complete candidate plus `SHA256SUMS` for seven days. Run it from the exact `desktop-v<apps/desktop version>` tag. `publish=false` stops after assembling the candidate; `publish=true` creates a GitHub release with the DMGs, update ZIPs, blockmaps, update metadata, and hashes. The workflow refuses a tag that already owns a release instead of replacing published files; repository-level Release Immutability then prevents later tag or asset changes.
 
 ## Runtime design
 
@@ -59,7 +75,7 @@ Packaged applications check the `mantur-ai/mantur-harness` GitHub Releases feed 
 
 ## Known limitations
 
-- These are unsigned internal installers. macOS Gatekeeper and Windows SmartScreen can warn, and automatic installation is not a supported release path until signing and macOS notarization identities are supplied.
+- The `Desktop package` artifacts remain unsigned internal installers. macOS Gatekeeper and Windows SmartScreen can warn for those files; use only the `Desktop release` artifacts for external macOS distribution.
 - The approved icon source is a 1024 px transparent PNG. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
-- The package contains the updater, but the manual workflow uploads private build artifacts only and never creates a GitHub release. A separate signed release process must publish the installer, update archive, blockmap, and generated update metadata together.
+- The signed release workflow publishes macOS only. Windows external updates remain unsupported until a Windows code-signing identity and protected publication path exist.
 - Each target is valid only after its native runner completes both packaging and the smoke. A build on one architecture is not evidence for another target.
