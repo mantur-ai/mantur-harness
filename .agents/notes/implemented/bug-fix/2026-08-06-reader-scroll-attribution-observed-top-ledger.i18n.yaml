@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-06-reader-scroll-attribution-observed-top-ledger.md
-2026-08-06-reader-scroll-attribution-observed-top-ledger.md: 2d01d18f53721c2e1114f9877cec572eeba0a20e
-2026-08-06-reader-scroll-attribution-observed-top-ledger.zh.md: 0a895fd8bb4f1d35454d8ffcf6a012d8df1837b8
+2026-08-06-reader-scroll-attribution-observed-top-ledger.md: e2f4d6adae6bcc79e562021370ffb04cb737a826
+2026-08-06-reader-scroll-attribution-observed-top-ledger.zh.md: b5518a1dca463b72d935ac6e9f96b2ed59119ae0

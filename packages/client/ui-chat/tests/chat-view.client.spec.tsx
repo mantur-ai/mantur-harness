@@ -2393,8 +2393,13 @@ describe('ChatView', () => {
 
     fireEvent.scroll(scroller)
     metrics.setHeight(1_200)
-    act(() => { notify?.() })
+    act(() => { h.setChat({ partial: { turn: 1, step: 1, blocks: [{ kind: 'text', text: 'grow' }] } }) })
     expect(scroller.scrollTop).toBe(900)
+
+    fireEvent.scroll(scroller)
+    metrics.setHeight(1_300)
+    act(() => { notify?.() })
+    expect(scroller.scrollTop).toBe(1_000)
 
     scroller.scrollTop = 600
     fireEvent.scroll(scroller)
