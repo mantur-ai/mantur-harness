@@ -313,7 +313,7 @@ describe('ManturHub device authorization', () => {
     const subject = await boot(hub.origin)
     await subject.ctx.credentials.modifyRecord(
       MANTUR_ACCOUNT_CREDENTIAL,
-      () => Promise.resolve({ kind: 'env', payload: { value: 'wrong' } }),
+      () => Promise.resolve({ kind: 'api-key', key: 'wrong-record-kind' }),
     )
 
     await expect(subject.service.status()).rejects.toThrow('could not be read')

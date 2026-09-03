@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { AccountOnboarding } from '../src/client/AccountOnboarding.tsx'
-import { AccountSection } from '../src/client/AccountSection.tsx'
+import { AccountOnboarding, type AccountOnboardingProps } from '../src/client/AccountOnboarding.tsx'
+import { AccountSection, type AccountSectionProps } from '../src/client/AccountSection.tsx'
 import { AccountView } from '../src/client/AccountView.tsx'
 import { en } from '../src/client/locales.ts'
 import type { ManturAccountState } from '../src/client/store.ts'
@@ -90,12 +90,13 @@ describe('Mantur account components', () => {
     const state: ManturAccountState = phase === 'signed-in'
       ? { phase, account: { email: 'artist@example.com' } }
       : { phase }
-    const view = render(<AccountOnboarding {...({
+    const props = {
       complete,
       controller: actions,
       t,
       useAccount: useState(state),
-    } as never)} />)
+    } as unknown as AccountOnboardingProps
+    const view = render(<AccountOnboarding {...props} />)
 
     expect(view.container.childElementCount).toBe(0)
     if (phase === 'idle') expect(actions.load).toHaveBeenCalledOnce()
@@ -107,12 +108,13 @@ describe('Mantur account components', () => {
   it('renders onboarding and completes the temporary skip', () => {
     const actions = controller()
     const complete = vi.fn()
-    const view = render(<AccountOnboarding {...({
+    const props = {
       complete,
       controller: actions,
       t,
       useAccount: useState({ phase: 'signed-out' }),
-    } as never)} />)
+    } as unknown as AccountOnboardingProps
+    const view = render(<AccountOnboarding {...props} />)
 
     expect(view.getByRole('heading', { name: 'Sign in to Mantur' })).toBeTruthy()
     fireEvent.click(view.getByRole('button', { name: 'Not now' }))
@@ -121,18 +123,20 @@ describe('Mantur account components', () => {
 
   it('loads an idle Settings section and renders a settled one without reloading', () => {
     const actions = controller()
-    const view = render(<AccountSection {...({
+    const idleProps = {
       controller: actions,
       t,
       useAccount: useState({ phase: 'idle' }),
-    } as never)} />)
+    } as unknown as AccountSectionProps
+    const view = render(<AccountSection {...idleProps} />)
     expect(actions.load).toHaveBeenCalledOnce()
 
-    view.rerender(<AccountSection {...({
+    const signedOutProps = {
       controller: actions,
       t,
       useAccount: useState({ phase: 'signed-out' }),
-    } as never)} />)
+    } as unknown as AccountSectionProps
+    view.rerender(<AccountSection {...signedOutProps} />)
     expect(actions.load).toHaveBeenCalledOnce()
     expect(view.getByText('Not signed in to Mantur')).toBeTruthy()
   })
