@@ -833,6 +833,10 @@ export function WorkspaceBrowser({
     showConversation()
     openSession(sessionId)
   }
+  const fork = (sessionId: SessionId): void => {
+    showConversation()
+    forkSession(sessionId)
+  }
   const home = useHostInfo(info => info.home)
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
@@ -1232,7 +1236,7 @@ export function WorkspaceBrowser({
             ? (
               <FlatList
                 useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction}
-                open={open} forkSession={forkSession}
+                open={open} forkSession={fork}
                 onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
                 archivedSessionIds={archivedSessionIds}
                 orderBy={orderBy}
@@ -1249,7 +1253,7 @@ export function WorkspaceBrowser({
                 useSessionPendingInteraction={useSessionPendingInteraction}
                 onSessionRename={onSessionRename}
                 onSessionArchive={onSessionArchive}
-                forkSession={forkSession}
+                forkSession={fork}
                 workspaces={workspaces}
                 groupExpansion={groupExpansion}
                 setGroupExpanded={actions.setGroupExpanded}

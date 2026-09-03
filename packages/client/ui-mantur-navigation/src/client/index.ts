@@ -19,7 +19,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Dictionary namespace owned by this plugin. */
-export const NS = 'navigation.mantur'
+const NS = 'navigation.mantur'
 
 /** Required UI services and declarations. */
 export const inject = ['slots', 'locale']
@@ -36,9 +36,6 @@ export function apply(ctx: Context): void {
       })))
 }
 
-export {
-  MANTUR_MARKET_PAGES, MarketplaceNavigation, MarketplacePage, ProjectsHeading,
-} from './MarketplaceNavigation.tsx'
 export type {
   ManturMarketPageId, MarketplaceNavigationProps, MarketplacePageProps,
 } from './MarketplaceNavigation.tsx'

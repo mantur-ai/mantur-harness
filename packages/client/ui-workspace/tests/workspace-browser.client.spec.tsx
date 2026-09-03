@@ -448,6 +448,21 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('gone-s')).toBeNull()
   })
 
+  it('returns to conversation before forking and opening a child session', () => {
+    const forkSession = vi.fn()
+    const b = mount({
+      useSessions: hook(sessionState([summary('alpha-s', 1)])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-s'])])),
+      forkSession,
+    })
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByRole('button', { name: '会话“alpha-s”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '分叉会话' }))
+
+    expect(b.props.showConversation).toHaveBeenCalledOnce()
+    expect(forkSession).toHaveBeenCalledWith(sid('alpha-s'))
+  })
+
   it('logs and keeps the tree when the archive call rejects', async () => {
     const rejection = new Error('archive exploded')
     const archiveSession = vi.fn(async () => { throw rejection })

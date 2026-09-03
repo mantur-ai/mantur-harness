@@ -68,6 +68,21 @@ describe('Mantur marketplace navigation', () => {
     expect(screen.getByText('每份配方包含效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本。配方本身免费；使用配方复刻时按算子实时报价，并在开始前请你确认。')).toBeTruthy()
   })
 
+  it('returns to conversation when the active marketplace occupant unloads', () => {
+    const closePage = vi.fn()
+    const view = render(
+      <MarketplacePage
+        {...globalProps}
+        activePage={MANTUR_MARKET_PAGES.skills}
+        closePage={closePage}
+        t={t}
+      />,
+    )
+
+    view.unmount()
+    expect(closePage).toHaveBeenCalledOnce()
+  })
+
   it('keeps the two destinations available in the compact rail', () => {
     const openPage = vi.fn()
     render(
@@ -89,11 +104,13 @@ describe('Mantur marketplace navigation', () => {
     render(<ProjectsHeading t={t} />)
     expect(screen.getByText('项目')).toBeTruthy()
     cleanup()
-    expect(() => MarketplacePage({
-      ...globalProps,
-      activePage: 'other.page' as never,
-      closePage: vi.fn(),
-      t,
-    })).toThrow(/unsupported main page/)
+    expect(() => render(
+      <MarketplacePage
+        {...globalProps}
+        activePage={'other.page' as never}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )).toThrow(/unsupported main page/)
   })
 })

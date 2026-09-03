@@ -5,6 +5,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import {
   MarketplaceNavigation, MarketplacePage, ProjectsHeading,
 } from '../src/client/MarketplaceNavigation.tsx'
+import * as clientEntry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 
@@ -30,6 +31,7 @@ describe('ui-mantur-navigation apply', () => {
   it('keeps the host entry inert and declares browser services', () => {
     expect(hostApply).not.toThrow()
     expect(inject).toEqual(['slots', 'locale'])
+    expect(Object.keys(clientEntry).sort()).toEqual(['apply', 'inject'])
   })
 
   it('registers all Mantur occupants and removes them together on unload', async () => {

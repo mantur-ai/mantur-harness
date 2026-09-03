@@ -1,6 +1,6 @@
 /** Mantur feature navigation and root-page skeletons. */
 
-import type { ComponentType } from 'react'
+import { useEffect, type ComponentType } from 'react'
 import clsx from 'clsx'
 import {
   IconChevronLeftOutline14, IconListPenOutline16, IconSkillOutline16, Tooltip,
@@ -91,6 +91,9 @@ const pageCopy: Record<ManturMarketPageId, PageCopy> = {
 
 /** Render the selected marketplace as an independent, intentionally empty root page. */
 export function MarketplacePage({ activePage, closePage, t }: MarketplacePageProps) {
+  // Registry disposal unmounts the active occupant before a replacement can
+  // render, so the layout must not retain this plugin's page identifier.
+  useEffect(() => () => { closePage() }, [closePage])
   const copy = pageCopy[activePage]
   if (copy === undefined) throw new Error(`ui-mantur-navigation: unsupported main page "${activePage}"`)
   const Icon = copy.icon

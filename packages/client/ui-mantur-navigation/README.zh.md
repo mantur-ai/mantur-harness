@@ -35,7 +35,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-浏览器插件安装一个本地化导航 occupant、一个“项目”标题 occupant 和一个根页面 occupant。导航把选中的品牌化页面标识写入布局 store；根页面 occupant 渲染对应的空页面，并通过所有者操作关闭它。卸载插件会移除三个 occupant 及其本地化字典。
+浏览器插件安装一个本地化导航 occupant、一个“项目”标题 occupant 和一个根页面 occupant。导航把选中的品牌化页面标识写入布局 store；根页面 occupant 渲染对应的空页面，并通过所有者操作关闭它。插件卸载或替换导致活跃根页面 occupant 卸载时，它也会清除自己的页面标识，让对话重新可见。卸载插件会移除三个 occupant 及其本地化字典。
 
 </details>
 

@@ -12,7 +12,7 @@ Status: implemented
 
 `ui-layout` 在根 entry store 中保存临时的品牌化 `MainPageId | undefined`，并声明根作用域单 occupant 的 `main.page` slot。页面激活时隐藏但不卸载对话表面，在不修改详情栏首选宽度的情况下把详情栏渲染为零宽，并向页面提供恢复当前对话的关闭操作。store 不做持久化，因此刷新后始终从对话开始。
 
-`ui-sidebar` 在 `sidebar.workspaces` 之前声明 `sidebar.navigation`，并向 occupant 传递当前页面以及打开、关闭操作。新建会话前先关闭页面。工作区浏览器接收同一个返回操作，并在打开或新建 Session 前调用它。
+`ui-sidebar` 在 `sidebar.workspaces` 之前声明 `sidebar.navigation`，并向 occupant 传递当前页面以及打开、关闭操作。新建会话前先关闭页面。工作区浏览器接收同一个返回操作，并在打开、新建或 fork Session 前调用它。插件卸载或替换导致活跃的漫途根页面 occupant 卸载时，它也会调用关闭操作，因此临时布局 store 不会保留已经失去 renderer 的页面标识。
 
 `ui-workspace` 声明嵌套的 `sidebar.workspaces.heading` slot，并以现有本地化“工作区”文案作为 fallback。只由漫途组合加载的 `ui-mantur-navigation` 同时填充三个扩展点：语义上的“功能”导航分组、本地化“项目”标题，以及独立的技能与配方空页面。配方文案把配方定义为带有效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本的优秀验证案例，而不是通用工作流模板。文案说明配方本身免费，算子执行开始前必须确认实时报价。可视导航遵循已确认布局，不额外显示“功能”标题；无障碍导航名称仍保留分组身份。官方 profile 不组合这个包。
 

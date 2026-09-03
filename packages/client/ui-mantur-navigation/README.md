@@ -35,7 +35,7 @@ Compose this package only through [`dsh-mantur-app`](../../bundle/mantur-app/REA
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The browser plugin installs one localized navigation occupant, one Projects-heading occupant, and one root-page occupant. The navigation writes the selected branded page identifier to the layout store; the root-page occupant renders the matching empty page and closes it through the owner action. Disposing the plugin removes the three occupants and its locale dictionary.
+The browser plugin installs one localized navigation occupant, one Projects-heading occupant, and one root-page occupant. The navigation writes the selected branded page identifier to the layout store; the root-page occupant renders the matching empty page and closes it through the owner action. When an active root-page occupant unmounts during plugin disposal or replacement, it also clears its page identifier so the conversation becomes visible. Disposing the plugin removes the three occupants and its locale dictionary.
 
 </details>
 

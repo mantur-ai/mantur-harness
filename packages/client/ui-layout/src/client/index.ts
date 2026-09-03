@@ -3,8 +3,8 @@
  * the runtime's built-in 'root' slot and, in the same breath, declares the
  * five child slots (declaration = exclusive render authority), seats the
  * layout store (panel geometry), and wires the panel-action service face.
- * ctx.layout is the cross-plugin panel-action contract; navigation state lives
- * with the runtime sessions service. A second effect seats the theme
+ * ctx.layout is the cross-plugin panel-action contract; root-page navigation
+ * state lives in the layout store. A second effect seats the theme
  * presenter, which projects ctx.theme snapshots onto document.body.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
