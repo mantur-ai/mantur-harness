@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -439,7 +440,7 @@ describe('E2B e2e workflow', () => {
 })
 
 describe('Desktop release workflow', () => {
-  it('separates protected native signing from explicit GitHub publication', () => {
+  it('separates protected native signing from explicit GitHub publication', async () => {
     const workflow = loadWorkflow('.github/workflows/desktop-release.yml')
     const dispatch = workflowEvent(workflow, 'workflow_dispatch')
     const validate = workflowJob(workflow, 'validate')
@@ -465,7 +466,56 @@ describe('Desktop release workflow', () => {
         REF_TYPE: '${{ github.ref_type }}',
       },
     })
-    expect((authorize as { run?: string }).run).toContain('desktop-v$version')
+    const authorizeScript = (authorize as { run?: string }).run
+    expect(authorizeScript).toContain('"v$version"')
+    expect(authorizeScript).not.toContain('desktop-v$version')
+    const desktopVersion = (JSON.parse(readFileSync(resolve(root, 'apps/desktop/package.json'), 'utf8')) as {
+      version: string
+    }).version
+    const requireFromUpdater = createRequire(resolve(root, 'apps/desktop/node_modules/electron-updater/package.json'))
+    const updaterSemver = requireFromUpdater('semver') as {
+      SemVer: new(version: string) => unknown
+      valid: (version: string) => string | null
+    }
+    expect(updaterSemver.valid(`v${desktopVersion}`)).toBe(desktopVersion)
+    expect(updaterSemver.valid(`desktop-v${desktopVersion}`)).toBeNull()
+    const { GitHubProvider } = requireFromUpdater('./out/providers/GitHubProvider.js') as {
+      GitHubProvider: new(options: unknown, updater: unknown, runtime: unknown) => {
+        getLatestVersion: () => Promise<{ tag: string }>
+      }
+    }
+    const feed = (tag: string): string => `<?xml version="1.0" encoding="UTF-8"?>
+      <feed><entry><title>Mantur Agent</title><link href="https://github.com/mantur-ai/mantur-harness/releases/tag/${tag}"/><content>Release</content></entry></feed>`
+    const metadata = `version: ${desktopVersion}
+files:
+  - url: Mantur-Agent-macOS-arm64.zip
+    sha512: checksum
+path: Mantur-Agent-macOS-arm64.zip
+sha512: checksum
+releaseDate: '2026-09-03T00:00:00.000Z'
+`
+    const selectTag = async (tag: string): Promise<string> => {
+      const executor = {
+        request: async (request: { path?: string }) => request.path?.endsWith('.atom') === true
+          ? feed(tag)
+          : metadata,
+      }
+      const provider = new GitHubProvider(
+        { provider: 'github', owner: 'mantur-ai', repo: 'mantur-harness' },
+        {
+          allowPrerelease: true,
+          channel: null,
+          currentVersion: new updaterSemver.SemVer(desktopVersion),
+          fullChangelog: false,
+        },
+        { executor, isUseMultipleRangeRequest: false, platform: 'darwin' },
+      )
+      return (await provider.getLatestVersion()).tag
+    }
+    await expect(selectTag(`v${desktopVersion}`)).resolves.toBe(`v${desktopVersion}`)
+    await expect(selectTag(`desktop-v${desktopVersion}`)).rejects.toMatchObject({
+      code: 'ERR_UPDATER_NO_PUBLISHED_VERSIONS',
+    })
     expect(macos).toMatchObject({
       environment: 'macos-release',
       strategy: {

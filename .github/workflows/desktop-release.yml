@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the signed and notarized macOS build to GitHub Releases. Must run from the matching desktop-v* tag.
+        description: Publish the signed and notarized macOS build to GitHub Releases. Must run from the matching v* tag.
         required: true
         type: boolean
         default: false
@@ -39,8 +39,8 @@ jobs:
           version="$(node -p "require('./apps/desktop/package.json').version")"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
           if [ "$PUBLISH" = true ]; then
-            [ "$REF_TYPE" = tag ] && [ "$REF_NAME" = "desktop-v$version" ] || {
-              echo "::error::Publication must run from tag desktop-v$version."
+            [ "$REF_TYPE" = tag ] && [ "$REF_NAME" = "v$version" ] || {
+              echo "::error::Publication must run from tag v$version."
               exit 1
             }
           fi

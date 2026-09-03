@@ -144,6 +144,35 @@ describe('desktop updates', () => {
     controller.dispose()
   })
 
+  it('handles one downloaded version only once while confirmation and shutdown are pending', async () => {
+    const updater = new FakeUpdater()
+    let confirmInstall: ((confirmed: boolean) => void) | undefined
+    let finishShutdown: (() => void) | undefined
+    const confirmation = new Promise<boolean>((resolve) => { confirmInstall = resolve })
+    const shutdown = new Promise<void>((resolve) => { finishShutdown = resolve })
+    const confirmInstallPrompt = vi.fn(() => confirmation)
+    const beforeInstall = vi.fn(() => shutdown)
+    const { controller } = start(updater, {
+      prompts: { confirmDownload: vi.fn(async () => true), confirmInstall: confirmInstallPrompt },
+      beforeInstall,
+    })
+
+    updater.emit('update-downloaded', { version: '1.2.3' })
+    updater.emit('update-downloaded', { version: '1.2.3' })
+    await vi.waitFor(() => { expect(confirmInstallPrompt).toHaveBeenCalledOnce() })
+
+    confirmInstall?.(true)
+    await vi.waitFor(() => { expect(beforeInstall).toHaveBeenCalledOnce() })
+    updater.emit('update-downloaded', { version: '1.2.3' })
+    finishShutdown?.()
+    await vi.waitFor(() => { expect(updater.quitAndInstall).toHaveBeenCalledOnce() })
+
+    expect(confirmInstallPrompt).toHaveBeenCalledOnce()
+    expect(beforeInstall).toHaveBeenCalledOnce()
+    expect(updater.quitAndInstall).toHaveBeenCalledWith(false, true)
+    controller.dispose()
+  })
+
   it('suppresses pending prompt work after disposal', async () => {
     const updater = new FakeUpdater()
     let releaseDownload: ((confirmed: boolean) => void) | undefined

@@ -59,7 +59,7 @@ Before public distribution, enable Release Immutability in the repository settin
 | Secret | `APPLE_ID` | Apple ID used for notarization |
 | Secret | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
 
-The workflow combines both native `latest-mac.yml` files into one architecture-aware update channel and retains the complete candidate plus `SHA256SUMS` for seven days. Run it from the exact `desktop-v<apps/desktop version>` tag. `publish=false` stops after assembling the candidate; `publish=true` creates a GitHub release with the DMGs, update ZIPs, blockmaps, update metadata, and hashes. The workflow refuses a tag that already owns a release instead of replacing published files; repository-level Release Immutability then prevents later tag or asset changes.
+The workflow combines both native `latest-mac.yml` files into one architecture-aware update channel and retains the complete candidate plus `SHA256SUMS` for seven days. Run it from the exact `v<apps/desktop version>` tag; this semver-compatible tag lets electron-updater select prereleases from the GitHub feed. `publish=false` stops after assembling the candidate; `publish=true` creates a GitHub release with the DMGs, update ZIPs, blockmaps, update metadata, and hashes. The workflow refuses a tag that already owns a release instead of replacing published files; repository-level Release Immutability then prevents later tag or asset changes.
 
 ## Runtime design
 

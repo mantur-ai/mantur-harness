@@ -95,6 +95,7 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): DesktopUpdat
   updater.allowPrerelease = allowsPrerelease(options.currentVersion)
   let active = true
   let checkingManually = false
+  let downloadedVersion: string | undefined
   let state: DesktopUpdateState = { kind: 'idle' }
 
   const publish = (next: DesktopUpdateState): void => {
@@ -170,7 +171,8 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): DesktopUpdat
   }
 
   const onDownloaded = (info: UpdateDownloadedEvent): void => {
-    if (!active) return
+    if (!active || downloadedVersion === info.version) return
+    downloadedVersion = info.version
     publish({ kind: 'ready', version: info.version, prompting: false })
     installReadyUpdate()
   }
