@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-这个纯浏览器插件为漫途侧栏增加“功能”分组、“技能广场”和“配方广场”入口，并提供两个独立的空主页面。它还把分组工作区标题替换为本地化的产品术语“项目”。官方 Web 组合不加载这个包，继续显示“工作区”。
+这个纯浏览器插件为漫途侧栏增加“功能”分组、“技能广场”和“配方广场”入口，并提供两个独立的空主页面。配方表示可替换用户内容并复刻效果的优秀验证案例，不是通用工作流模板。这个包还把分组工作区标题替换为本地化的产品术语“项目”。官方 Web 组合不加载这个包，继续显示“工作区”。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用方式
 
-只通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合这个包。所有者声明完成后，该包填充 `sidebar.navigation`、`sidebar.workspaces.heading` 和 `main.page`。页面选择存放在布局的临时 store 中，因此每次刷新都回到当前对话，不会把广场页面写入磁盘。
+只通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合这个包。所有者声明完成后，该包填充 `sidebar.navigation`、`sidebar.workspaces.heading` 和 `main.page`。配方页面把每条配方定义为带有效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本的案例。页面说明配方本身免费，算子执行采用实时报价，并在开始前由用户确认。页面选择存放在布局的临时 store 中，因此每次刷新都回到当前对话，不会把广场页面写入磁盘。
 
 -----
 

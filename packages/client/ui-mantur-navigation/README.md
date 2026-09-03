@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This browser-only plugin adds the Mantur sidebar's Features section, Skill Marketplace and Recipe Marketplace entries, and their independent empty root pages. It also replaces the grouped workspace heading with the localized product term Projects. The official Web composition does not load this package and keeps Workspaces unchanged.
+This browser-only plugin adds the Mantur sidebar's Features section, Skill Marketplace and Recipe Marketplace entries, and their independent empty root pages. A Recipe means a proven creative example that can be reproduced with replaced user content; it is not a general workflow template. The package also replaces the grouped workspace heading with the localized product term Projects. The official Web composition does not load this package and keeps Workspaces unchanged.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This browser-only plugin adds the Mantur sidebar's Features section, Skill Marke
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this package only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The package fills `sidebar.navigation`, `sidebar.workspaces.heading`, and `main.page` after their owners declare them. Page selection belongs to the layout's transient store, so every reload starts on the current conversation and keeps no marketplace route on disk.
+Compose this package only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The package fills `sidebar.navigation`, `sidebar.workspaces.heading`, and `main.page` after their owners declare them. The Recipe page defines each entry as carrying a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost. It states that the Recipe itself is free and that operator execution uses a real-time quote confirmed before work starts. Page selection belongs to the layout's transient store, so every reload starts on the current conversation and keeps no marketplace route on disk.
 
 -----
 

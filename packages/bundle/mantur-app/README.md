@@ -25,7 +25,7 @@ This bundle is the final layer of the shipped `mantur` profile. It retains the W
 
 Launch the complete product through `dsh --profile mantur`; the desktop carrier selects that profile automatically. The ordered bundle stack is `dsh-base`, `dsh-web-app`, then this layer. The `web` profile remains unchanged.
 
-The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent empty root page and returns to the current conversation without persisting a route. Catalog data, downloads, recipe execution, and payment remain outside this MVP.
+The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent empty root page and returns to the current conversation without persisting a route. The Recipe page defines a Recipe as a proven creative example with a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost; it is not a generic workflow template. The page states that Recipes are free and operator execution requires real-time quote confirmation. Catalog data, downloads, and execution remain outside this MVP.
 
 <a id="model-experience"></a>
 ## Model Experience

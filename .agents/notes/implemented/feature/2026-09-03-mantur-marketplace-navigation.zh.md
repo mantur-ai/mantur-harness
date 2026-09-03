@@ -14,7 +14,7 @@ Status: implemented
 
 `ui-sidebar` 在 `sidebar.workspaces` 之前声明 `sidebar.navigation`，并向 occupant 传递当前页面以及打开、关闭操作。新建会话前先关闭页面。工作区浏览器接收同一个返回操作，并在打开或新建 Session 前调用它。
 
-`ui-workspace` 声明嵌套的 `sidebar.workspaces.heading` slot，并以现有本地化“工作区”文案作为 fallback。只由漫途组合加载的 `ui-mantur-navigation` 同时填充三个扩展点：语义上的“功能”导航分组、本地化“项目”标题，以及独立的技能与配方空页面。可视导航遵循已确认布局，不额外显示“功能”标题；无障碍导航名称仍保留分组身份。官方 profile 不组合这个包。
+`ui-workspace` 声明嵌套的 `sidebar.workspaces.heading` slot，并以现有本地化“工作区”文案作为 fallback。只由漫途组合加载的 `ui-mantur-navigation` 同时填充三个扩展点：语义上的“功能”导航分组、本地化“项目”标题，以及独立的技能与配方空页面。配方文案把配方定义为带有效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本的优秀验证案例，而不是通用工作流模板。文案说明配方本身免费，算子执行开始前必须确认实时报价。可视导航遵循已确认布局，不额外显示“功能”标题；无障碍导航名称仍保留分组身份。官方 profile 不组合这个包。
 
 ## Alternatives considered
 
@@ -26,4 +26,4 @@ Status: implemented
 
 ## Consequences
 
-共享客户端增加两个通用扩展点和一个临时页面选择器，漫途文案与页面结构仍隔离在单个产品包中。同一组合只能安装一个根页面 occupant。本 MVP 明确不提供目录请求、技能安装、配方执行、支付或路由持久化。
+共享客户端增加两个通用扩展点和一个临时页面选择器，漫途文案与页面结构仍隔离在单个产品包中。同一组合只能安装一个根页面 occupant。本 MVP 只展示配方定义与计费规则，明确不提供目录请求、技能安装、算子执行、报价确认、支付或路由持久化。

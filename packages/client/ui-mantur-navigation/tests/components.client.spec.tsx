@@ -64,7 +64,8 @@ describe('Mantur marketplace navigation', () => {
       />,
     )
     expect(screen.getByRole('heading', { name: '配方广场' })).toBeTruthy()
-    expect(screen.getByText('配方正在准备中，稍后从这里开始创作。')).toBeTruthy()
+    expect(screen.getByText('从经过验证的优秀案例出发，替换成你的内容，让漫途复刻同款效果。')).toBeTruthy()
+    expect(screen.getByText('每份配方包含效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本。配方本身免费；使用配方复刻时按算子实时报价，并在开始前请你确认。')).toBeTruthy()
   })
 
   it('keeps the two destinations available in the compact rail', () => {

@@ -123,6 +123,10 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
 
     await page.getByRole('button', { name: '配方广场' }).click()
     await page.getByRole('heading', { name: '配方广场' }).waitFor({ timeout: 10_000 })
+    await page.getByText('从经过验证的优秀案例出发，替换成你的内容，让漫途复刻同款效果。')
+      .waitFor({ timeout: 10_000 })
+    await page.getByText(/配方本身免费；使用配方复刻时按算子实时报价，并在开始前请你确认/)
+      .waitFor({ timeout: 10_000 })
     expect(await page.getByRole('button', { name: '配方广场' }).getAttribute('aria-current')).toBe('page')
 
     await page.getByRole('button', { name: '返回对话' }).click()
