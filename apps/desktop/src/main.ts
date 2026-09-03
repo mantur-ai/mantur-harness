@@ -155,7 +155,9 @@ function startUpdates(): void {
   const { autoUpdater } = electronUpdater
   stopUpdates = startAutoUpdates({
     updater: autoUpdater,
+    currentVersion: app.getVersion(),
     log: writeDesktopLog,
+    onStateChange: () => {},
     beforeInstall: async () => {
       quitting = true
       await stopService()
@@ -186,7 +188,7 @@ function startUpdates(): void {
         return result.response === 0
       },
     },
-  })
+  }).dispose
 }
 
 const singleInstance = app.requestSingleInstanceLock()
