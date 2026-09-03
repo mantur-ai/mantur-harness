@@ -41,6 +41,14 @@ export type ManturRecipeMarketplaceState =
     readonly launchError?: 'no-workspace' | 'failed' | undefined
   }
 
+/** Locale-owned trace lines that wrap one authoritative Recipe payload. */
+export interface ManturRecipeLaunchCopy {
+  readonly introduction: string
+  readonly identifier: string
+  readonly platform: string
+  readonly source?: string
+}
+
 /** Convert one generated Remote result into its value. */
 function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: string; message: string } }): T {
   if (result.ok) return result.value
@@ -120,9 +128,10 @@ export class ManturMarketplaceStore {
 
   /**
    * Start a new Session in the current Workspace and submit the Recipe's authoritative payload.
+   * @param copy - localized trace lines prepared by the active Recipe page.
    * @returns whether the Host accepted the first durable user message.
    */
-  async startRecipe(): Promise<boolean> {
+  async startRecipe(copy: ManturRecipeLaunchCopy): Promise<boolean> {
     const current = this.recipes.getSnapshot()
     if (current.phase !== 'ready' || current.detail === undefined || current.launching !== undefined) return false
     const detail = current.detail
@@ -152,9 +161,10 @@ export class ManturMarketplaceStore {
       const conversation = binding.ctx.get('conversation')
       if (conversation === undefined) throw new Error('Recipe conversation service is unavailable')
       await conversation.send([
-        `我要复刻 ManturHub 配方「${detail.title}」。`,
-        `配方标识：${detail.slug}`,
-        `配方来源：${detail.sourceUrl}`,
+        copy.introduction,
+        copy.identifier,
+        copy.platform,
+        ...(copy.source === undefined ? [] : [copy.source]),
         '',
         detail.agentPayload,
       ].join('\n'))

@@ -792,11 +792,20 @@
 }
 
 .recipeSource {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 22px;
   color: var(--dsw-alias-brand-primary);
   font-size: 13px;
   text-decoration: none;
+}
+
+.recipeSource img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 @media (max-width: 720px) {

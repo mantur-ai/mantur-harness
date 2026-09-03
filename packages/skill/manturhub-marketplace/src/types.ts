@@ -94,9 +94,9 @@ export interface ManturMarketplaceRecipeDetail extends ManturMarketplaceRecipe {
   readonly sampleText: string
   readonly promptTemplate: string
   readonly parameters: ManturRecipeJsonValue
-  readonly sourceUrl: string
-  readonly sourceName: string
-  readonly sourceAvatarUrl: string
+  readonly sourceUrl?: string
+  readonly sourceName?: string
+  readonly sourceAvatarUrl?: string
   readonly models: readonly string[]
   readonly agentPayload: string
 }

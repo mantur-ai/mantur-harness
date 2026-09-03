@@ -225,6 +225,23 @@ describe('ManturHub marketplace Host', () => {
     expect(detail.sourceUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/recipes\/rcp\.video\.story-vlog$/)
   })
 
+  it('omits empty Recipe source metadata returned by production', async () => {
+    const subject = await boot({
+      signedIn: false,
+      recipeDetail: {
+        ...recipeDetail,
+        source_url: '',
+        source_name: '',
+        source_avatar_url: '',
+      },
+    })
+
+    const detail = await subject.service.recipeDetail(recipe.slug)
+    expect(detail).not.toHaveProperty('sourceUrl')
+    expect(detail).not.toHaveProperty('sourceName')
+    expect(detail).not.toHaveProperty('sourceAvatarUrl')
+  })
+
   it('rejects malformed Recipe requests before contacting ManturHub', async () => {
     const subject = await boot()
     await expect(subject.service.listRecipes({ page: 0 })).rejects.toMatchObject({ code: 'gateway/bad-request' })

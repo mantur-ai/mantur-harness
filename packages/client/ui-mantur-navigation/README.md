@@ -27,7 +27,7 @@ This browser-only plugin adds the Mantur sidebar's Skill Marketplace and Recipe 
 
 Compose this package only through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). The package fills `sidebar.navigation`, `sidebar.workspaces.heading`, and `main.page` after their owners declare them, then mounts the browser-safe marketplace Remote. Opening the Skill page loads the public catalog and local installation flags. Selecting a card loads its detail; an authenticated install writes through the Host service and updates the visible card only after Host confirmation. A signed-out install starts the existing ManturHub device-login flow. Page selection belongs to the layout's transient store, so every reload starts on the current conversation and keeps no marketplace route on disk.
 
-The Recipe page loads the public ManturHub catalog with server-side text and category filters, renders result samples and pagination, and opens an inline detail with replaceable inputs, prompt template, models, operators, and the authoritative reproduction guide. The Recipe itself is free; operator execution uses a real-time quote confirmed before work starts. “Recreate with Agent” creates a new Session in the current Project and submits the Hub-provided `agent_payload` with the Recipe slug and source URL as its first user message.
+The Recipe page loads the public ManturHub catalog with server-side text and category filters, renders result samples and pagination, and opens an inline detail with replaceable inputs, prompt template, models, operators, and the authoritative reproduction guide. The Recipe itself is free; operator execution uses a real-time quote confirmed before work starts. “Recreate with Agent” creates a new Session in the current Project and submits the Hub-provided `agent_payload` with the Recipe slug and ManturHub marker as its first user message. The message includes the source URL only when ManturHub publishes one.
 
 -----
 
@@ -57,7 +57,7 @@ These pages own the shared extension points and the Mantur composition.
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this package contributes no hidden model context; the selected Recipe instead becomes an ordinary durable first user message containing its title, slug, source URL, and exact ManturHub `agent_payload`.
+None, as this package contributes no hidden model context; the selected Recipe instead becomes an ordinary durable first user message. Its trace lines use the active UI language and contain the title, slug, ManturHub marker, and any source URL published by ManturHub; the following `agent_payload` remains exactly as published.
 
 #### KV Cache effect
 

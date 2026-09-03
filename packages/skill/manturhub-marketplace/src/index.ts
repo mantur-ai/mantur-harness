@@ -100,7 +100,7 @@ const recipeDetailSchema = recipeSchema.extend({
   sample_text: z.string(),
   prompt_template: z.string(),
   params_json: z.json(),
-  source_url: z.string().min(1),
+  source_url: z.string(),
   source_name: z.string(),
   source_avatar_url: z.string(),
   models: z.array(z.string()),
@@ -363,9 +363,11 @@ export class ManturHubMarketplace extends TypertRemoteService {
         sampleText: parsed.sample_text,
         promptTemplate: parsed.prompt_template,
         parameters: parsed.params_json,
-        sourceUrl: publicUrl(parsed.source_url, response.url),
-        sourceName: parsed.source_name,
-        sourceAvatarUrl: publicUrl(parsed.source_avatar_url, response.url),
+        ...(parsed.source_url === '' ? {} : { sourceUrl: publicUrl(parsed.source_url, response.url) }),
+        ...(parsed.source_name === '' ? {} : { sourceName: parsed.source_name }),
+        ...(parsed.source_avatar_url === ''
+          ? {}
+          : { sourceAvatarUrl: publicUrl(parsed.source_avatar_url, response.url) }),
         models: parsed.models,
         agentPayload: parsed.agent_payload,
       }

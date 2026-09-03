@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This Host plugin exposes browser-safe ManturHub Skill and Recipe catalog and detail Remotes plus Skill installation. Public metadata is validated before projection. Recipe media and source paths resolve against the configured Hub response origin. Installation keeps the API key on the authenticated first hop, downloads an approved redirect without credentials, verifies archive limits and root metadata, and atomically commits the Skill directory with installer state.
+This Host plugin exposes browser-safe ManturHub Skill and Recipe catalog and detail Remotes plus Skill installation. Public metadata is validated before projection. Recipe media and non-empty source paths resolve against the configured Hub response origin; empty source fields are omitted from the browser result. Installation keeps the API key on the authenticated first hop, downloads an approved redirect without credentials, verifies archive limits and root metadata, and atomically commits the Skill directory with installer state.
 
 ## Table of Contents
 

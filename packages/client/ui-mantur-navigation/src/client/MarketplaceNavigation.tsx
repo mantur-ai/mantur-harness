@@ -338,7 +338,15 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
     void controller.loadRecipes({ page, ...currentRecipeQuery(query, category) })
   }
   const launch = async (): Promise<void> => {
-    if (await controller.startRecipe()) closePage()
+    if (detail === undefined) return
+    if (await controller.startRecipe({
+      introduction: t('recipes.launchIntroduction').replace('{title}', detail.title),
+      identifier: t('recipes.launchIdentifier').replace('{slug}', detail.slug),
+      platform: t('recipes.launchPlatform'),
+      ...(detail.sourceUrl === undefined
+        ? {}
+        : { source: t('recipes.launchSource').replace('{url}', detail.sourceUrl) }),
+    })) closePage()
   }
 
   return (
@@ -484,7 +492,14 @@ function RecipeDetail({ detail, launching, launchError, launch, t }: {
           {launching ? t('recipes.launching') : t('recipes.launch')}
         </button>
         {launchError !== undefined && <p className={css.recipeLaunchError} role="alert">{launchError === 'no-workspace' ? t('recipes.noWorkspace') : t('recipes.launchFailed')}</p>}
-        <a className={css.recipeSource} href={detail.sourceUrl} target="_blank" rel="noreferrer">{t('recipes.source').replace('{source}', detail.sourceName || t('recipes.sourceDefault'))}</a>
+        {detail.sourceUrl !== undefined && (
+          <a className={css.recipeSource} href={detail.sourceUrl} target="_blank" rel="noreferrer">
+            {detail.sourceAvatarUrl !== undefined && <img src={detail.sourceAvatarUrl} alt="" />}
+            {detail.sourceName === undefined
+              ? t('recipes.sourceAnonymous')
+              : t('recipes.source').replace('{source}', detail.sourceName)}
+          </a>
+        )}
       </article>
       <div className={css.recipeSections}>
         {detail.sampleText !== '' && <RecipeSection title={t('recipes.outcome')} body={detail.sampleText} />}

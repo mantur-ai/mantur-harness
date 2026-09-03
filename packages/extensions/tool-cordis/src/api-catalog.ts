@@ -4494,7 +4494,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ManturMarketplaceRecipeDetail',
-    declaration: 'export interface ManturMarketplaceRecipeDetail extends ManturMarketplaceRecipe {\n    readonly sampleText: string;\n    readonly promptTemplate: string;\n    readonly parameters: ManturRecipeJsonValue;\n    readonly sourceUrl: string;\n    readonly sourceName: string;\n    readonly sourceAvatarUrl: string;\n    readonly models: readonly string[];\n    readonly agentPayload: string;\n}',
+    declaration: 'export interface ManturMarketplaceRecipeDetail extends ManturMarketplaceRecipe {\n    readonly sampleText: string;\n    readonly promptTemplate: string;\n    readonly parameters: ManturRecipeJsonValue;\n    readonly sourceUrl?: string;\n    readonly sourceName?: string;\n    readonly sourceAvatarUrl?: string;\n    readonly models: readonly string[];\n    readonly agentPayload: string;\n}',
   },
   {
     name: 'ManturMarketplaceRecipeQuery',

@@ -206,9 +206,62 @@ describe('Mantur marketplace navigation', () => {
     expect(screen.getByText('你可以替换')).toBeTruthy()
     expect(screen.getByText('地点')).toBeTruthy()
     expect(screen.getByText('海边')).toBeTruthy()
+    const source = screen.getByRole('link', { name: '查看来源：ManturHub' })
+    expect(source.getAttribute('href')).toBe(detail.sourceUrl)
+    expect(source.querySelector('img')?.getAttribute('src')).toBe(detail.sourceAvatarUrl)
     fireEvent.click(screen.getByRole('button', { name: '交给 Agent 复刻' }))
-    await vi.waitFor(() => { expect(props.controllerMocks.startRecipe).toHaveBeenCalledOnce() })
+    await vi.waitFor(() => {
+      expect(props.controllerMocks.startRecipe).toHaveBeenCalledWith({
+        introduction: `我要复刻 ManturHub 配方「${detail.title}」。`,
+        identifier: `配方标识：${detail.slug}`,
+        platform: '配方平台：ManturHub',
+        source: `来源地址：${detail.sourceUrl}`,
+      })
+    })
     expect(closePage).toHaveBeenCalledOnce()
+  })
+
+  it('renders only Recipe source metadata that the Hub publishes', () => {
+    const { sourceUrl: _sourceUrl, sourceName: _sourceName, sourceAvatarUrl: _sourceAvatarUrl, ...detail } = {
+      ...recipe,
+      sampleText: '',
+      promptTemplate: '',
+      parameters: {},
+      sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog',
+      sourceName: 'ManturHub',
+      sourceAvatarUrl: 'https://hub.mantur.cn/assets/avatar.png',
+      models: [],
+      agentPayload: '请按配方执行。',
+    }
+    const catalog = { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] }
+    const props = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog,
+      query: {},
+      detail: { ...detail, sourceUrl: 'https://hub.mantur.cn/recipes/rcp.video.story-vlog' },
+    })
+    const view = render(
+      <MarketplacePage
+        {...globalProps}
+        {...props}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )
+
+    const anonymousSource = screen.getByRole('link', { name: '查看来源' })
+    expect(anonymousSource.querySelector('img')).toBeNull()
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, { phase: 'ready', catalog, query: {}, detail })}
+        activePage={MANTUR_MARKET_PAGES.recipes}
+        closePage={vi.fn()}
+        t={t}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: /查看来源/ })).toBeNull()
   })
 
   it('shows loading and retryable catalog failures', () => {

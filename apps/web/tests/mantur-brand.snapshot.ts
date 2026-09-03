@@ -365,7 +365,8 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
         .map(block => block.text)
         .join('\n')
       expect(firstUserText).toContain(`配方标识：${marketplaceRecipe.slug}`)
-      expect(firstUserText).toContain(`配方来源：${fixture.baseUrl}/recipes/${marketplaceRecipe.slug}`)
+      expect(firstUserText).toContain('配方平台：ManturHub')
+      expect(firstUserText).toContain(`来源地址：${fixture.baseUrl}/recipes/${marketplaceRecipe.slug}`)
       expect(firstUserText).toContain(marketplaceRecipeDetail.agent_payload)
 
       await recipePage.getByRole('button', { name: '配方广场' }).click()
