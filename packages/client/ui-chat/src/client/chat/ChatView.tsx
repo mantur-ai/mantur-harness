@@ -315,6 +315,11 @@ export function ChatView({
   )
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
+  const pendingReaderMovement = (el: HTMLElement): boolean => {
+    if (!scrollSamplePendingRef.current) return false
+    const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+    return Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
+  }
   /** Paging anchor: semantic row/position at click, updated by reader scrolls
    * while the request is pending and restored after the prepend lands. */
   const anchorRef = useRef<PagingAnchor | null>(null)
@@ -469,11 +474,7 @@ export function ChatView({
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const el = scrollerOf(local)
-    if (scrollSamplePendingRef.current) {
-      const floor = Math.max(0, el.scrollHeight - el.clientHeight)
-      const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
-      if (movedByReader) return
-    }
+    if (pendingReaderMovement(el)) return
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -620,11 +621,7 @@ export function ChatView({
     const local = listRef.current
     if (local !== null && atBottomRef.current) {
       const el = scrollerOf(local)
-      if (scrollSamplePendingRef.current) {
-        const floor = Math.max(0, el.scrollHeight - el.clientHeight)
-        const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
-        if (movedByReader) return
-      }
+      if (pendingReaderMovement(el)) return
       el.scrollTop = el.scrollHeight
       observedTopRef.current = el.scrollTop
       chatScroll.save(null)
