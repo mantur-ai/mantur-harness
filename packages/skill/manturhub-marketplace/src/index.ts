@@ -4,7 +4,7 @@ import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-authorization-manturhub'
+import { readManturHubJson } from '@deepseek-ai/dsh-authorization-manturhub'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
@@ -112,31 +112,6 @@ declare module '@deepseek-ai/cordis' {
     /** Host owner of the browser-safe ManturHub marketplaces. */
     manturMarketplace: ManturHubMarketplace
   }
-}
-
-/** Read a bounded JSON response without buffering an untrusted body indefinitely. */
-async function responseJson(response: Response, maxBytes: number): Promise<unknown> {
-  const reader = response.body?.getReader()
-  if (reader === undefined) throw new Error('ManturHub returned no response body')
-  const chunks: Uint8Array[] = []
-  let length = 0
-  while (true) {
-    const chunk = await reader.read()
-    if (chunk.done) break
-    length += chunk.value.byteLength
-    if (length > maxBytes) {
-      await reader.cancel()
-      throw new Error(`ManturHub metadata exceeded ${maxBytes} bytes`)
-    }
-    chunks.push(chunk.value)
-  }
-  const bytes = new Uint8Array(length)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return JSON.parse(new TextDecoder().decode(bytes)) as unknown
 }
 
 /** Return whether the exact Skill directory already exists locally. */
@@ -248,7 +223,7 @@ export class ManturHubMarketplace extends TypertRemoteService {
       if (response === undefined || !response.ok) {
         throw new Error(`ManturHub catalog request failed with HTTP ${response?.status ?? 'unknown'}`)
       }
-      const parsed = catalogSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      const parsed = catalogSchema.parse(await readManturHubJson(response, this.config.maxMetadataBytes, 'metadata'))
       const skills = await Promise.all(parsed
         .filter(skill => skill.kind === 'skill')
         .map(skill => projectSkill(skill, this.config.skillsRoot)))
@@ -283,7 +258,7 @@ export class ManturHubMarketplace extends TypertRemoteService {
       if (response === undefined || !response.ok) {
         throw new Error(`ManturHub Skill request failed with HTTP ${response?.status ?? 'unknown'}`)
       }
-      const parsed = detailSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      const parsed = detailSchema.parse(await readManturHubJson(response, this.config.maxMetadataBytes, 'metadata'))
       if (parsed.slug !== slug) throw new Error('ManturHub returned a different Skill slug')
       return {
         ...await projectSkill(parsed, this.config.skillsRoot),
@@ -322,7 +297,7 @@ export class ManturHubMarketplace extends TypertRemoteService {
       if (response === undefined || !response.ok) {
         throw new Error(`ManturHub Recipe catalog request failed with HTTP ${response?.status ?? 'unknown'}`)
       }
-      const parsed = recipeCatalogSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      const parsed = recipeCatalogSchema.parse(await readManturHubJson(response, this.config.maxMetadataBytes, 'metadata'))
       return {
         recipes: parsed.recipes.map(recipe => projectRecipe(recipe, response.url)),
         total: parsed.total,
@@ -356,7 +331,7 @@ export class ManturHubMarketplace extends TypertRemoteService {
       if (response === undefined || !response.ok) {
         throw new Error(`ManturHub Recipe request failed with HTTP ${response?.status ?? 'unknown'}`)
       }
-      const parsed = recipeDetailSchema.parse(await responseJson(response, this.config.maxMetadataBytes))
+      const parsed = recipeDetailSchema.parse(await readManturHubJson(response, this.config.maxMetadataBytes, 'metadata'))
       if (parsed.slug !== slug) throw new Error('ManturHub returned a different Recipe slug')
       return {
         ...projectRecipe(parsed, response.url),

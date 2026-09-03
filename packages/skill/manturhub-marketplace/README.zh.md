@@ -74,7 +74,7 @@ ZIP 读取器会在写入每个条目前先校验中央目录元数据。它会�
 <details>
 <summary>维护者工作上下文——点击展开</summary>
 
-Host 测试使用真实回环 HTTP 服务与临时 `DSH_HOME`。它们验证线上响应封装、凭据隔离、压缩包策略、本地冲突拒绝、失败回滚与实时文件系统 watcher 刷新。
+Host 测试使用真实回环 HTTP 服务与临时 `DSH_HOME`。元数据缓冲使用 [`authorization-manturhub`](../../credentials/authorization-manturhub/README.zh.md) 持有的有界 JSON 读取函数。这些测试验证线上响应封装、凭据隔离、压缩包策略、本地冲突拒绝、失败回滚与实时文件系统 watcher 刷新。
 
 </details>
 

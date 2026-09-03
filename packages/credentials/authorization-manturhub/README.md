@@ -55,7 +55,7 @@ Authorization does not alter model request prefixes or cache reuse.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The device and account endpoints are resolved from one configured origin. Tests select a loopback fake server.
+The device and account endpoints are resolved from one configured origin. The package-owned bounded JSON reader is shared with ManturHub Host consumers so response buffering follows one implementation. Tests select a loopback fake server.
 
 </details>
 

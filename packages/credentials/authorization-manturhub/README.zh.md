@@ -56,7 +56,7 @@ kind: "package-reference"
 <details>
 <summary>维护者工作上下文—点击展开</summary>
 
-设备接口与账号接口从同一个配置 origin 解析。测试会指定本机假服务。
+设备接口与账号接口从同一个配置 origin 解析。本包拥有的有界 JSON 读取函数与 ManturHub Host consumer 共享，使响应缓冲只保留一套实现。测试会指定本机假服务。
 
 </details>
 
