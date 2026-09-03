@@ -489,7 +489,37 @@ describe('Desktop release workflow', () => {
     expect(macosSteps).toContain('codesign --verify --deep --strict')
     expect(macosSteps).toContain('spctl --assess --type execute')
     expect(macosSteps).toContain('xcrun stapler validate')
-    expect(JSON.stringify(assemble.steps)).toContain('scripts/desktop-release-update-info.ts')
+    const assembleSteps = assemble.steps.filter(isRecord)
+    const mergeArtifacts = assembleSteps.find(step => step.name === 'Merge native artifacts and update metadata')
+    if (typeof mergeArtifacts?.run !== 'string') {
+      throw new TypeError('Desktop release workflow must define the native artifact assembly script')
+    }
+    const requiredArtifacts = [
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg.blockmap',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip',
+      'release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip.blockmap',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg.blockmap',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip',
+      'release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip.blockmap',
+    ]
+    const artifactBlock = mergeArtifacts.run.match(/required_artifacts=\(\n([\s\S]*?)\n\s*\)/)
+    if (artifactBlock?.[1] === undefined) {
+      throw new TypeError('Desktop release workflow must declare the required native artifacts')
+    }
+    const declaredArtifacts = artifactBlock[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+    expect(declaredArtifacts).toEqual(requiredArtifacts)
+    expect(mergeArtifacts.run).toContain('[ -f "$artifact" ] || {')
+    expect(mergeArtifacts.run).toContain('Required desktop release artifact is missing: $artifact')
+    expect(mergeArtifacts.run).toContain('exit 1')
+    expect(mergeArtifacts.run).toContain('cp "$artifact" "release/$(basename "$artifact")"')
+    expect(mergeArtifacts.run).not.toContain('Mantur-Agent-macOS-arm64.*')
+    expect(mergeArtifacts.run).not.toContain('Mantur-Agent-macOS-x64.*')
+    expect(mergeArtifacts.run).toContain('scripts/desktop-release-update-info.ts')
     expect(publish).toMatchObject({
       if: 'inputs.publish',
       needs: ['validate', 'assemble'],

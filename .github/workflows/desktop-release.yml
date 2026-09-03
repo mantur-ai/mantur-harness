@@ -157,8 +157,25 @@ jobs:
         run: |
           set -euo pipefail
           mkdir release
-          cp release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.* release/
-          cp release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.* release/
+          required_artifacts=(
+            release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg
+            release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.dmg.blockmap
+            release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip
+            release-input/desktop-macos-arm64/Mantur-Agent-macOS-arm64.zip.blockmap
+            release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg
+            release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.dmg.blockmap
+            release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip
+            release-input/desktop-macos-x64/Mantur-Agent-macOS-x64.zip.blockmap
+          )
+          for artifact in "${required_artifacts[@]}"; do
+            [ -f "$artifact" ] || {
+              echo "::error::Required desktop release artifact is missing: $artifact"
+              exit 1
+            }
+          done
+          for artifact in "${required_artifacts[@]}"; do
+            cp "$artifact" "release/$(basename "$artifact")"
+          done
           pnpm exec tsx scripts/desktop-release-update-info.ts \
             release-input/desktop-macos-arm64/latest-mac.yml \
             release-input/desktop-macos-x64/latest-mac.yml \

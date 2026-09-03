@@ -28,7 +28,7 @@ client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`
 
 内部打包工作流会生成未签名的 DMG、macOS 更新 ZIP 与一键 NSIS 安装包。私有 desktop workspace 仍不属于 npm release family；该工作流只把文件作为私有 Actions artifact 保留，不创建 tag 或 GitHub release。只有某个目标的原生打包和 packaged smoke 都通过后，才可认为该目标完成验证。
 
-macOS release 工作流通过受保护的 GitHub 环境 secret 为原生 arm64 与 x64 构建执行签名和 notarization。它会先验证 Developer ID 签名、Gatekeeper 评估、stapled ticket 与 packaged smoke，再合并两份架构专属通道文件。只有从精确版本 tag 发起的显式发布任务才会创建 GitHub release，其中包含两份 DMG、两份更新 ZIP、对应 blockmap、合并后的更新元数据与 SHA-256 哈希。工作流会拒绝已存在的 release，仓库级 Release Immutability 则会阻止之后修改 tag 和产物。在 Windows 具备独立签名身份与发布路径之前，它不会进入外部更新通道。
+macOS release 工作流通过受保护的 GitHub 环境 secret 为原生 arm64 与 x64 构建执行签名和 notarization。它会先验证 Developer ID 签名、Gatekeeper 评估、stapled ticket 与 packaged smoke，再合并两份架构专属通道文件。只有从精确版本 tag 发起的显式发布任务才会创建 GitHub release，其中包含两份 DMG、两份更新 ZIP、对应 blockmap、合并后的更新元数据与 SHA-256 哈希。工作流会拒绝已存在的 release；发布前还必须启用仓库级 Release Immutability，以阻止之后修改 tag 和产物。在 Windows 具备独立签名身份与发布路径之前，它不会进入外部更新通道。
 
 ## Alternatives considered
 
