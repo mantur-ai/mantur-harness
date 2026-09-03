@@ -60,7 +60,7 @@ const marketplaceRecipe = {
   price_dumplings: 0,
   author: '漫途创作实验室',
   copies: 268,
-  published_at: '2026-09-03T08:00:00.000Z',
+  published_at: '2026-08-25T03:51:03.407+00:00',
 }
 
 const marketplaceRecipeDetail = {

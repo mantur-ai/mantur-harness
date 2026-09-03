@@ -84,7 +84,7 @@ const recipeSchema = z.object({
   price_dumplings: z.number().nonnegative(),
   author: z.string(),
   copies: z.number().int().nonnegative(),
-  published_at: z.iso.datetime(),
+  published_at: z.iso.datetime({ offset: true }),
 })
 
 const recipeCatalogSchema = z.object({
