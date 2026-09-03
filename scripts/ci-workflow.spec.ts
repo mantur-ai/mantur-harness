@@ -148,9 +148,10 @@ describe('CI workflow', () => {
       expect(install!.run).not.toContain('$cloneFlag')
     }
 
-    // windows-coverage uses the lower 4-partition profile.
+    // windows-coverage keeps the upstream 4-partition profile while the
+    // four-core Mantur fork receives a smaller profile below.
     expect(windowsCoverage.name).toBe('windows node 24 / coverage')
-    expect(windowsCoverage.env).toMatchObject({ DSH_COVERAGE_PARTITIONS: '4' })
+    expect(isRecord(windowsCoverage.env) ? windowsCoverage.env.DSH_COVERAGE_PARTITIONS : undefined).toContain("|| '4'")
     const coverageSteps = windowsCoverage.steps as unknown[]
     const coverageCommands = coverageSteps.filter((step): step is Record<string, unknown> & { run: string } => (
       isRecord(step) && typeof step.run === 'string'
@@ -260,6 +261,60 @@ describe('CI workflow', () => {
     // possible, so the first failure must not truncate the rest.
     expect(windowsObservational.env).toBeDefined()
     expect(windowsObservational.env).not.toMatchObject({ DSH_GATE_FAIL_FAST: '1' })
+  })
+
+  it('uses standard hosted runners for the Mantur fork without enabling its external preview', () => {
+    const workflow = loadWorkflow('.github/workflows/ci.yml')
+    const previewWorkflow = loadWorkflow('.github/workflows/build-preview-cloudflare.yml')
+    const linuxJobs = ['node-24', 'node-24-coverage', 'node-24-consumers']
+    const windowsJobs = ['windows-build', 'windows-coverage', 'windows-native-tests', 'windows-observational']
+
+    for (const jobName of linuxJobs) {
+      const job = workflowJob(workflow, jobName)
+      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job['runs-on']).toContain("github.repository == 'mantur-ai/mantur-harness'")
+      expect(job['runs-on']).toContain("'ubuntu-24.04'")
+      expect(job['runs-on']).toContain("'dsh-ubuntu-24-04-16core'")
+    }
+    for (const jobName of windowsJobs) {
+      const job = workflowJob(workflow, jobName)
+      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job['runs-on']).toContain("github.repository == 'mantur-ai/mantur-harness'")
+      expect(job['runs-on']).toContain("'windows-2025'")
+      expect(job['runs-on']).toContain("'dsh-windows-2025-16core'")
+    }
+
+    expect(workflowJob(workflow, 'node-24').env).toMatchObject({
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}",
+    })
+    expect(workflowJob(workflow, 'node-24-coverage').env).toMatchObject({
+      DSH_COVERAGE_MAX_WORKERS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}",
+      DSH_COVERAGE_PARTITIONS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '4' }}",
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '3' }}",
+    })
+    expect(workflowJob(workflow, 'node-24-consumers').env).toMatchObject({
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '10' }}",
+      DSH_OXLINT_THREADS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}",
+      DSH_PUBLINT_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}",
+      DSH_WEB_SNAPSHOT_WORKERS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}",
+      DSH_SNAPSHOT_MAX_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '12' || '32' }}",
+    })
+    expect(workflowJob(workflow, 'windows-build').env).toMatchObject({
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '' }}",
+    })
+    expect(workflowJob(workflow, 'windows-coverage').env).toMatchObject({
+      DSH_COVERAGE_MAX_WORKERS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}",
+      DSH_COVERAGE_PARTITIONS: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '4' }}",
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '3' }}",
+    })
+    expect(workflowJob(workflow, 'windows-observational').env).toMatchObject({
+      DSH_GATE_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '' }}",
+      DSH_PUBLINT_CONCURRENCY: "${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}",
+    })
+
+    const preview = workflowJob(previewWorkflow, 'preview')
+    expect(preview.if).toBe("github.repository == 'deepseek-ai/deepseek-harness'")
+    expect(preview['runs-on']).toBe('dsh-ubuntu-24-04-16core')
   })
 
   it('gives the Wine Host TypeScript compile the repository heap budget', () => {
