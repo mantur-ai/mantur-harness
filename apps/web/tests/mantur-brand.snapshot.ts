@@ -14,7 +14,8 @@ import { formatSystemPromptSnapshot, formatToolSchemasSnapshot } from '@deepseek
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import {
-  captureStableAria, compareOrRefreshGolden, fixtureUserPrompts, launchWebScaffold, watchConsole, webSnapshotMode,
+  captureStableAria, compareOrRefreshGolden, fixtureUserPrompts, launchWebScaffold, readPersistedEvents, watchConsole,
+  webSnapshotMode,
   type WebScaffold,
 } from './scaffold.ts'
 import {
@@ -348,7 +349,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
       await recipePage.getByRole('button', { name: '暂时跳过' }).click()
       await connectFreshWorkspaceZh(recipePage, recipeScaffold.workspaceCwd)
       const createRequestsBeforeRecipe = createRequests.length
-      const initialIds = new Set((await recipeScaffold.ctx.sessionPersistence.list()).map(header => header.id))
+      const initialIds = new Set((await recipeScaffold.ctx.sessionPersistence.list()).map(snapshot => snapshot.header.id))
 
       await recipePage.getByRole('button', { name: '配方广场' }).click()
       await recipePage.getByText(marketplaceRecipe.title, { exact: true }).click()
@@ -356,8 +357,8 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
       await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()
       const recipeSessionId = await settled
       expect(initialIds.has(recipeSessionId)).toBe(false)
-      const loaded = await recipeScaffold.ctx.sessionPersistence.load(recipeSessionId)
-      const firstUserMessage = loaded.events.find(event => event.type === 'user/message'
+      const persistedEvents = await readPersistedEvents(recipeScaffold, recipeSessionId)
+      const firstUserMessage = persistedEvents.find(event => event.type === 'user/message'
         && event.data.source.kind === 'user')
       if (firstUserMessage?.type !== 'user/message') throw new Error('Recipe Session has no durable first user message')
       const firstUserText = firstUserMessage.data.content

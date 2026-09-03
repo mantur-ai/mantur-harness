@@ -54,4 +54,4 @@ The onboarding and Settings occupants share one root-scoped controller and brows
 
 </details>
 
-**Runtime invariant:** the account onboarding slot has order `-100`, before the existing DeepSeek step at order `0`.
+**Runtime invariant:** the account onboarding slot has order `-100`, before the existing DeepSeek step at order `0`. No runtime invariant companion is published. This browser package owns no durable event stream or cross-plugin mutable state; its registration order and effect disposal are observed directly by package tests.
