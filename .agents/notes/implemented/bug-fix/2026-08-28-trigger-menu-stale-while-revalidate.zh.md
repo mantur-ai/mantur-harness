@@ -14,6 +14,8 @@ reducer 的 `hit` 分支(`core/menu.ts`)现在保留上一次查询的行和高�
 
 旧行仅用于显示。`pick()` 要求候选所在组为 `ready`,`enter` 仲裁在 pick 前检查高亮组的状态:pending 窗口内 Enter 是显式 no-op(`'consumed'`)——既不选中旧行,也不落到草稿发送。Tab 的下钻早已带有相同的 `ready` 检查。
 
+source lexicon 通知会重新发布名称,并在一个 microtask 中重新获取已打开菜单。刷新 guard 跟随菜单的逻辑 `generation`、打开状态与当前 hit,而不是 `TriggerHit` 对象身份:React render 可以把同一份草稿投影成一个等价的新对象,却不会创建新的菜单 generation。真实 Web 场景把 Skill 安装进活动 `DSH_HOME`,并固定完整的 filesystem watcher → Host event → Gateway stream → Client cache invalidation → open-menu refresh 路径。
+
 ## Alternatives considered
 
 **每次细化都清空为骨架屏。** 拒绝;这正是闪烁的现状。线上 chat 前端的会话搜索确实是清空(每次防抖查询重置结果和活动索引),其 Enter 因此天然安全——但那个列表在独立弹窗里,而本菜单直接在光标下随每个按键重绘,闪烁正是用户所报告的问题。
@@ -22,6 +24,8 @@ reducer 的 `hit` 分支(`core/menu.ts`)现在保留上一次查询的行和高�
 
 **把 Enter 排队,请求结算后再选中。** 拒绝。对用户尚未见到的行执行按键会重新引入选中旧数据的竞态,还额外增加时序机制。
 
+**用捕获的 `TriggerHit` 对象身份守卫 invalidation refresh。** 拒绝。对象身份不是菜单的逻辑 generation:等价的草稿投影可以在排队刷新运行前替换对象,并错误压制一次有效目录更新。
+
 ## Consequences
 
-细化按键不再闪烁;请求结算时列表内容原位替换。代价:pending 窗口内 Enter 失效(结算后再按即正常选中);行按 index 作为 key,结算时 DOM 节点内容原位替换——指针类测试点击前必须等待仅旧查询匹配的行消失(`reference-composer.e2e.ts` 轮询 `folderx/` 消失)。细化期间已存在的高亮闪动问题仍未解决,留待后续 PR。
+细化按键不会闪烁,source invalidation 也会在无需再次输入或刷新页面的情况下替换已打开菜单中的行。代价:pending 窗口内 Enter 失效(结算后再按即正常选中);行按 index 作为 key,结算时 DOM 节点内容原位替换——指针类测试点击前必须等待仅旧查询匹配的行消失(`reference-composer.e2e.ts` 轮询 `folderx/` 消失)。细化期间已存在的高亮闪动问题仍未解决,留待后续 PR。

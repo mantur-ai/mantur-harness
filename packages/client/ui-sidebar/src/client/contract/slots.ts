@@ -2,8 +2,9 @@
  * Sidebar slot contract: the registrant-side props composition for the
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell
  * owns column geometry (fold state machine, brand row, New Session);
- * everything between the section header and the list bottom is the
- * `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
+ * optional product navigation fills `sidebar.navigation`, everything from
+ * the project section header through the list bottom belongs to
+ * `sidebar.workspaces` (ui-workspace), and the foot is the
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
  */
@@ -12,6 +13,7 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 // Type-only: pulls ui-layout's SlotMap merge (the 'sidebar' entry) into every
 // program that sees this contract, so PropsRuntime<'sidebar'> resolves.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPageId } from '@deepseek-ai/dsh-client-ui-layout/client'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
@@ -33,6 +35,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * registers the browser.
      */
     'sidebar.workspaces': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
+    /** Optional product navigation rendered above the workspace browser. */
+    'sidebar.navigation': { kind: 'single'; scope: 'root'; owner: SidebarNavigationOwnerProps }
     /**
      * The settings seat at the sidebar foot. Declared by this package's
      * 'sidebar' entry; ui-settings registers its trigger row + modal panel.
@@ -51,6 +55,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export interface SidebarBrandMarkOwnerProps {
   /** Requested square edge in pixels. */
   size: number
+  /** Surface rendering the mark: the expanded identity row or collapsed navigation rail. */
+  placement: 'expanded' | 'rail'
 }
 
 /** Empty owner share for the sidebar brand-name occupant. */
@@ -68,6 +74,20 @@ export interface SidebarSectionOwnerProps {
   wide: boolean
   /** Rail icons request expansion; the browser rides the wide flip for focus. */
   expandSidebar: () => void
+  /** Reveal the current conversation before a browser action targets a Session. */
+  showConversation: () => void
+}
+
+/** Root-page navigation state supplied to a product-specific sidebar section. */
+export interface SidebarNavigationOwnerProps {
+  /** Whether the sidebar renders its expanded content instead of the compact rail. */
+  wide: boolean
+  /** Selected root page; absent means the conversation surface is active. */
+  activePage: MainPageId | undefined
+  /** Select a registered root page. */
+  openPage: (page: MainPageId) => void
+  /** Return to the current conversation. */
+  closePage: () => void
 }
 
 /**
@@ -111,6 +131,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.navigation'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'

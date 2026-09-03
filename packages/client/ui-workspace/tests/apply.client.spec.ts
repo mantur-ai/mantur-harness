@@ -102,6 +102,7 @@ describe('ui-workspace apply', () => {
     // Copy rides the standard locale seat: the entry declares the namespace
     // and apply registered both dictionaries.
     expect(before.slots.entries('sidebar.workspaces')[0]!.locale).toBe('workspace')
+    expect(before.slots.spec('sidebar.workspaces.heading')).toEqual({ kind: 'single', scope: 'root' })
     expect(before.locale.bind('workspace')('session.new')).toBe('新会话')
 
     const after = await bench()

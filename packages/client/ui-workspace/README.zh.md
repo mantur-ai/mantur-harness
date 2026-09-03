@@ -57,7 +57,7 @@ Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**
 <details>
 <summary>实现细节——点击展开</summary>
 
-本包是一条组合：两个目标 slot 都由其他插件声明，因此 `apply` 使用 `slots.inject()` 在各自的声明生命周期内完成注册，并在目标 slot 的声明恢复后重新注册。
+本包是一条组合：两个目标 slot 都由其他插件声明，因此 `apply` 使用 `slots.inject()` 在各自的声明生命周期内完成注册，并在目标 slot 的声明恢复后重新注册。侧栏 entry 声明 `sidebar.workspaces.heading`；随附的本地化“工作区”标签是 fallback，部署可以只替换这个术语而不分叉浏览器。打开、新建或 fork Session 都会先调用侧栏 owner 的返回操作，因此产品主页面不会遮住选中的对话或 fork 后打开的子会话。
 
 ### 目录流子 slot
 

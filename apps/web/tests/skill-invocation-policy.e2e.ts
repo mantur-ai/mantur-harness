@@ -22,6 +22,7 @@ import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './suppor
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/skill-invocation-policy', import.meta.url))
 const MENU_EXPECTED = join(SNAPSHOT_DIR, 'menu.expected.md')
+const HOT_REFRESH_EXPECTED = join(SNAPSHOT_DIR, 'hot-refresh.expected.md')
 const MODE = webSnapshotMode()
 
 interface SeedSkill {
@@ -53,22 +54,25 @@ const SKILLS: readonly SeedSkill[] = [
   },
 ]
 
+async function writeSkill(root: string, skill: SeedSkill): Promise<void> {
+  const directory = join(root, skill.name)
+  await mkdir(directory, { recursive: true })
+  const policyLines = skill.frontmatter === '' ? [] : skill.frontmatter.trimEnd().split('\n')
+  await writeFile(join(directory, 'SKILL.md'), [
+    '---',
+    `name: ${skill.name}`,
+    `description: ${skill.description}`,
+    ...policyLines,
+    '---',
+    '',
+    `# ${skill.name}`,
+    '',
+  ].join('\n'))
+}
+
 async function seedSkills(workspaceCwd: string): Promise<void> {
-  for (const skill of SKILLS) {
-    const directory = join(workspaceCwd, 'workspace', '.agents', 'skills', skill.name)
-    await mkdir(directory, { recursive: true })
-    const policyLines = skill.frontmatter === '' ? [] : skill.frontmatter.trimEnd().split('\n')
-    await writeFile(join(directory, 'SKILL.md'), [
-      '---',
-      `name: ${skill.name}`,
-      `description: ${skill.description}`,
-      ...policyLines,
-      '---',
-      '',
-      `# ${skill.name}`,
-      '',
-    ].join('\n'))
-  }
+  const root = join(workspaceCwd, 'workspace', '.agents', 'skills')
+  for (const skill of SKILLS) await writeSkill(root, skill)
 }
 
 describe('web e2e: skill invocation policy through the real host', () => {
@@ -93,7 +97,7 @@ describe('web e2e: skill invocation policy through the real host', () => {
     await scaffold?.close()
   })
 
-  it('renders every user-invocable skill and marks the user-only entry', async () => {
+  it('renders invocation policy and refreshes an open menu after Host installation', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-skill-invocation-policy'))
     const input = page.locator('[data-composer-input]').first()
     await input.fill('/policy')
@@ -111,8 +115,33 @@ describe('web e2e: skill invocation policy through the real host', () => {
 
     const snapshot = await captureStableAria(page, '[role="listbox"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(MENU_EXPECTED, snapshot, MODE)
+
+    // Establish a settled Client catalog, then install into the live DSH_HOME
+    // root. The filesystem watcher emits skills/change on Host, the real
+    // Gateway stream forwards it, and the already-open menu re-polls without
+    // a page refresh or another keyboard gesture.
+    await page.evaluate(() => {
+      Object.defineProperty(window, '__skillRefreshPageIdentity', { value: true })
+    })
+    const installed = {
+      name: 'policy-installed-live',
+      description: 'Installed while the Skill menu stays open',
+      frontmatter: '',
+    }
+    expect(await menu.getByRole('option', { name: new RegExp(installed.name) }).count()).toBe(0)
+    await writeSkill(join(scaffold.harnessHome, 'skills'), installed)
+    await expect.poll(
+      () => menu.getByRole('option', { name: new RegExp(installed.name) }).count(),
+      { timeout: 15_000 },
+    ).toBe(1)
+    expect(await page.evaluate(
+      () => (window as Window & { __skillRefreshPageIdentity?: boolean }).__skillRefreshPageIdentity,
+    )).toBe(true)
+
+    const refreshed = await captureStableAria(page, '[role="listbox"]', scaffold.workspaceCwd)
+    await compareOrRefreshGolden(HOT_REFRESH_EXPECTED, refreshed, MODE)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
-    await assertFixtureInventory(SNAPSHOT_DIR, ['menu.expected.md'])
+    await assertFixtureInventory(SNAPSHOT_DIR, ['hot-refresh.expected.md', 'menu.expected.md'])
   })
 })

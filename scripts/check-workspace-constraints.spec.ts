@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -77,6 +78,27 @@ describe('experimental workspace constraints', () => {
 })
 
 describe('package payload constraints', () => {
+  it('keeps the native desktop assembly private and outside npm publication policy', () => {
+    const desktop: WorkspaceManifest = {
+      dir: 'apps/desktop',
+      manifest: { name: '@deepseek-ai/dsh-desktop', private: true },
+    }
+
+    expect(checkWorkspaceManifest(desktop)).toEqual([])
+    expect(checkWorkspaceManifest({
+      ...desktop,
+      manifest: { ...desktop.manifest, private: false },
+    })).toEqual([
+      'apps/desktop/package.json: @deepseek-ai/dsh-desktop: package.json must set "private": true',
+    ])
+    expect(checkWorkspaceManifest({
+      ...desktop,
+      manifest: { ...desktop.manifest, publishConfig: { access: 'public' } },
+    })).toEqual([
+      'apps/desktop/package.json: @deepseek-ai/dsh-desktop: private application must omit publishConfig',
+    ])
+  })
+
   it('includes a declared profile patch without a package-name allowlist', () => {
     expect(expectedDshPackageFiles({
       name: '@deepseek-ai/dsh-private-profile',

@@ -118,6 +118,25 @@ describe('ui-settings-models apply', () => {
     expect(after.slots.entries('settings.section')).toHaveLength(1)
   })
 
+  it('keeps provider settings and DeepSeek setup but omits the preview notice in a Mantur build', async () => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'mantur')
+    try {
+      const b = await bench()
+      declare(b.slots)
+      await b.ctx.plugin({ inject: [...inject], apply }).await()
+      expect(b.slots.entries('settings.section').map(entry => entry.options.id)).toEqual(['models'])
+      const onboarding = b.slots.entries('settings.onboarding')
+      expect(onboarding).toHaveLength(1)
+      expect(onboarding[0]).toMatchObject({
+        component: DeepSeekOnboardingDialog,
+        options: { id: 'deepseek-official', order: 0 },
+      })
+      await b.ctx.fiber.dispose()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('the label thunk follows the active locale without re-registration', async () => {
     const b = await bench()
     declare(b.slots)

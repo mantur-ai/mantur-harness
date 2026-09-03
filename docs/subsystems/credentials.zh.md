@@ -253,6 +253,56 @@ Host service backing the generated `ctx.remote.credentials` namespace. It carrie
 
 Source: [`packages/api/settings-controller/src/credentials.ts`](../../packages/api/settings-controller/src/credentials.ts)
 
+<a id="ctxmanturaccount--manturhubauthorization"></a>
+
+### `ctx.manturAccount` — `ManturHubAuthorization`
+
+Host service registering the ManturHub authorization flow and account Remote.
+
+```ts cordis-catalog
+/**
+ * Send a Host-only GET to this account provider's configured deployment.
+ *
+ * The method accepts only root-relative paths so a stored grant cannot be
+ * forwarded to another origin. It is intentionally not a browser Remote.
+ *
+ * @param pathname - root-relative ManturHub API path.
+ * @param options - authentication, headers, cancellation, and redirect policy.
+ * @returns the response, or `undefined` when authentication was requested while signed out.
+ */
+async request(pathname: string, options: ManturHubRequestOptions): Promise<Response | undefined>
+
+/**
+ * Read local sign-in state without exposing the stored API key.
+ * @returns signed-out or the sanitized account committed with the grant.
+ */
+@Remote async status(): Promise<ManturAccountStatus>
+
+/**
+ * Start one process-local device authorization attempt.
+ * @returns browser-safe verification instructions after ManturHub creates the device session.
+ */
+@Remote async startLogin(): Promise<ManturLoginStart>
+
+/**
+ * Read one attempt's current process-local outcome.
+ * @param attemptId - opaque id returned by {@link startLogin}.
+ * @returns pending or the settled outcome; no secret is included.
+ */
+@Remote loginProgress(attemptId: ManturLoginAttemptId): ManturLoginProgress
+
+/**
+ * Cancel the matching active attempt; a settled or unknown attempt is unchanged.
+ * @param attemptId - opaque id returned by {@link startLogin}.
+ */
+@Remote cancelLogin(attemptId: ManturLoginAttemptId): void
+
+/** Remove the local ManturHub grant and cancel any unfinished login. */
+@Remote async signOut(): Promise<void>
+```
+
+Source: [`packages/credentials/authorization-manturhub/src/index.ts`](../../packages/credentials/authorization-manturhub/src/index.ts)
+
 <a id="authorization-events"></a>
 
 ### `authorization/*` events

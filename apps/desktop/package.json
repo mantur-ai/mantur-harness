@@ -1,0 +1,77 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "Thin Electron carrier for the Mantur Agent desktop installers",
+  "version": "0.1.2-alpha.4",
+  "private": true,
+  "type": "module",
+  "main": "lib/main.js",
+  "scripts": {
+    "bundle": "tsdown",
+    "dev": "tsx watch --clear-screen=false --include \"src/**/*\" --include \"resources/**/*\" --include package.json --include tsconfig.json --include tsdown.config.ts scripts/dev.ts",
+    "pack": "electron-builder --dir --publish never",
+    "dist:mac:arm64": "electron-builder --mac dmg zip --arm64 --publish never",
+    "dist:mac:x64": "electron-builder --mac dmg zip --x64 --publish never",
+    "dist:win:x64": "electron-builder --win nsis --x64 --publish never",
+    "smoke:packaged": "tsx scripts/smoke-packaged.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/cordis-plugin-group": "workspace:^",
+    "@deepseek-ai/dsh": "workspace:^",
+    "@deepseek-ai/dsh-session-title-llm": "workspace:^",
+    "dsh-python-runtime-closure": "workspace:*",
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "electron": "43.4.0",
+    "electron-builder": "26.15.7",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "build": {
+    "appId": "ai.mantur.agent",
+    "productName": "漫途Agent",
+    "asar": false,
+    "files": [
+      "lib/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mantur-ai",
+        "repo": "mantur-harness",
+        "releaseType": "release"
+      }
+    ],
+    "mac": {
+      "artifactName": "漫途Agent-macOS-${arch}.${ext}",
+      "category": "public.app-category.productivity",
+      "icon": "resources/mantur-logo.png",
+      "identity": null,
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "artifactName": "漫途Agent-Windows-${arch}.${ext}",
+      "icon": "resources/mantur-logo.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    }
+  }
+}

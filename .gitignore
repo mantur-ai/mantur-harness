@@ -33,6 +33,7 @@ python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/
 apps/web/dist/
+apps/desktop/dist/
 .artifacts/
 .dsh-build/
 .playwright-mcp/

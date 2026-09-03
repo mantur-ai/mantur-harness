@@ -1,0 +1,5 @@
+- listbox "Trigger suggestions":
+  - text: Skills
+  - option "policy-installed-live Installed while the Skill menu stays open" [selected]
+  - option "policy-shared Available to both model and user invocation"
+  - option "policy-user-only user-only · Available only to user invocation"

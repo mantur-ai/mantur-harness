@@ -1,0 +1,71 @@
+name: Desktop package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-arm64
+            runner: macos-15
+            script: desktop:dist:mac:arm64
+            artifacts: |
+              apps/desktop/dist/漫途Agent-macOS-arm64.dmg
+              apps/desktop/dist/漫途Agent-macOS-arm64.zip
+          - target: macos-x64
+            runner: macos-15-intel
+            script: desktop:dist:mac:x64
+            artifacts: |
+              apps/desktop/dist/漫途Agent-macOS-x64.dmg
+              apps/desktop/dist/漫途Agent-macOS-x64.zip
+          - target: windows-x64
+            runner: windows-2025
+            script: desktop:dist:win:x64
+            artifacts: apps/desktop/dist/漫途Agent-Windows-x64.exe
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Mantur client and desktop carrier
+        run: pnpm run build:mantur
+
+      - name: Test desktop launch contract
+        run: pnpm exec vitest run apps/desktop/tests/runtime.spec.ts scripts/client-build-environment.client.spec.ts
+
+      - name: Build native installer
+        run: pnpm run ${{ matrix.script }}
+
+      - name: Smoke packaged dependency closure
+        run: pnpm run desktop:smoke
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+          retention-days: 7

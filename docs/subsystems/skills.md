@@ -246,6 +246,36 @@ The model-facing `skill({ name })` tool validates the kebab-case name, finds the
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxmanturmarketplace--manturhubmarketplace"></a>
+
+### `ctx.manturMarketplace` — `ManturHubMarketplace`
+
+Host service for catalog reads and local Skill installation.
+
+```ts cordis-catalog
+/**
+ * Load the complete public Skill catalog and current local install flags.
+ * @returns browser-safe catalog metadata.
+ */
+@Remote async list(): Promise<ManturMarketplaceCatalog>
+
+/**
+ * Load one public Skill's detail metadata.
+ * @param slug - validated Skill slug selected in the browser.
+ * @returns browser-safe Skill detail.
+ */
+@Remote async detail(slug: string): Promise<ManturMarketplaceSkillDetail>
+
+/**
+ * Download and atomically install one Skill into this running client's DSH_HOME.
+ * @param slug - validated Skill slug selected in the browser.
+ * @returns Host-confirmed installed version.
+ */
+@Remote async installSkill(slug: string): Promise<ManturMarketplaceInstallResult>
+```
+
+Source: [`packages/skill/manturhub-marketplace/src/index.ts`](../../packages/skill/manturhub-marketplace/src/index.ts)
+
 <a id="ctxsessionskillcatalog--sessionskillcatalog"></a>
 
 ### `ctx.sessionSkillCatalog` — `SessionSkillCatalog`

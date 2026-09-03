@@ -424,13 +424,17 @@ export class InputTriggerController {
     if (source.lexicon === undefined || source.subscribeLexicon === undefined) return
     this.lexiconOffs.set(source, source.subscribeLexicon(projection, () => {
       this.refreshLexicon()
+      const state = this.menu.getSnapshot()
       const hit = this.hit
-      if (hit === null || !this.menu.getSnapshot().open || hit.trigger !== source.trigger) return
+      if (hit === null || !state.open || hit.trigger !== source.trigger) return
+      const generation = state.generation
       // Let every source process the same invalidation before rebuilding the
       // open menu, so one source cannot contribute its previous catalog.
       void Promise.resolve().then(() => {
-        if (this.disposed || this.hit !== hit || !this.menu.getSnapshot().open) return
-        this.fetchCandidates(hit, this.deps.roster.sources(hit.trigger))
+        const current = this.menu.getSnapshot()
+        const currentHit = this.hit
+        if (this.disposed || currentHit === null || !current.open || current.generation !== generation) return
+        this.fetchCandidates(currentHit, this.deps.roster.sources(currentHit.trigger))
       })
     }))
   }

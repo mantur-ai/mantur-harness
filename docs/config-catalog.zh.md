@@ -268,6 +268,22 @@ export interface Config {
 
 来源：[`packages/attachment/attachment-local/src/index.ts:55`](../packages/attachment/attachment-local/src/index.ts)
 
+<a id="deepseek-aidsh-authorization-manturhub"></a>
+
+## `@deepseek-ai/dsh-authorization-manturhub`
+
+需要：`authorization` · `credentials`
+
+```ts config-catalog
+/** ManturHub deployment endpoint. */
+export interface Config {
+  /** HTTP origin serving the ManturHub device and account APIs. */
+  readonly baseUrl?: string
+}
+```
+
+来源：[`packages/credentials/authorization-manturhub/src/index.ts:25`](../packages/credentials/authorization-manturhub/src/index.ts)
+
 <a id="deepseek-aidsh-bash-local"></a>
 
 ## `@deepseek-ai/dsh-bash-local`
@@ -1413,6 +1429,50 @@ export interface LspLocalServerConfig {
 ```
 
 来源：[`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src/index.ts)
+
+<a id="deepseek-aidsh-mantur-app"></a>
+
+## `@deepseek-ai/dsh-mantur-app`
+
+需要：`systemPrompt`
+
+```ts config-catalog
+/** Mantur product identity configuration. */
+export interface Config {
+  /** Persona delivered in place of a generic agent-preset identity. */
+  persona: string
+}
+```
+
+来源：[`packages/bundle/mantur-app/src/index.ts:13`](../packages/bundle/mantur-app/src/index.ts)
+
+<a id="deepseek-aidsh-manturhub-marketplace"></a>
+
+## `@deepseek-ai/dsh-manturhub-marketplace`
+
+需要：`manturAccount`
+
+```ts config-catalog
+/** Marketplace Host configuration. */
+export interface Config {
+  /** Harness home containing the live user Skill directory. */
+  readonly dshHome?: string
+  /** Maximum JSON bytes accepted from one ManturHub metadata response. */
+  readonly maxMetadataBytes?: number
+  /** Maximum compressed bytes accepted for one Skill bundle. */
+  readonly maxBundleBytes?: number
+  /** Maximum files accepted from one Skill archive. */
+  readonly maxFiles?: number
+  /** Maximum total uncompressed bytes accepted from one Skill archive. */
+  readonly maxUnpackedBytes?: number
+  /** Timeout for catalog, detail, and authenticated download requests. */
+  readonly metadataTimeoutMs?: number
+  /** Timeout for an approved off-origin package download. */
+  readonly downloadTimeoutMs?: number
+}
+```
+
+来源：[`packages/skill/manturhub-marketplace/src/index.ts:20`](../packages/skill/manturhub-marketplace/src/index.ts)
 
 <a id="deepseek-aidsh-mcp-client"></a>
 
@@ -3346,6 +3406,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-brand-mantur`（[`packages/client/ui-brand-mantur/src/index.ts`](../packages/client/ui-brand-mantur/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-chat`（[`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-commands`（[`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts)）
@@ -3358,6 +3419,8 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-mantur-account`（[`packages/client/ui-mantur-account/src/index.ts`](../packages/client/ui-mantur-account/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-mantur-navigation`（[`packages/client/ui-mantur-navigation/src/index.ts`](../packages/client/ui-mantur-navigation/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）

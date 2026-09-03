@@ -28,7 +28,7 @@
    riding the title's top-right. */
 .headline {
   display: grid;
-  grid-template-columns: 34px auto auto;
+  grid-template-columns: auto auto auto;
   column-gap: 10px;
   align-items: center;
   justify-content: center;

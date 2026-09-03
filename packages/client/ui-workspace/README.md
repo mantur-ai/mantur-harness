@@ -57,7 +57,7 @@ The value is intentionally best effort for cold Sessions. An identity-matching u
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored.
+The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored. Its sidebar entry declares `sidebar.workspaces.heading`; the shipped localized Workspace label is the fallback, while a deployment may replace only that term without forking the browser. Opening, starting, or forking a Session uses the sidebar owner's return action first, so a product main page cannot hide the selected conversation or the child opened after a fork.
 
 ### The directory-flow hole
 

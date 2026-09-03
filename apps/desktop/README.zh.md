@@ -1,0 +1,65 @@
+# 漫途Agent 桌面端
+
+[English](README.md) | 中文
+
+桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。两个原生打包目标都使用已确认的蓝色无限环 Logo，桌面包不会实现另一套 agent 运行时。
+
+## 不打包开发
+
+执行 `pnpm install` 后，先在干净检出上构建一次仓库产物：
+
+```sh
+pnpm run build:mantur
+```
+
+完成初始构建后，日常桌面端开发只需一条命令：
+
+```sh
+pnpm run desktop:dev
+```
+
+该命令会监听桌面端 TypeScript、资源和构建配置。每次改动都会执行桌面端 TypeScript 增量构建、bundle Electron 主进程、停止上一组 Electron 与 dsh 进程，再重新启动开发应用。dsh 的 stdout 和 stderr 仍会写入持久 Harness 日志，也会直接显示在终端。
+
+开发模式使用 `mantur-agent-dev` 用户数据目录，已安装构建使用 `mantur-agent`；设置、会话、凭据和缓存不会在两种模式间串用。Electron 的 `app.isPackaged` 检查也会禁用开发模式的自动更新检查。如果 `apps/desktop` 之外的改动影响已构建的 Harness 或 Web 产物，需要再次执行 `pnpm run build:mantur`。
+
+`desktop:dev` 不会创建 DMG、ZIP 或 NSIS 安装包，不会签名或 notarize 应用，不会向操作系统应用目录安装任何内容，也不会检查 release。只在验证安装、签名、notarization、release 更新或发布候选版时使用原生打包。
+
+## 构建内部安装包
+
+调用原生打包器之前，先安装不可变依赖图，再使用漫途标题构建全部 host 与 client 产物：
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run build:mantur
+pnpm run desktop:dist:mac:arm64
+pnpm run desktop:smoke
+```
+
+macOS x64 命令必须在 Intel Mac 上运行，Windows 命令必须在 x64 Windows 上运行。手动触发的 `Desktop package` GitHub Actions 工作流会在三个原生 runner 上检出同一个 commit、运行打包 smoke，并将以下文件保留七天：
+
+| Runner | 命令 | 产物 |
+|---|---|---|
+| macOS arm64 | `pnpm run desktop:dist:mac:arm64` | `漫途Agent-macOS-arm64.dmg`、`漫途Agent-macOS-arm64.zip` |
+| macOS x64 | `pnpm run desktop:dist:mac:x64` | `漫途Agent-macOS-x64.dmg`、`漫途Agent-macOS-x64.zip` |
+| Windows x64 | `pnpm run desktop:dist:win:x64` | `漫途Agent-Windows-x64.exe` |
+
+smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进程 token 换成会话 cookie，并要求带品牌标题的 Web 页面返回 HTTP 200。它还要求包内存在 updater 依赖与 GitHub release 配置。它使用空的临时 Harness home，避免开发者数据影响包检查结果。
+
+## 运行时设计
+
+主进程通过 `ELECTRON_RUN_AS_NODE=1` 复用 Electron 作为 Node 可执行文件，并以 `--profile mantur --host 127.0.0.1 --port 0 --no-open` 启动已构建的 `@deepseek-ai/dsh` 入口。就绪解析器只接受带 token 的 `127.0.0.1` URL。renderer 禁用 Node integration、启用 context isolation 与 sandbox，并把离开本地 origin 的导航交给操作系统浏览器。
+
+安装包携带既有运行时依赖闭包和已构建 Web 前端。Loader profile、插件 manifest、原生模块与 subprocess helper 都需要普通文件，因此 `asar` 保持禁用。关闭或重启应用时，Electron 会等待子进程终止后再退出。
+
+永久应用标识为 `ai.mantur.agent`。Electron 就绪前，载体会在操作系统的应用数据根目录下设置稳定的 `mantur-agent` 用户数据目录。其 `harness` 子目录是已安装应用使用的唯一 `DSH_HOME`，因此 `~/.dsh` 中的 CLI 或开发数据不会影响桌面启动。子进程从应用自有的中性目录启动，并把 stdout、stderr、恢复与 updater 诊断追加到同一用户数据根下的 `logs/harness.log`。
+
+如果启动错误只识别到过期的 `session_projcache` schema，载体会先关闭失败的子进程并完成日志写入，再由本地化原生对话框在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
+
+已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。在任一对话框等待期间关闭 updater，会取消后续下载或安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
+
+## 已知限制
+
+- 这些是未签名的内部安装包。macOS Gatekeeper 和 Windows SmartScreen 可能显示警告；在提供签名以及 macOS notarization 身份之前，自动安装不是受支持的发布路径。
+- 已确认的图标源文件是 1024 px 透明 PNG。macOS 和 Windows 包会在原生构建时生成各自的平台图标格式；当前没有矢量源文件。
+- 包中已包含 updater，但手动工作流只上传私有构建产物，绝不创建 GitHub release。独立的已签名发布流程必须同时发布安装包、更新 archive、blockmap 与生成的更新元数据。
+- 每个目标只在其原生 runner 同时完成打包和 smoke 后有效。一个架构上的构建不能作为另一目标的证据。

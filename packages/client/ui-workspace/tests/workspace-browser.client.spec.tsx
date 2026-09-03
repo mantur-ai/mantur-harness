@@ -66,6 +66,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
   const props: WorkspaceBrowserProps = {
     wide: true,
     expandSidebar: vi.fn(),
+    showConversation: vi.fn(),
     useSessions: hook(sessionState([])),
     useSessionPendingInteraction: hook(noPendingInteraction),
     useWorkspaces: hook(workspaceState([])),
@@ -85,7 +86,9 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     createWorkspace: vi.fn(async () => workspace('created', [])),
     useDirectoryFlow: bindSnapshotSelector({ getSnapshot: () => true, subscribe: () => () => {} }),
     useHostInfo: selector => selector({ home: undefined, isLoopback: true }),
-    renderSlot: ((_name: string, owner: { open: boolean }) => (owner.open ? <div data-testid="directory-flow" /> : null)) as never,
+    renderSlot: ((_name: string, owner: { open?: boolean }, options?: { fallback?: React.ReactNode }) => (
+      owner.open === undefined ? options?.fallback ?? null : owner.open ? <div data-testid="directory-flow" /> : null
+    )) as never,
     t,
     ...overrides,
   }
@@ -100,6 +103,20 @@ function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrows
 }
 
 describe('WorkspaceBrowser', () => {
+  it('uses the generic heading fallback and accepts a deployment-owned heading', () => {
+    const first = mount()
+    expect(screen.getByText('工作区')).toBeTruthy()
+    first.view.unmount()
+
+    mount({
+      renderSlot: ((name: string, _owner: object, options?: { fallback?: React.ReactNode }) => (
+        name === 'sidebar.workspaces.heading' ? <span>项目</span> : options?.fallback ?? null
+      )) as never,
+    })
+    expect(screen.getByText('项目')).toBeTruthy()
+    expect(screen.queryByText('工作区')).toBeNull()
+  })
+
   it('workspace hover card shows a POSIX home descendant as ~', () => {
     vi.useFakeTimers()
     try {
@@ -431,6 +448,21 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('gone-s')).toBeNull()
   })
 
+  it('returns to conversation before forking and opening a child session', () => {
+    const forkSession = vi.fn()
+    const b = mount({
+      useSessions: hook(sessionState([summary('alpha-s', 1)])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-s'])])),
+      forkSession,
+    })
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByRole('button', { name: '会话“alpha-s”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '分叉会话' }))
+
+    expect(b.props.showConversation).toHaveBeenCalledOnce()
+    expect(forkSession).toHaveBeenCalledWith(sid('alpha-s'))
+  })
+
   it('logs and keeps the tree when the archive call rejects', async () => {
     const rejection = new Error('archive exploded')
     const archiveSession = vi.fn(async () => { throw rejection })
@@ -481,6 +513,7 @@ describe('WorkspaceBrowser', () => {
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     expect(screen.getByText('alpha-s')).toBeTruthy()
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
+    expect(b.props.showConversation).toHaveBeenCalledOnce()
   })
 
   it('auto-expands the Ungrouped bucket for a loose current session; its header has no menu and its ＋ is inert', () => {

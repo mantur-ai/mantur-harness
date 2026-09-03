@@ -266,6 +266,22 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Flows are registered by the plugin that knows how to obtain one credential and keyed by the record they write; the seam owns the conversation and the one-attempt-per-key lifecycle, never the protocol.',
   },
   {
+    key: 'manturAccount',
+    pkg: 'authorization-manturhub',
+    title: 'Mantur account browser Remote',
+    mode: 'core',
+    consumers: [],
+    note: 'Exposes browser-safe account state, device-login progress, cancellation, and sign-out while the Host credential store keeps the API key private.',
+  },
+  {
+    key: 'manturMarketplace',
+    pkg: 'manturhub-marketplace',
+    title: 'ManturHub Skill marketplace Host Remote',
+    mode: 'core',
+    consumers: ['ui-mantur-navigation'],
+    note: 'Validates browser-safe catalog metadata and owns authenticated, bounded, conflict-aware installation into the live Skill directory.',
+  },
+  {
     key: 'sessionTelemetry',
     pkg: 'session-telemetry',
     title: 'Session telemetry seam',

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, rm, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
@@ -16,13 +16,40 @@ function escapeHtmlText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Project the public build title into the initial HTML document. */
-function clientDocumentTitle(): Plugin {
+/** Project profile-owned document metadata into the Web artifacts. */
+function clientDocumentMetadata(): Plugin {
   const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const isMantur = process.env.DSH_CLIENT_BUILD_PROFILE === 'mantur'
   return {
-    name: 'dsh-client-document-title',
+    name: 'dsh-client-document-metadata',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      const titled = html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return isMantur
+        ? titled.replace(/<link rel="icon"[^>]*>/u, '<link rel="icon" type="image/png" href="./mantur-logo.png" />')
+        : titled
+    },
+    async closeBundle() {
+      if (!isMantur) {
+        await rm(src('./dist/mantur-logo.png'), { force: true })
+        return
+      }
+      await Promise.all([
+        writeFile(src('./dist/manifest.webmanifest'), `${JSON.stringify({
+          id: '/',
+          name: '漫途Agent',
+          short_name: '漫途Agent',
+          start_url: '/',
+          scope: '/',
+          display: 'fullscreen',
+          icons: [{
+            src: './mantur-logo.png',
+            sizes: '1024x1024',
+            type: 'image/png',
+            purpose: 'any',
+          }],
+        }, null, 2)}\n`),
+        rm(src('./dist/favicon.svg'), { force: true }),
+      ])
     },
   }
 }
@@ -141,7 +168,7 @@ export default defineConfig({
   // Relative asset URLs: preview.html mounts the same output under any base
   // directory, and the served index resolves identically from the site root.
   base: './',
-  plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage()],
+  plugins: [rejectStandaloneServe(), clientDocumentMetadata(), react(), emitPreviewPage()],
   build: {
     // The worker bootstrap holds its page at top-level await; Vite's default
     // `modules` target (es2020-era) rejects that syntax.

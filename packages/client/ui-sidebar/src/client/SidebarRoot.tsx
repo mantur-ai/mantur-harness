@@ -2,11 +2,12 @@
  * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
  * content freezes at its expanded width (inline style) and fades out in place
  * while the sliding column (AppFrame grid tracks) clips it — nothing reflows
- * mid-slide. At settle the wide-only content unmounts and the four upper
- * controls enter the 56px rail from the same horizontal offset (one icon each,
+ * mid-slide. At settle the wide-only content unmounts and the upper controls
+ * enter the 56px rail from the same horizontal offset (one icon each,
  * same top-down order) on one fade that ends with the slide. The bottom-pinned
- * settings control only fades. The workspace/session browsing region between
- * the New Session button and the foot is the `sidebar.workspaces` registrant's,
+ * settings control only fades. Product navigation may occupy
+ * `sidebar.navigation` above the workspace/session browsing region; the
+ * remainder between New Session and the foot belongs to `sidebar.workspaces`,
  * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
  * hands them the wide flag (plus an expand request callback for the browser).
  *
@@ -52,6 +53,9 @@ function localBuildVersion(): string | undefined {
 export function SidebarRoot({
   collapsed,
   width,
+  activeMainPage,
+  openMainPage,
+  closeMainPage,
   startSession,
   toggleSidebar,
   t,
@@ -145,11 +149,13 @@ export function SidebarRoot({
             type="button"
             className={clsx(css.brand, css.wide)}
             aria-label={t('session.new.label')}
-            onClick={() => { startSession() }}
+            onClick={() => { closeMainPage(); startSession() }}
           >
             <span className={css.brandIdentity} aria-hidden="true">
               <span className={css.brandMark}>
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
+                {renderSlot('sidebar.brand.mark', { size: 24, placement: 'expanded' }, {
+                  fallback: <FishLogo size={24} />,
+                })}
               </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
@@ -177,7 +183,9 @@ export function SidebarRoot({
           >
             {!wide && (
               <span className={css.railMark} aria-hidden="true">
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
+                {renderSlot('sidebar.brand.mark', { size: 24, placement: 'rail' }, {
+                  fallback: <FishLogo size={24} />,
+                })}
               </span>
             )}
             {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
@@ -192,7 +200,7 @@ export function SidebarRoot({
           type="button"
           className={css.newSession}
           aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
+          onClick={() => { closeMainPage(); startSession() }}
         >
           <IconNewChatOutline16 size={wide ? 14 : 18} />
           {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
@@ -202,10 +210,21 @@ export function SidebarRoot({
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}
       <div className={css.regionArea}>
-        {renderSlot('sidebar.workspaces', {
-          wide,
-          expandSidebar: () => { if (collapsed) toggleSidebar() },
-        })}
+        <div className={css.navigationArea}>
+          {renderSlot('sidebar.navigation', {
+            wide,
+            activePage: activeMainPage,
+            openPage: openMainPage,
+            closePage: closeMainPage,
+          })}
+        </div>
+        <div className={css.workspacesArea}>
+          {renderSlot('sidebar.workspaces', {
+            wide,
+            expandSidebar: () => { if (collapsed) toggleSidebar() },
+            showConversation: closeMainPage,
+          })}
+        </div>
       </div>
 
       {/* Footer actions stack above Settings in both sidebar widths. */}
