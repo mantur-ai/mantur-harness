@@ -122,6 +122,7 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): DesktopUpdat
         return
       }
       await options.beforeInstall()
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- dispose can run while Harness shutdown awaits.
       if (!active) return
       updater.quitAndInstall(false, true)
     }).catch((error: unknown) => {
@@ -131,7 +132,10 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): DesktopUpdat
 
   const onAvailable = (info: UpdateInfo): void => {
     checkingManually = false
-    if (!active || state.kind === 'downloading' || state.kind === 'ready') return
+    if (!active
+      || state.kind === 'downloading'
+      || state.kind === 'ready'
+      || (state.kind === 'available' && state.prompting)) return
     const version = info.version
     publish({ kind: 'available', version, prompting: true })
     void options.prompts.confirmDownload(version).then(async (confirmed) => {
@@ -187,7 +191,11 @@ export function startAutoUpdates(options: StartAutoUpdatesOptions): DesktopUpdat
   updater.on('error', onError)
 
   const check = (manual: boolean): void => {
-    if (!active || state.kind === 'checking' || state.kind === 'downloading' || state.kind === 'ready') return
+    if (!active
+      || state.kind === 'checking'
+      || state.kind === 'downloading'
+      || state.kind === 'ready'
+      || (state.kind === 'available' && state.prompting)) return
     checkingManually = manual
     publish({ kind: 'checking' })
     options.log('desktop update: checking')

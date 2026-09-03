@@ -18,7 +18,7 @@ The client build profile `mantur` fixes `DSH_CLIENT_TITLE` to `漫途Agent` toge
 
 The same user-data root owns a persistent combined Harness and desktop diagnostic log. A startup failure closes the child process and log before it offers one narrow recovery only when the error names a schema-invalid `session_projcache`: after explicit native-dialog approval, the carrier removes only that projection cache and retries. Session logs, settings, credentials, profiles, and workspaces remain untouched. All other errors offer the log and quit.
 
-Installed builds use electron-updater against `mantur-ai/mantur-harness` GitHub Releases. Checks begin after startup and repeat every six hours. Both state-changing steps require separate approval: the carrier asks before downloading, then asks again before it stops Harness and restarts into the installer. Disposing the updater removes its listeners and prevents pending prompt results from downloading or installing a version. Background checks and failures are written to the desktop log.
+Installed builds use electron-updater against `mantur-ai/mantur-harness` GitHub Releases. Stable builds accept only stable releases; versions containing `alpha`, `beta`, or `rc` accept prereleases. Checks begin after startup and repeat every six hours. The native application menu on macOS and Help menu on Windows expose the current version, a manual check action, checking and download progress, failures, and a ready-to-install action. Manual no-update and error results also appear in localized native dialogs. Both state-changing steps require separate approval: the carrier asks before downloading, then asks again before it stops Harness and restarts into the installer. Choosing Later after download keeps the installer action reachable. Disposing the updater removes its listeners and prevents pending prompt results from downloading or installing a version. Background checks and failures are written to the desktop log.
 
 The root `desktop:dev` command owns the local edit cycle without invoking electron-builder. A watcher reruns the incremental desktop TypeScript project, bundles the Electron entry, and starts Electron directly. A source or resource change terminates the active Electron process, which first waits for its dsh child to close, then begins the next cycle. Development dsh output is mirrored to the terminal while remaining in the persistent log. Development selects `mantur-agent-dev` as its user-data directory, leaving the installed `mantur-agent` state untouched; `app.isPackaged` keeps the updater inactive.
 
@@ -42,12 +42,14 @@ The macOS release workflow uses protected GitHub environment secrets to sign and
 
 **Build a native installer for each development change.** Rejected because DMG, ZIP, NSIS, signing, notarization, and update metadata do not contribute evidence for ordinary Electron entry changes. Those operations remain release-path checks, while the development command exercises the same unpackaged main process and dsh Web launch directly.
 
+**Expose desktop updater state through the Web application.** Rejected because the renderer intentionally has no Electron preload bridge, Node integration, or desktop-specific HTTP API. A native menu presents an application-lifecycle function without adding desktop transport to the Harness profile or Web client.
+
 ## Consequences
 
 - Desktop users get ordinary installers while the Web profile remains the only interactive Harness application implementation.
 - The loopback child process adds one local HTTP lifecycle and makes startup failure visible in a native localized dialog.
 - Installed desktop state is isolated from CLI state; a schema-invalid session projection cache has one user-approved disposable reset instead of preventing application startup indefinitely.
-- Update checks are automatic, but downloading and restart installation remain user decisions. Only the signed macOS release artifacts constitute the external update channel.
+- Update checks are automatic and manually reachable, but downloading and restart installation remain user decisions. Stable users do not receive prereleases. Only the signed macOS release artifacts constitute the external update channel; Windows public updates still require signing credentials and a protected publication path.
 - Desktop changes run through one watched development command without generating installers; development data and installed data remain separate.
 - The full runtime dependency closure and unpacked files make the installer larger than a dedicated client; this cost avoids a second application runtime and keeps Loader and native-module paths ordinary.
 - Signing and notarization credentials remain protected deployment inputs. The internal packaging workflow cannot access them or publish a release.
