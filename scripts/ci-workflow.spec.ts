@@ -650,7 +650,7 @@ describe('Python release workflows', () => {
 })
 
 describe('Issue management workflows', () => {
-  it('keeps fork runs successful while restricting issue automation to the official repository', () => {
+  it('keeps fork runs successful while preserving issue automation for non-fork repositories', () => {
     const lifecycle = loadWorkflow('.github/workflows/issue-lifecycle.yml')
     const policy = loadWorkflow('.github/workflows/issue-policy.yml')
     const lifecycleJob = workflowJob(lifecycle, 'lifecycle')
@@ -672,32 +672,32 @@ describe('Issue management workflows', () => {
     expect(lifecyclePullRequest.types).not.toContain('ready_for_review')
     expect(lifecyclePullRequest.types).toContain('review_requested')
     expect(lifecycleReview.types).toEqual(['submitted'])
-    const officialRepository = "${{ github.repository == 'deepseek-harness/deepseek-harness' }}"
-    const outsideOfficialRepository = "${{ github.repository != 'deepseek-harness/deepseek-harness' }}"
-    const officialLifecycleEvent = "${{ github.repository == 'deepseek-harness/deepseek-harness' && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
+    const nonForkRepository = '${{ github.event.repository.fork == false }}'
+    const forkRepository = '${{ github.event.repository.fork == true }}'
+    const nonForkLifecycleEvent = "${{ github.event.repository.fork == false && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
     const lifecycleSteps = lifecycleJob.steps.filter(isRecord)
-    const lifecycleNoop = lifecycleSteps.find(s => s.name === 'Skip issue lifecycle outside official repository')
+    const lifecycleNoop = lifecycleSteps.find(s => s.name === 'Skip issue lifecycle in forks')
     const lifecycleCheckout = lifecycleSteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
     const tokenStep = lifecycleSteps.find(s => s.name === 'Create project token')
     const handleStep = lifecycleSteps.find(s => s.name === 'Handle repository event')
-    expect(lifecycleNoop).toMatchObject({ if: outsideOfficialRepository })
+    expect(lifecycleNoop).toMatchObject({ if: forkRepository })
     expect(lifecycleNoop?.run).toContain('intentional no-op')
-    expect(lifecycleCheckout).toMatchObject({ if: officialRepository })
-    expect(tokenStep).toMatchObject({ if: officialLifecycleEvent })
-    expect(handleStep).toMatchObject({ if: officialLifecycleEvent })
+    expect(lifecycleCheckout).toMatchObject({ if: nonForkRepository })
+    expect(tokenStep).toMatchObject({ if: nonForkLifecycleEvent })
+    expect(handleStep).toMatchObject({ if: nonForkLifecycleEvent })
 
-    // In the official repository, issue-policy owns PR validation as a
-    // read-only required check.
+    // In a non-fork repository, issue-policy owns PR validation as a read-only
+    // required check.
     const policyPullRequest = workflowEvent(policy, 'pull_request')
     expect(policyPullRequest.types).toContain('ready_for_review')
     const policySteps = policyJob.steps.filter(isRecord)
-    const policyNoop = policySteps.find(s => s.name === 'Skip issue policy outside official repository')
+    const policyNoop = policySteps.find(s => s.name === 'Skip issue policy in forks')
     const policyCheckout = policySteps.find(s => typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@'))
     const policyValidation = policySteps.find(s => s.name === 'Validate pull request')
-    expect(policyNoop).toMatchObject({ if: outsideOfficialRepository })
+    expect(policyNoop).toMatchObject({ if: forkRepository })
     expect(policyNoop?.run).toContain('intentional no-op')
-    expect(policyCheckout).toMatchObject({ if: officialRepository })
-    expect(policyValidation).toMatchObject({ if: officialRepository })
+    expect(policyCheckout).toMatchObject({ if: nonForkRepository })
+    expect(policyValidation).toMatchObject({ if: nonForkRepository })
   })
 })
 
