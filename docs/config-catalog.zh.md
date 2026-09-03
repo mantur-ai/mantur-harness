@@ -268,6 +268,22 @@ export interface Config {
 
 来源：[`packages/attachment/attachment-local/src/index.ts:55`](../packages/attachment/attachment-local/src/index.ts)
 
+<a id="deepseek-aidsh-authorization-manturhub"></a>
+
+## `@deepseek-ai/dsh-authorization-manturhub`
+
+需要：`authorization` · `credentials`
+
+```ts config-catalog
+/** ManturHub deployment endpoint. */
+export interface Config {
+  /** HTTP origin serving the ManturHub device and account APIs. */
+  readonly baseUrl?: string
+}
+```
+
+来源：[`packages/credentials/authorization-manturhub/src/index.ts:25`](../packages/credentials/authorization-manturhub/src/index.ts)
+
 <a id="deepseek-aidsh-bash-local"></a>
 
 ## `@deepseek-ai/dsh-bash-local`
@@ -3375,6 +3391,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-mantur-account`（[`packages/client/ui-mantur-account/src/index.ts`](../packages/client/ui-mantur-account/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）

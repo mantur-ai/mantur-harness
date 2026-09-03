@@ -1206,6 +1206,41 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'manturAccount',
+    summary: 'Host service registering the ManturHub authorization flow and account Remote.',
+    description: 'Host service registering the ManturHub authorization flow and account Remote.',
+    methods: [
+      {
+        signature: '@Remote async status(): Promise<ManturAccountStatus>',
+        description: 'Read local sign-in state without exposing the stored API key.',
+        parameters: [],
+        returns: 'signed-out or the sanitized account committed with the grant.',
+      },
+      {
+        signature: '@Remote async startLogin(): Promise<ManturLoginStart>',
+        description: 'Start one process-local device authorization attempt.',
+        parameters: [],
+        returns: 'browser-safe verification instructions after ManturHub creates the device session.',
+      },
+      {
+        signature: '@Remote loginProgress(attemptId: ManturLoginAttemptId): ManturLoginProgress',
+        description: 'Read one attempt\'s current process-local outcome.',
+        parameters: [{ name: 'attemptId', description: 'opaque id returned by {@link startLogin}.' }],
+        returns: 'pending or the settled outcome; no secret is included.',
+      },
+      {
+        signature: '@Remote cancelLogin(attemptId: ManturLoginAttemptId): void',
+        description: 'Cancel the matching active attempt; a settled or unknown attempt is unchanged.',
+        parameters: [{ name: 'attemptId', description: 'opaque id returned by {@link startLogin}.' }],
+      },
+      {
+        signature: '@Remote async signOut(): Promise<void>',
+        description: 'Remove the local ManturHub grant and cancel any unfinished login.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -4373,6 +4408,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LspRange',
     declaration: 'export interface LspRange {\n    readonly start: LspPosition;\n    readonly end: LspPosition;\n}',
+  },
+  {
+    name: 'ManturAccount',
+    declaration: 'export interface ManturAccount {\n    readonly email: string;\n}',
+  },
+  {
+    name: 'ManturAccountStatus',
+    declaration: 'export type ManturAccountStatus = {\n    readonly status: \'signed-out\';\n} | {\n    readonly status: \'signed-in\';\n    readonly account: ManturAccount;\n};',
+  },
+  {
+    name: 'ManturLoginAttemptId',
+    declaration: 'export type ManturLoginAttemptId = Branded<\'ManturLoginAttemptId\'>;',
+  },
+  {
+    name: 'ManturLoginProgress',
+    declaration: 'export type ManturLoginProgress = {\n    readonly status: \'pending\';\n} | {\n    readonly status: \'authorized\';\n    readonly account: ManturAccount;\n} | {\n    readonly status: \'cancelled\';\n} | {\n    readonly status: \'failed\';\n};',
+  },
+  {
+    name: 'ManturLoginStart',
+    declaration: 'export interface ManturLoginStart {\n    readonly attemptId: ManturLoginAttemptId;\n    readonly verificationUrl: string;\n    readonly userCode: string;\n    readonly expiresAt: number;\n}',
   },
   {
     name: 'ManualCompactAgentContext',

@@ -272,7 +272,10 @@ export class ManturHubAuthorization extends TypertRemoteService {
     return this.lastAttempt.progress
   }
 
-  /** Cancel the matching active attempt; a settled or unknown attempt is unchanged. */
+  /**
+   * Cancel the matching active attempt; a settled or unknown attempt is unchanged.
+   * @param attemptId - opaque id returned by {@link startLogin}.
+   */
   @Remote
   cancelLogin(attemptId: ManturLoginAttemptId): void {
     if (this.currentAttempt?.id !== attemptId) return
