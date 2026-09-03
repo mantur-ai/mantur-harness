@@ -312,12 +312,14 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
   }, 35_000)
 })
 
-const hasPwsh = spawnSync(
+const hasNativePwsh = process.platform === 'win32' && spawnSync(
   resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$true'],
   { encoding: 'utf8' },
 ).status === 0
 
-describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
+// The shipped pwsh backend targets Windows ConPTY. A POSIX host that happens
+// to install pwsh does not provide the process and readiness substrate under test.
+describe.skipIf(!hasNativePwsh)('terminal-bash pwsh real shell', () => {
   it('bootstraps a persistent pwsh, persists state, and scrubs secrets', async () => {
     const previous = process.env.DSH_TEST_SECRET
     process.env.DSH_TEST_SECRET = 'must-not-leak'
