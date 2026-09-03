@@ -55,7 +55,7 @@ export interface ManturHubRequestOptions {
   readonly redirect?: RequestRedirect
 }
 
-const responseLimitBytes = 64 * 1024
+const authorizationResponseLimitBytes = 64 * 1024
 const defaultBaseUrl = 'https://hub.mantur.ai'
 
 const deviceSessionSchema = z.object({
@@ -111,8 +111,19 @@ function resolveConfig(config: Config): ResolvedConfig {
   return { baseUrl }
 }
 
-/** Read one bounded JSON response from ManturHub. */
-async function responseJson(response: Response): Promise<unknown> {
+/**
+ * Read and parse one ManturHub JSON response without unbounded buffering.
+ * @param response - ManturHub HTTP response whose body remains unread.
+ * @param maxBytes - Maximum response-body bytes accepted before cancellation.
+ * @param limitSubject - Diagnostic noun identifying the caller-owned response class.
+ * @returns the parsed JSON value.
+ * @throws when the body is absent, exceeds `maxBytes`, cannot be read, or is not valid JSON.
+ */
+export async function readManturHubJson(
+  response: Response,
+  maxBytes: number,
+  limitSubject: string,
+): Promise<unknown> {
   const reader = response.body?.getReader()
   if (reader === undefined) throw new Error('ManturHub returned no response body')
   const chunks: Uint8Array[] = []
@@ -121,9 +132,9 @@ async function responseJson(response: Response): Promise<unknown> {
     const chunk = await reader.read()
     if (chunk.done) break
     length += chunk.value.byteLength
-    if (length > responseLimitBytes) {
+    if (length > maxBytes) {
       await reader.cancel()
-      throw new Error(`ManturHub response exceeded ${responseLimitBytes} bytes`)
+      throw new Error(`ManturHub ${limitSubject} exceeded ${maxBytes} bytes`)
     }
     chunks.push(chunk.value)
   }
@@ -138,7 +149,7 @@ async function responseJson(response: Response): Promise<unknown> {
 
 /** Reject non-success HTTP responses after consuming their bounded body. */
 async function requireJson(response: Response): Promise<unknown> {
-  const body = await responseJson(response)
+  const body = await readManturHubJson(response, authorizationResponseLimitBytes, 'response')
   if (!response.ok) throw new Error(`ManturHub request failed with HTTP ${response.status}`)
   return body
 }
@@ -373,7 +384,7 @@ export class ManturHubAuthorization extends TypertRemoteService {
         `/api/v1/cli/poll?device_code=${encodeURIComponent(created.device_code)}`,
         this.config.baseUrl,
       ), { redirect: 'error', signal: session.signal })
-      const poll = parsePoll(await responseJson(response))
+      const poll = parsePoll(await readManturHubJson(response, authorizationResponseLimitBytes, 'response'))
       if (poll.status === 'ready') {
         if (!response.ok) throw new Error(`ManturHub login poll failed with HTTP ${response.status}`)
         const account = projectAccount(accountSchema.parse(await requireJson(await fetch(

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { ManturLoginAttemptId, ManturLoginProgress } from '@deepseek-ai/dsh-authorization-manturhub/types'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
-import ManturHubAuthorization, { MANTUR_ACCOUNT_CREDENTIAL } from '../src/index.ts'
+import ManturHubAuthorization, { MANTUR_ACCOUNT_CREDENTIAL, readManturHubJson } from '../src/index.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 
@@ -140,6 +140,24 @@ async function waitForMockCall(mock: MockCallReader): Promise<void> {
 }
 
 describe('ManturHub device authorization', () => {
+  it('shares bounded ManturHub JSON reads without changing caller diagnostics', async () => {
+    await expect(readManturHubJson(
+      new Response('{"ready":true}'),
+      64,
+      'response',
+    )).resolves.toEqual({ ready: true })
+    await expect(readManturHubJson(
+      new Response('too large'),
+      1,
+      'metadata',
+    )).rejects.toThrow('ManturHub metadata exceeded 1 bytes')
+    await expect(readManturHubJson(
+      new Response(null),
+      64,
+      'response',
+    )).rejects.toThrow('ManturHub returned no response body')
+  })
+
   it('uses session defaults, stores the key only on the Host, and projects only email', async () => {
     const hub = await fakeHub()
     const subject = await boot(hub.origin)
