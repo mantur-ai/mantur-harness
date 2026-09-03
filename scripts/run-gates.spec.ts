@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi, type MockInstance } from 'vitest'
 import {
   cliGateOptions,
+  collectDescendants,
   defaultConcurrency,
   formatGateResultReason,
   gatesForMode,
@@ -889,6 +890,16 @@ describe('process-table parsing', () => {
 
   it('drops blank and malformed lines', () => {
     expect(parsePidPpidLines('  123   1\n\ncommand not found\n999 abc\n')).toEqual([[123, 1]])
+  })
+
+  it('walks each descendant once when reused process ids form a cycle', () => {
+    expect(collectDescendants(100, [
+      [200, 100],
+      [300, 200],
+      [200, 300],
+      [300, 200],
+      [400, 300],
+    ])).toEqual([200, 300, 400])
   })
 })
 
