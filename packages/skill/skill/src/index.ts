@@ -17,6 +17,7 @@ import { NamedEntries, ScopedLayers, scopeChainOf, scopeOf } from '@deepseek-ai/
 import type { ScopeKey, ScopeLayer } from '@deepseek-ai/dsh-scope'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
+export type {} from './types.ts'
 
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const DEFAULT_COLLECT_CACHE_ENTRIES = 128
@@ -285,17 +286,6 @@ export interface Config {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     skills: SkillRegistry
-  }
-
-  interface Events {
-    /**
-     * A skill provider, runtime contribution, or provider-backed catalog may
-     * have changed. This is an unfiltered invalidation notification; consumers
-     * refetch the catalog for their own lookup options. Listener failures are
-     * contained and cannot veto the registry mutation.
-     * @mode emit
-     */
-    'skills/change'(): void
   }
 }
 

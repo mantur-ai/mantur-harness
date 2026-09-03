@@ -26,7 +26,7 @@ Host 拥有 `agent-preset/selected`、`commands/change`、`credentials/reference
 
 名单内事件全部走这条路径，专用帧与 Client 别名都已删除。模型消费方直接订阅 `llm/adapters-updated` 和 `settings/document-updated`；preset 消费方订阅 `agent-preset/selected`；Session 与动态 Cordis 的无状态通知使用 `emit`；Approval 与 Question 使用 Agent-scoped `waterfall`。真正需要 baseline、投影或去重的数据仍保留专用 Remote stream。
 
-`skills/change`、`tools/change`、`system-prompt/change` 是同形状的纯失效事件但**没有任何已交付消费者**，按「每个抽象都要有当前 owner 与需求」不进名单，只作为扩展位记录在此。
+`skills/change` 已有交付的 `ui-skill` 消费方，因此名单会转发它，Client 会在下一次查找前让所有已访问会话的目录失效。`tools/change` 与 `system-prompt/change` 是同形状的纯失效事件但没有已交付消费者，按「每个抽象都要有当前 owner 与需求」仍不进名单。
 
 ### 消费端契约（dsh-typert-protocol）
 
@@ -96,6 +96,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'cordis/inspect-query-resolved', mode: 'emit' },
   { event: 'llm/adapters-updated', mode: 'emit' },
   { event: 'settings/document-updated', mode: 'emit' },
+  { event: 'skills/change', mode: 'emit' },
   { event: 'user-questions/request', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]
 
@@ -107,7 +108,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 ```
 
-于是**加一个事件只改这一行数组**：类型投影、`$on` 的键面、Host dispatch mode 与转发循环全部从它派生。`ctx.remote.$on('slots/changed', …)`（Client 本地事件）或 `$on('skills/change', …)`（名单没开）都是**编译错误**。
+于是**加一个事件只改这一行数组**：类型投影、`$on` 的键面、Host dispatch mode 与转发循环全部从它派生。`ctx.remote.$on('slots/changed', …)`（Client 本地事件）或 `$on('tools/change', …)`（名单没开）都是**编译错误**。
 
 数组声明末尾的 `satisfies` 把 Host 事件词汇与 mode 约束落到同一份名单上：
 
@@ -151,8 +152,8 @@ Client 要求首项是带非空 `clientId` 与 `host.home` 的 `ready`；后续 
 | `dsh-typert-protocol` | `src/types.ts` 提供 forwardable mode 推导、selection 与 Client listener 投影；`TypertClientRemote` 只公开 `$on`。纯类型，零运行时 |
 | `api/gateway` | Host 半提供唯一 Remote event source、`$events` stream、pending waterfall 协调和 `$events/result`；Client 半把私有 pump 注册为 Connection generation source，负责 frame 校验和 Cordis 分发 |
 | `api/remotes` | `src/remote-events.ts`（带 mode 的名单值）与 `src/types.ts`（键投影 + selection）双列进两个 face；Host 半注册每 Client source，并在入队前校验 JSON；Client 半继续组合生成的 Remote contribution |
-| 根 `tsconfig.base.json` | 加 `dsh-settings/types`、`dsh-credentials/types`、`dsh-api-remotes/types` 三条 `paths`，全部指向**源**平面 |
-| `dsh-commands` / `dsh-settings` / `dsh-credentials` | `interface Events` 子块移入各自 client-safe 的 `./types`（settings/credentials 新建该出口，brand 与纯类型一并移入，index 继续 re-export 并留住构造器；`files` 补 `lib/types/**/*.js`） |
+| 根 `tsconfig.base.json` | 加 `dsh-settings/types`、`dsh-credentials/types`、`dsh-skill/types`、`dsh-api-remotes/types` 四条 `paths`，全部指向**源**平面 |
+| `dsh-commands` / `dsh-settings` / `dsh-credentials` / `dsh-skill` | 每个转发的 `interface Events` 子块都放在 owner 的 client-safe `./types`；index 重新导出这些声明，Host 实现保留运行时代码 |
 | `dsh-session` | `isJsonValue` 供 `api/remotes` Host source 校验每个事件参数 |
 | `client/runtime` | 删除 Host frame 到 Remote subscription table 的桥；只继续在 Connection generation 建立后发布 `connection/reset` |
 | 消费方 | Client 插件直接订阅 `ctx.remote.$on(...)`，type-only 引入 owner 事件声明并把 `'remote'` 加进 `inject` |
@@ -180,7 +181,7 @@ Client 要求首项是带非空 `clientId` 与 `host.home` 的 `ready`；后续 
 钉住该行为的东西：
 
 - Host source 真组合测试：两个 Client stream 各自收到 host emit 的 `{ event, args }`，其中一个断开不会影响另一个；非 JSON 实参会响亮拒绝且不会毒化后续合法事件。
-- 类型层负例拒绝未选择事件、非 `void` 的无 scope 事件、非 Agent-scoped waterfall，以及声明 mode 与签名不符的条目。`$on('slots/changed', …)`（Client 本地事件）与 `$on('skills/change', …)`（已声明但未选中）都编译失败——因此 `$on` 的键面恰好等于名单。
+- 类型层负例拒绝未选择事件、非 `void` 的无 scope 事件、非 Agent-scoped waterfall，以及声明 mode 与签名不符的条目。`$on('slots/changed', …)`（Client 本地事件）与 `$on('tools/change', …)`（已声明但未选中）都编译失败——因此 `$on` 的键面恰好等于名单。Host-source 覆盖会转发 `skills/change`，`ui-skill` 覆盖证明下一次查找会获取变化后的目录。
 - 消费端 `$on('settings/document-updated', …)` 把 `ns` 解析为 `SettingsNamespace`：brand 穿过 wire 存活。
 - `$on` 的 disposer 归属调用方 fiber；同一个函数对象订阅两次时两条注册各自独立退订——按 listener 身份做键的表会把它们合并，所以订阅按注册项寻址。
 - 普通通知同时收容抛出的 listener 与拒绝所返回 Promise 的 listener；waterfall 测试固定 Client result、`next()`、拒绝、取消、多 Client 首个 claim 和重连重放 pending request。

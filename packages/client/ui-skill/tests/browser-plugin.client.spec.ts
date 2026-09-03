@@ -5,7 +5,7 @@
  * the source behavior contract driven directly on the captured source with
  * real ClientSessionContext projections — sessionId addressing, the
  * session-keyed catalog cache (single-flight per key, scope-birth warm
- * prewarm, connection/reset clear), startsWith filtering, RPC-failure
+ * prewarm, skills/change and connection/reset clear), startsWith filtering, RPC-failure
  * rejection, pick → plain-text outcome (the plain-text-reference decision:
  * .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md),
  * the synchronous
@@ -250,6 +250,26 @@ describe('catalog cache', () => {
     expect(payloads).toHaveLength(2)
   })
 
+  it('invalidation aborts an in-flight fetch and the next caller retries', async () => {
+    let calls = 0
+    const { source, remote } = await bench((_payload, signal) => {
+      calls += 1
+      if (calls > 1) return listOk(CATALOG)({})
+      return new Promise((_, reject) => {
+        signal?.addEventListener('abort', () => {
+          reject(new Error('catalog fetch aborted'))
+        }, { once: true })
+      })
+    })
+    const pending = source.candidates(proj('s1'), req(''))
+
+    remote.emit('skills/change', [])
+
+    await expect(pending).rejects.toBeInstanceOf(Error)
+    await expect(source.candidates(proj('s1'), req(''))).resolves.toHaveLength(3)
+    expect(calls).toBe(2)
+  })
+
   it('the scope-birth warm prewarms the session key fire-and-forget', async () => {
     const { list, payloads } = countingList()
     const { source } = await bench(list)
@@ -264,6 +284,19 @@ describe('catalog cache', () => {
     expect(payloads).toHaveLength(2)
   })
 
+  it('a failed warm stays silent and leaves the key retryable', async () => {
+    let fail = true
+    const { source } = await bench(payload => fail
+      ? Promise.reject(new Error('warm failed'))
+      : listOk(CATALOG)(payload))
+
+    source.warm!(proj('s1'))
+    fail = false
+
+    await expect(source.candidates(proj('s1'), req(''))).rejects.toThrow('warm failed')
+    await expect(source.candidates(proj('s1'), req(''))).resolves.toHaveLength(3)
+  })
+
   it('agent-preset/selected clears only the recomposed session', async () => {
     const { list, payloads } = countingList()
     const { source, remote } = await bench(list)
@@ -273,10 +306,29 @@ describe('catalog cache', () => {
     // The catalog a preset supplies is the preset's; the other session's
     // composition did not change, so its cached catalog still holds.
     remote.emit('agent-preset/selected', [sid('s1'), 'minimal'])
+    remote.emit('agent-preset/selected', [sid('s1'), 'minimal'])
     await source.candidates(proj('s1'), req(''))
     await source.candidates(proj('s2'), req(''))
     expect(payloads).toHaveLength(3)
     expect(payloads[2]).toEqual({ sessionId: 's1' })
+  })
+
+  it('skills/change clears cached catalogs so the next lookup sees installed skills', async () => {
+    let current = CATALOG
+    const payloads: object[] = []
+    const { source, remote } = await bench((payload) => {
+      payloads.push(payload)
+      return listOk(current)(payload)
+    })
+    await source.candidates(proj('s1'), req(''))
+    current = [{ name: 'fresh-skill', description: 'installed while running', modelInvocable: true }]
+
+    remote.emit('skills/change', [])
+
+    await expect(source.candidates(proj('s1'), req(''))).resolves.toEqual([
+      { name: 'fresh-skill', description: 'installed while running' },
+    ])
+    expect(payloads).toHaveLength(2)
   })
 
   it('connection/reset clears every cached session', async () => {
@@ -329,14 +381,34 @@ describe('lexicon', () => {
     expect(s2).toHaveBeenCalledTimes(2)
   })
 
+  it('contains a failing lexicon listener and still notifies later listeners', async () => {
+    const { source } = await bench(listOk(CATALOG))
+    const failure = new Error('listener failed')
+    const later = vi.fn()
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    source.subscribeLexicon!(proj('s1'), () => { throw failure })
+    source.subscribeLexicon!(proj('s1'), later)
+    try {
+      await source.candidates(proj('s1'), req(''))
+      expect(error).toHaveBeenCalledWith('[ui-skill] lexicon listener failed:', failure)
+      expect(later).toHaveBeenCalledOnce()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
   it('an unsubscribed lexicon listener stops receiving notifications', async () => {
     const { list } = countingList()
     const { source } = await bench(list)
     const listener = vi.fn()
+    const remaining = vi.fn()
     const off = source.subscribeLexicon!(proj('s1'), listener)
+    const offRemaining = source.subscribeLexicon!(proj('s1'), remaining)
     off()
     await source.candidates(proj('s1'), req(''))
     expect(listener).not.toHaveBeenCalled()
+    expect(remaining).toHaveBeenCalledOnce()
+    offRemaining()
   })
 })
 

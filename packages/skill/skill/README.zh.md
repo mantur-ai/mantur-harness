@@ -86,7 +86,8 @@ agent（智能体）和用户可以通过单一查找使用可复用的任务专
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口、`SkillRegistry` 服务、候选项与定义验证、共享的面向模型渲染 |
-| — | 不发布运行时不变式伴生入口；provider/runtime map 与带 revision 的 cache 在 registry 内原子变更，且没有独立 change event 或 snapshot 可供交叉核对。 |
+| [`src/types.ts`](src/types.ts) | Host 生产方与 Remote 消费方共用的客户端安全 `skills/change` 声明 |
+| — | 不发布运行时不变式伴生入口；provider/runtime map、带 revision 的 cache 与 change event 均由同一次 registry 操作负责，因此不存在可能漂移的独立维护关系。 |
 
 ### 目录收集
 

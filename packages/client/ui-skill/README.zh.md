@@ -47,7 +47,7 @@ source 不实现任何裁决钩子，也没有引用 codec：pick 落下字面�
 
 ### 候选流程
 
-目录按普通会话缓存，拉取走 single-flight；scope 创建时的 `warm` 钩子预热该会话的缓存项，转发的 owner 事件 `agent-preset/selected` 丢弃该会话这一项（目录属于 preset，而空会话可能在预热之后才切换），`connection/reset` 清空全部缓存。由目录寻址的可继续 subagent 在客户端解析为没有 skill 候选，因为现有 skill RPC 要求会话已挂载；查看其持久化历史不得激活它。列表 RPC 使用插件注册时捕获的根上下文连接；草稿 chip 视觉由 `lexicon` 扫描派生。
+目录按普通会话缓存，拉取走 single-flight；scope 创建时的 `warm` 钩子预热该会话的缓存项，转发的 owner 事件 `agent-preset/selected` 丢弃该会话这一项，转发的 `skills/change` 与 `connection/reset` 清空全部缓存。下一次查找会获取当前 Host 目录，因此安装或更新的 Skill 无需重启 Client 即可出现。由目录寻址的可继续 subagent 在客户端解析为没有 skill 候选，因为现有 skill RPC 要求会话已挂载；查看其持久化历史不得激活它。列表 RPC 使用插件注册时捕获的根上下文连接；草稿 chip 视觉由 `lexicon` 扫描派生。
 
 ### 注册
 
