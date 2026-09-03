@@ -313,7 +313,6 @@ export default defineConfig({
         'packages/client/ui-input-trigger/src/core/menu.ts',
         'packages/client/ui-input-trigger/src/core/detect.ts',
         'packages/client/ui-sidebar/src/client/index.ts',
-        'packages/client/ui-skill/src/client/index.ts',
         'packages/client/ui-workspace/src/client/index.ts',
         'packages/test-support/client-runtime/src/translate.ts',
         'packages/client/ui-primitives/src/JsonTree.tsx',
