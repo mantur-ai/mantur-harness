@@ -28,20 +28,22 @@ export const inject = ['slots', 'locale', 'remote']
 export async function apply(ctx: Context): Promise<void> {
   const disposeRemote = await ctx.remote.$mount(manturAccountRemote)
   ctx.effect(() => disposeRemote, 'ui-mantur-account: Remote contribution')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-mantur-account: dictionaries')
-  const controller = new ManturAccountStore(ctx)
-  const t = ctx.locale.bind(NS)
-  const injected = (): AccountOnboardingInjected & AccountSectionInjected => ({
-    controller,
-    hooks: { account: controller.store },
-    t,
+  ctx.inject(['remote.manturAccount'], (scope: Context) => {
+    scope.effect(() => scope.locale.register(NS, { zh, en }), 'ui-mantur-account: dictionaries')
+    const controller = new ManturAccountStore(scope)
+    const t = scope.locale.bind(NS)
+    const injected = (): AccountOnboardingInjected & AccountSectionInjected => ({
+      controller,
+      hooks: { account: controller.store },
+      t,
+    })
+    scope.effect(() => () => { controller.dispose() }, 'ui-mantur-account: controller')
+    scope.slots.inject('settings.onboarding', () => scope.slots.register({
+      name: 'settings.onboarding', id: 'mantur-account', order: -100, locale: NS, inject: injected,
+    }, AccountOnboarding))
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section', id: 'mantur-account', order: 5,
+      label: () => t('nav'), locale: NS, inject: injected,
+    }, AccountSection))
   })
-  ctx.effect(() => () => { controller.dispose() }, 'ui-mantur-account: controller')
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding', id: 'mantur-account', order: -100, locale: NS, inject: injected,
-  }, AccountOnboarding))
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: 'mantur-account', order: 5,
-    label: () => t('nav'), locale: NS, inject: injected,
-  }, AccountSection))
 }

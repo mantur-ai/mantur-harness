@@ -59,4 +59,4 @@ The device and account endpoints are resolved from one configured origin. Tests 
 
 </details>
 
-**Runtime invariant:** authorization success is reported only after the credential record has been committed.
+No runtime invariant companion is published because the authorization service both commits the credential and reports success, so no independently observed values can diverge.

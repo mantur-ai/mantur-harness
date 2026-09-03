@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import {
   MarketplaceNavigation, MarketplacePage, ProjectsHeading,
@@ -11,7 +12,8 @@ import { apply as hostApply } from '../src/index.ts'
 
 async function bench() {
   const ctx = new Context()
-  ctx.provide('remote', { $mount: () => Promise.resolve(() => {}) } as never)
+  const remote = new TestRemote(ctx, { manturMarketplace: {}, manturAccount: {} })
+  remote.$mount = () => Promise.resolve(() => Promise.resolve())
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')

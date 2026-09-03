@@ -1463,8 +1463,6 @@ export interface Config {
   readonly maxFiles?: number
   /** Maximum total uncompressed bytes accepted from one Skill archive. */
   readonly maxUnpackedBytes?: number
-  /** Maximum bytes captured while inspecting an archive manifest. */
-  readonly maxListingBytes?: number
   /** Timeout for catalog, detail, and authenticated download requests. */
   readonly metadataTimeoutMs?: number
   /** Timeout for an approved off-origin package download. */

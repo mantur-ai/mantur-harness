@@ -219,7 +219,8 @@ export class ManturHubAuthorization extends TypertRemoteService {
    * @returns the response, or `undefined` when authentication was requested while signed out.
    */
   async request(pathname: string, options: ManturHubRequestOptions): Promise<Response | undefined> {
-    if (!pathname.startsWith('/') || pathname.startsWith('//')) {
+    const url = new URL(pathname, this.config.baseUrl)
+    if (!pathname.startsWith('/') || pathname.startsWith('//') || url.origin !== this.config.baseUrl.origin) {
       throw new TypeError('authorization-manturhub: request pathname must be root-relative')
     }
     const headers = new Headers(options.headers)
@@ -228,7 +229,7 @@ export class ManturHubAuthorization extends TypertRemoteService {
       if (grant === undefined) return undefined
       headers.set('x-api-key', grant.apiKey)
     }
-    return await fetch(new URL(pathname, this.config.baseUrl), {
+    return await fetch(url, {
       headers,
       redirect: options.redirect ?? 'error',
       ...(options.signal === undefined ? {} : { signal: options.signal }),

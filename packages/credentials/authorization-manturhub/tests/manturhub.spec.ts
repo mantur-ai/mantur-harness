@@ -175,6 +175,34 @@ describe('ManturHub device authorization', () => {
     await expect(subject.service.status()).resolves.toEqual({ status: 'signed-out' })
   })
 
+  it('never sends a stored grant to a URL that parses outside the configured origin', async () => {
+    const hub = await fakeHub()
+    const foreign = await fakeHub()
+    const subject = await boot(hub.origin)
+    await expect(subject.service.request('/api/v1/me', { authenticated: true })).resolves.toBeUndefined()
+    await expect(subject.service.request('api/v1/me', { authenticated: false })).rejects.toThrow('root-relative')
+    await expect(subject.service.request('//wrong.example/collect', { authenticated: false }))
+      .rejects.toThrow('root-relative')
+    const controller = new AbortController()
+    const publicResponse = await subject.service.request('/public', {
+      authenticated: false,
+      headers: { 'x-client': 'fixture' },
+      redirect: 'manual',
+      signal: controller.signal,
+    })
+    expect(publicResponse?.status).toBe(404)
+
+    const start = await subject.service.startLogin()
+    await expect(settled(subject.service, start.attemptId)).resolves.toMatchObject({ status: 'authorized' })
+    await expect(subject.service.request('/api/v1/me', { authenticated: true }))
+      .resolves.toMatchObject({ status: 200 })
+    const foreignHost = new URL(foreign.origin).host
+
+    await expect(subject.service.request(`/\\${foreignHost}/collect`, { authenticated: true }))
+      .rejects.toThrow('root-relative')
+    expect(foreign.requests).toEqual([])
+  })
+
   it('also runs through the shared authorization service without a Remote attempt', async () => {
     const hub = await fakeHub()
     const subject = await boot(hub.origin)

@@ -202,6 +202,18 @@ describe('Mantur marketplace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: '安装技能' }))
     expect(signedInProps.controllerMocks.install).toHaveBeenCalledWith('story-director')
 
+    const directFailureProps = marketplaceProps({ ...signedIn, installError: 'auth-required' })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...directFailureProps}
+        activePage={MANTUR_MARKET_PAGES.skills}
+        closePage={closePage}
+        t={t}
+      />,
+    )
+    expect(screen.getByRole('alert').textContent).toContain('ManturHub 登录已失效')
+
     const installingProps = marketplaceProps({
       ...signedIn, installing: listed.slug, detail: { ...listed, usesOperators: [] },
     })
@@ -306,6 +318,7 @@ describe('Mantur marketplace navigation', () => {
       />,
     )
     expect(screen.getByText('使用说明')).toBeTruthy()
+    expect(screen.getByText('版本 1.2.3')).toBeTruthy()
     expect(screen.getByText(/本地已有同名技能/)).toBeTruthy()
     const installButtons = screen.getAllByRole('button', { name: '安装技能' })
     fireEvent.click(installButtons[installButtons.length - 1] as HTMLElement)
@@ -361,6 +374,22 @@ describe('Mantur marketplace navigation', () => {
     expect(loadingProps.controllerMocks.openDetail).toHaveBeenCalledWith(installed.slug)
     fireEvent.click(screen.getByRole('button', { name: '关闭' }))
     expect(loadingProps.controllerMocks.closeDetail).toHaveBeenCalledOnce()
+
+    const failedProps = marketplaceProps({
+      phase: 'ready',
+      catalog: {
+        skills: [{ ...installed, installed: false }], installedCount: 0, signedIn: false,
+      },
+      detailError: installed.slug,
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...failedProps} activePage={MANTUR_MARKET_PAGES.skills} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByText('暂时无法读取这个技能的详情，请检查网络后重试。')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '重新加载详情' }))
+    expect(failedProps.controllerMocks.openDetail).toHaveBeenCalledWith(installed.slug)
 
     const installedProps = marketplaceProps({
       phase: 'ready', catalog: { skills: [installed], installedCount: 1, signedIn: true },

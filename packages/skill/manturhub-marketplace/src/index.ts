@@ -28,8 +28,6 @@ export interface Config {
   readonly maxFiles?: number
   /** Maximum total uncompressed bytes accepted from one Skill archive. */
   readonly maxUnpackedBytes?: number
-  /** Maximum bytes captured while inspecting an archive manifest. */
-  readonly maxListingBytes?: number
   /** Timeout for catalog, detail, and authenticated download requests. */
   readonly metadataTimeoutMs?: number
   /** Timeout for an approved off-origin package download. */
@@ -44,7 +42,6 @@ const defaultMaxMetadataBytes = 1024 * 1024
 const defaultMaxBundleBytes = 100 * 1024 * 1024
 const defaultMaxFiles = 20_000
 const defaultMaxUnpackedBytes = 500 * 1024 * 1024
-const defaultMaxListingBytes = 32 * 1024 * 1024
 const defaultMetadataTimeoutMs = 30_000
 const defaultDownloadTimeoutMs = 120_000
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -141,7 +138,6 @@ export class ManturHubMarketplace extends TypertRemoteService {
     maxBundleBytes: s.number().step(1).min(1024).default(defaultMaxBundleBytes),
     maxFiles: s.number().step(1).min(1).default(defaultMaxFiles),
     maxUnpackedBytes: s.number().step(1).min(1024).default(defaultMaxUnpackedBytes),
-    maxListingBytes: s.number().step(1).min(1024).default(defaultMaxListingBytes),
     metadataTimeoutMs: s.number().step(1).min(1).default(defaultMetadataTimeoutMs),
     downloadTimeoutMs: s.number().step(1).min(1).default(defaultDownloadTimeoutMs),
   })
@@ -163,7 +159,6 @@ export class ManturHubMarketplace extends TypertRemoteService {
       maxBundleBytes: config.maxBundleBytes ?? defaultMaxBundleBytes,
       maxFiles: config.maxFiles ?? defaultMaxFiles,
       maxUnpackedBytes: config.maxUnpackedBytes ?? defaultMaxUnpackedBytes,
-      maxListingBytes: config.maxListingBytes ?? defaultMaxListingBytes,
       metadataTimeoutMs: config.metadataTimeoutMs ?? defaultMetadataTimeoutMs,
       downloadTimeoutMs: config.downloadTimeoutMs ?? defaultDownloadTimeoutMs,
     }
@@ -238,7 +233,7 @@ export class ManturHubMarketplace extends TypertRemoteService {
    * @returns Host-confirmed installed version.
    */
   @Remote
-  async install(slug: string): Promise<ManturMarketplaceInstallResult> {
+  async installSkill(slug: string): Promise<ManturMarketplaceInstallResult> {
     if (!slugPattern.test(slug)) {
       throw new RemoteError('gateway/bad-request', 'invalid ManturHub Skill slug', {})
     }

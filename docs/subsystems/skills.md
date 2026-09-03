@@ -271,7 +271,7 @@ Host service for catalog reads and local Skill installation.
  * @param slug - validated Skill slug selected in the browser.
  * @returns Host-confirmed installed version.
  */
-@Remote async install(slug: string): Promise<ManturMarketplaceInstallResult>
+@Remote async installSkill(slug: string): Promise<ManturMarketplaceInstallResult>
 ```
 
 Source: [`packages/skill/manturhub-marketplace/src/index.ts`](../../packages/skill/manturhub-marketplace/src/index.ts)

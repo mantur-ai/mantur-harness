@@ -243,6 +243,8 @@ export interface LaunchOptions {
    * supply private profile layers named by {@link extraOverlayPath}.
    */
   extraInstallAnchors?: string[]
+  /** Deterministic ManturHub origin for assembled product tests; omitted outside the Mantur overlay. */
+  manturHubBaseUrl?: string
   /**
    * Replay fixture (session.jsonl) served by the inserted dsh-llm-replay row
    * in replay/refresh modes; ignored in record mode (the real adapter
@@ -451,6 +453,9 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     ...basePatches,
     ...surfacePatches,
     ...extraOverlayPatches,
+    ...(options.manturHubBaseUrl === undefined
+      ? []
+      : [{ id: 'mantur-account', config: { baseUrl: options.manturHubBaseUrl } }]),
     // The roster's shipped presets are the plugin's own, bundled inside
     // `dsh-agent-presets` and prepended by it. Pin only the machine-local
     // root away: a developer's own `~/.dsh/.agent-presets` must not be able

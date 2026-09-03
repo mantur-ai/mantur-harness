@@ -1264,7 +1264,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'browser-safe Skill detail.',
       },
       {
-        signature: '@Remote async install(slug: string): Promise<ManturMarketplaceInstallResult>',
+        signature: '@Remote async installSkill(slug: string): Promise<ManturMarketplaceInstallResult>',
         description: 'Download and atomically install one Skill into this running client\'s DSH_HOME.',
         parameters: [{ name: 'slug', description: 'validated Skill slug selected in the browser.' }],
         returns: 'Host-confirmed installed version.',

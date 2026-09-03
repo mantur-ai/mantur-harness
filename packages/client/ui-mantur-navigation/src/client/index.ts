@@ -32,19 +32,21 @@ export const inject = ['slots', 'locale', 'remote']
 export async function apply(ctx: Context): Promise<void> {
   const disposeRemote = await ctx.remote.$mount(manturMarketplaceRemote)
   ctx.effect(() => disposeRemote, 'ui-mantur-navigation: marketplace Remote')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-mantur-navigation: dictionaries')
-  const controller = new ManturMarketplaceStore(ctx)
-  ctx.effect(() => () => { controller.dispose() }, 'ui-mantur-navigation: marketplace controller')
-  ctx.slots.inject('sidebar.navigation', () =>
-    ctx.slots.inject('sidebar.workspaces.heading', () =>
-      ctx.slots.inject('main.page', function* () {
-        yield ctx.slots.register({ name: 'sidebar.navigation', locale: NS }, MarketplaceNavigation)
-        yield ctx.slots.register({ name: 'sidebar.workspaces.heading', locale: NS }, ProjectsHeading)
-        yield ctx.slots.register({
-          name: 'main.page', locale: NS,
-          inject: () => ({ controller, hooks: { marketplace: controller.store } }),
-        }, MarketplacePage)
-      })))
+  ctx.inject(['remote.manturMarketplace', 'remote.manturAccount'], (scope: Context) => {
+    scope.effect(() => scope.locale.register(NS, { zh, en }), 'ui-mantur-navigation: dictionaries')
+    const controller = new ManturMarketplaceStore(scope)
+    scope.effect(() => () => { controller.dispose() }, 'ui-mantur-navigation: marketplace controller')
+    scope.slots.inject('sidebar.navigation', () =>
+      scope.slots.inject('sidebar.workspaces.heading', () =>
+        scope.slots.inject('main.page', function* () {
+          yield scope.slots.register({ name: 'sidebar.navigation', locale: NS }, MarketplaceNavigation)
+          yield scope.slots.register({ name: 'sidebar.workspaces.heading', locale: NS }, ProjectsHeading)
+          yield scope.slots.register({
+            name: 'main.page', locale: NS,
+            inject: () => ({ controller, hooks: { marketplace: controller.store } }),
+          }, MarketplacePage)
+        })))
+  })
 }
 
 export type {

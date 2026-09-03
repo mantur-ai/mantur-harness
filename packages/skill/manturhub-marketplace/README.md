@@ -25,7 +25,7 @@ This Host plugin exposes browser-safe ManturHub Skill catalog, detail, and insta
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, reads public catalog and detail endpoints, and installs into `<DSH_HOME>/skills/<slug>`. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, archive-listing output, and both request stages. The defaults match the official ManturHub CLI policy.
+Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, reads public catalog and detail endpoints, and installs into `<DSH_HOME>/skills/<slug>`. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, and both request stages. The defaults match the official ManturHub CLI policy.
 
 The list endpoint accepts the deployed `{ skills }` envelope and the CLI-compatible raw array. Detail accepts a direct Skill or `{ skill }`. Entries with `kind: suite` are excluded; a missing `kind` means `skill`.
 
@@ -36,9 +36,9 @@ The list endpoint accepts the deployed `{ skills }` envelope and the CLI-compati
 
 The first download request uses `manturAccount` with authentication and manual redirects. A redirect must include `Location`; its second request allows HTTPS, plus loopback HTTP for integration tests, and never receives the authorization header. The installer streams into a private temporary file and rejects compressed-size overflow before extraction.
 
-Archive inspection rejects absolute paths, traversal, control characters, case-insensitive duplicate paths, symbolic links, hard links, excessive entries, and excessive declared expansion. A second filesystem walk rejects links, special nodes, and actual expansion overflow. Root `SKILL.md` must declare the requested slug and catalog version.
+The ZIP reader validates every central-directory entry before it writes that entry. It rejects unsafe or imprecise sizes, absolute and traversal paths, control characters, Windows-reserved names and characters, trailing dots or spaces, case-insensitive duplicate paths, links, special nodes, excessive entries, and excessive declared expansion. Regular files are decompressed directly into private staging files while the installer enforces the actual cumulative byte limit. A second filesystem walk rechecks links, special nodes, and actual expansion. Root `SKILL.md` must declare the requested slug and catalog version.
 
-Installer state stores content and bundle SHA-256 values outside the discoverable Skill root. An update proceeds only when the destination is tracked and its current content hash still matches. Untracked or locally modified destinations fail visibly. Directory and state replacement use same-filesystem renames; a state-write failure restores the previous directory.
+Installer state stores content and bundle SHA-256 values outside the discoverable Skill root. An update proceeds only when the destination is tracked and its current content hash still matches. Untracked or locally modified destinations fail visibly. Directory and state replacement use same-filesystem renames. Before replacement, the previous directory moves into a unique recovery directory beside `skillsRoot`, never inside the discoverable Skill tree. A state-write failure restores that directory. If rollback itself fails, the error reports the exact preserved recovery path for manual restoration.
 
 -----
 
@@ -65,7 +65,7 @@ Stable until installation commits a new Skill directory; later catalog tool outp
 <a id="known-limitations-and-deferred-work"></a>
 
 - There is no forced overwrite, uninstall, or local-conflict merge operation.
-- The archive reader depends on the platform `unzip` or `tar` command and fails clearly when neither is available.
+- Skill bundles must use ZIP. Extraction is implemented in-process and does not depend on platform archive commands.
 - Recipe installation and operator execution are outside this package.
 
 <a id="dev-note"></a>

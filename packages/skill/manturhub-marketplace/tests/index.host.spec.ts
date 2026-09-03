@@ -127,13 +127,13 @@ describe('ManturHub marketplace metadata failures', () => {
       return Promise.resolve(json(skill))
     })
     await expect(target.service.detail('../escape')).rejects.toMatchObject({ code: 'gateway/bad-request' })
-    await expect(target.service.install('../escape')).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(target.service.installSkill('../escape')).rejects.toMatchObject({ code: 'gateway/bad-request' })
     expect(requests).toBe(0)
   })
 
   it('preserves detail RemoteErrors through the serialized install operation', async () => {
     const failure = new RemoteError('gateway/bad-request', 'fixture rejection', {})
     const target = await subject(() => Promise.reject(failure))
-    await expect(target.service.install(skill.slug)).rejects.toBe(failure)
+    await expect(target.service.installSkill(skill.slug)).rejects.toBe(failure)
   })
 })

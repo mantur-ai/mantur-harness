@@ -374,6 +374,28 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+.detailFailure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.detailFailure p {
+  margin: 0;
+}
+
+.detailFailure button {
+  padding: 7px 13px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 9px;
+  background: var(--dsw-alias-bg-raised);
+  color: var(--dsw-alias-brand-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
 .loginGate {
   display: flex;
   flex-direction: column;

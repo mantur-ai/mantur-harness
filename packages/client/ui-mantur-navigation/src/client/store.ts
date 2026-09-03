@@ -16,6 +16,7 @@ export type ManturMarketplaceState =
     readonly catalog: ManturMarketplaceCatalog
     readonly detail?: ManturMarketplaceSkillDetail | undefined
     readonly detailLoading?: string | undefined
+    readonly detailError?: string | undefined
     readonly installing?: string | undefined
     readonly installError?: 'auth-required' | 'local-conflict' | 'failed' | undefined
     readonly login?: ManturLoginStart | undefined
@@ -64,7 +65,9 @@ export class ManturMarketplaceStore {
       const detail = unwrap(await this.ctx.remote.manturMarketplace.detail(slug))
       if (generation === this.generation) this.store.set({ phase: 'ready', catalog: current.catalog, detail })
     } catch {
-      if (generation === this.generation) this.store.set({ phase: 'ready', catalog: current.catalog })
+      if (generation === this.generation) {
+        this.store.set({ phase: 'ready', catalog: current.catalog, detailError: slug })
+      }
     }
   }
 
@@ -88,7 +91,7 @@ export class ManturMarketplaceStore {
       return
     }
     this.store.set({ ...current, installing: slug, installError: undefined })
-    const result = await this.ctx.remote.manturMarketplace.install(slug)
+    const result = await this.ctx.remote.manturMarketplace.installSkill(slug)
     const pending = this.store.getSnapshot()
     if (pending.phase !== 'ready' || pending.installing !== slug) return
     if (!result.ok) {

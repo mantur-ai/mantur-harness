@@ -80,7 +80,7 @@ describe('Mantur marketplace store', () => {
     store.closeDetail()
     expect(store.store.getSnapshot()).not.toHaveProperty('detail')
     await store.openDetail(listed.slug)
-    expect(store.store.getSnapshot()).not.toHaveProperty('detailLoading')
+    expect(store.store.getSnapshot()).toMatchObject({ detailError: listed.slug })
     store.store.set({ phase: 'failed' })
     store.closeDetail()
     expect(store.store.getSnapshot()).toEqual({ phase: 'failed' })
@@ -91,7 +91,7 @@ describe('Mantur marketplace store', () => {
       ok: true
       value: { slug: string; version: string; installed: true }
     }>()
-    const store = subject({ manturMarketplace: { install: () => settlement.promise } })
+    const store = subject({ manturMarketplace: { installSkill: () => settlement.promise } })
     store.store.set({
       phase: 'ready',
       catalog: { skills: [listed], installedCount: 0, signedIn: true },
@@ -115,7 +115,7 @@ describe('Mantur marketplace store', () => {
   it('keeps local conflicts distinct from generic installation failures', async () => {
     const store = subject({
       manturMarketplace: {
-        install: () => Promise.resolve({
+        installSkill: () => Promise.resolve({
           ok: false as const,
           error: new RemoteError(
             'mantur-marketplace/local-conflict',
@@ -143,7 +143,7 @@ describe('Mantur marketplace store', () => {
   ] as const)('maps %s installation failures', async (code, expected) => {
     const store = subject({
       manturMarketplace: {
-        install: () => Promise.resolve({ ok: false as const, error: { code, message: 'failed' } }),
+        installSkill: () => Promise.resolve({ ok: false as const, error: { code, message: 'failed' } }),
       },
     })
     store.store.set({ phase: 'ready', catalog: { skills: [listed], installedCount: 0, signedIn: true } })
@@ -155,7 +155,7 @@ describe('Mantur marketplace store', () => {
 
   it('requires sign-in and ignores duplicate or inapplicable installation requests', async () => {
     const install = vi.fn()
-    const store = subject({ manturMarketplace: { install } })
+    const store = subject({ manturMarketplace: { installSkill: install } })
     await store.install(listed.slug)
     store.store.set({ phase: 'ready', catalog: { skills: [listed], installedCount: 0, signedIn: false } })
     await store.install(listed.slug)
@@ -170,7 +170,7 @@ describe('Mantur marketplace store', () => {
       ok: true as const,
       value: { slug: listed.slug, version: listed.version, installed: true as const },
     })
-    const store = subject({ manturMarketplace: { install } })
+    const store = subject({ manturMarketplace: { installSkill: install } })
     store.store.set({
       phase: 'ready',
       catalog: {
@@ -193,7 +193,7 @@ describe('Mantur marketplace store', () => {
       ok: true
       value: { slug: string; version: string; installed: true }
     }>()
-    const store = subject({ manturMarketplace: { install: () => settlement.promise } })
+    const store = subject({ manturMarketplace: { installSkill: () => settlement.promise } })
     store.store.set({ phase: 'ready', catalog: { skills: [listed], installedCount: 0, signedIn: true } })
     const operation = store.install(listed.slug)
     store.store.set({ phase: 'failed' })

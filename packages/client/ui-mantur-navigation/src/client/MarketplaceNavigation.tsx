@@ -137,6 +137,7 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
   const state = useMarketplace(snapshot => snapshot)
   const ready = state.phase === 'ready' ? state : undefined
   const detail = ready?.detail
+  const detailError = ready?.detailError
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   useEffect(() => {
@@ -179,6 +180,17 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
             {ready.loginPhase === 'starting' ? t('skills.loginPreparing') : t('skills.loginToInstall')}
           </button>
         )
+  const installErrorNotice = ready?.installError === undefined
+    ? undefined
+    : (
+      <p className={css.installError} role="alert">
+        {ready.installError === 'auth-required'
+          ? t('skills.authRequired')
+          : ready.installError === 'local-conflict'
+            ? t('skills.localConflict')
+            : t('skills.installFailed')}
+      </p>
+    )
 
   return (
     <main className={css.page} aria-labelledby="mantur-marketplace-title">
@@ -213,6 +225,8 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
             </div>
           </>
         )}
+
+        {detail === undefined && installErrorNotice}
 
         {state.phase === 'idle' || state.phase === 'loading'
           ? <p className={css.status}>{t('skills.loading')}</p>
@@ -257,19 +271,29 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
               )}
       </section>
       <Modal
-        open={detail !== undefined || ready?.detailLoading !== undefined}
+        open={detail !== undefined || ready?.detailLoading !== undefined || detailError !== undefined}
         onClose={() => { controller.closeDetail() }}
-        title={detail?.name ?? t('skills.loadingDetail')}
+        title={detail?.name ?? (detailError === undefined ? t('skills.loadingDetail') : t('skills.detailFailedTitle'))}
         closeLabel={t('close')}
         {...(detail === undefined ? {} : { description: detail.description })}
         {...(detailFooter === undefined ? {} : { footer: detailFooter })}
       >
+        {detail === undefined && detailError !== undefined && (
+          <div className={css.detailFailure}>
+            <p>{t('skills.detailFailed')}</p>
+            <button type="button" onClick={() => { void controller.openDetail(detailError) }}>
+              {t('skills.retryDetail')}
+            </button>
+          </div>
+        )}
         {detail !== undefined && ready !== undefined && (
           <div className={css.detail}>
-            <div><span className={css.tag}>{detail.category}</span><span>v{detail.version}</span></div>
+            <div>
+              <span className={css.tag}>{detail.category}</span>
+              <span>{t('skills.version').replace('{version}', detail.version)}</span>
+            </div>
             {detail.introduction !== undefined && <p>{detail.introduction}</p>}
-            {ready.installError === 'local-conflict' && <p className={css.installError}>{t('skills.localConflict')}</p>}
-            {ready.installError === 'failed' && <p className={css.installError}>{t('skills.installFailed')}</p>}
+            {installErrorNotice}
             {ready.loginPhase === 'failed' && <p className={css.installError}>{t('skills.loginFailed')}</p>}
             {ready.loginPhase === 'authorizing' && ready.login !== undefined && (
               <div className={css.loginGate}>

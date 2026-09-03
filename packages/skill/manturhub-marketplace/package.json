@@ -31,6 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
+    "yauzl": "^3.4.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -46,6 +47,7 @@
     "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
+    "@types/yauzl": "^2.10.3",
     "fflate": "^0.8.2"
   }
 }

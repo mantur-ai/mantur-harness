@@ -209,17 +209,18 @@ async function downloadBundle(ctx: Context, slug: string, target: string, config
 }
 
 /** Refuse replacement unless the current tree matches this installer's record. */
-async function assertReplaceable(destination: string, record: InstallRecord | undefined): Promise<void> {
+async function assertReplaceable(destination: string, record: InstallRecord | undefined): Promise<boolean> {
   let metadata
   try {
     metadata = await lstat(destination)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
   }
   if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error('LOCAL_CONFLICT')
   if (record === undefined) throw new Error('LOCAL_CONFLICT')
   if (await hashDirectory(destination) !== record.contentSha256) throw new Error('LOCAL_CONFLICT')
+  return true
 }
 
 /**
@@ -245,11 +246,12 @@ export async function installSkill(
   }
   const state = await loadState(config)
   const destination = join(config.skillsRoot, slug)
-  await assertReplaceable(destination, state.skills[slug])
+  const replacing = await assertReplaceable(destination, state.skills[slug])
   const temporaryRoot = await mkdtemp(join(config.dshHome, '.mantur-marketplace-'))
   const archive = join(temporaryRoot, `${slug}.zip`)
   const staged = join(temporaryRoot, 'staged')
-  const backup = join(temporaryRoot, 'backup')
+  const recoveryRoot = join(dirname(config.skillsRoot), '.manturhub-recovery', randomUUID())
+  const backup = join(recoveryRoot, slug)
   let installed = false
   let backedUp = false
   try {
@@ -259,11 +261,15 @@ export async function installSkill(
     if (metadata.name !== slug) throw new Error('Skill bundle name does not match the requested slug')
     if (metadata.version !== version) throw new Error('Skill bundle version does not match catalog metadata')
     const contentSha256 = await hashDirectory(staged)
-    try {
-      await rename(destination, backup)
-      backedUp = true
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    if (replacing) {
+      await mkdir(recoveryRoot, { recursive: true })
+      try {
+        await rename(destination, backup)
+        backedUp = true
+      } catch (error) {
+        await rm(recoveryRoot, { recursive: true, force: true })
+        throw error
+      }
     }
     try {
       await rename(staged, destination)
@@ -282,9 +288,36 @@ export async function installSkill(
         },
       })
     } catch (error) {
-      if (installed) await rm(destination, { recursive: true, force: true })
-      if (backedUp) await rename(backup, destination)
+      if (installed) {
+        try {
+          await rm(destination, { recursive: true, force: true })
+        } catch (recoveryError) {
+          const location = backedUp ? ` The previous Skill remains at ${backup}.` : ''
+          throw new AggregateError(
+            [error, recoveryError],
+            `Skill installation rollback could not remove the new destination.${location}`,
+          )
+        }
+      }
+      if (backedUp) {
+        try {
+          await rename(backup, destination)
+        } catch (recoveryError) {
+          throw new AggregateError(
+            [error, recoveryError],
+            `Skill installation rollback could not restore the previous Skill; recovery files remain at ${backup}.`,
+          )
+        }
+        await rm(recoveryRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => {
+          ctx.logger.warn(`manturhub-marketplace: empty recovery directory cleanup failed at ${recoveryRoot}: ${String(cleanupError)}`)
+        })
+      }
       throw error
+    }
+    if (backedUp) {
+      await rm(recoveryRoot, { recursive: true, force: true }).catch((error: unknown) => {
+        ctx.logger.warn(`manturhub-marketplace: obsolete recovery directory cleanup failed at ${backup}: ${String(error)}`)
+      })
     }
     return { slug, version }
   } finally {
