@@ -14,7 +14,7 @@ Status: implemented
 
 Electron 还通过 `ELECTRON_RUN_AS_NODE=1` 提供子进程的 Node 运行时。这样每个安装包只含一套运行时，并保留所有受支持 Node 应用都通过具名 `dsh` profile 启动的规则。桌面依赖根包含既有 Python 部署闭包、Web 应用闭包与必需的 session-title peer；electron-builder 会为目标 Electron 运行时重建原生依赖。
 
-client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`，并同时写入仓库版本与 commit 元数据。Mantur 应用 profile 提供纯文字应用内身份；它不臆造原生图标，因此这些内部产物使用 electron-builder 的默认图标。载体声明稳定应用标识 `ai.mantur.agent`，并在 Electron 就绪前把其用户数据路径设为操作系统应用数据根目录下的 `mantur-agent` 目录。子进程只接收该目录的 `harness` 子目录作为 `DSH_HOME`，并从应用自有的中性目录启动；`~/.dsh` 下的 CLI 状态不会进入桌面启动。
+client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`，并同时写入仓库版本与 commit 元数据。Mantur 应用 profile 提供应用内身份，两个原生打包目标都使用已确认的蓝色无限环图标。载体声明稳定应用标识 `ai.mantur.agent`，并在 Electron 就绪前把其用户数据路径设为操作系统应用数据根目录下的 `mantur-agent` 目录。子进程只接收该目录的 `harness` 子目录作为 `DSH_HOME`，并从应用自有的中性目录启动；`~/.dsh` 下的 CLI 状态不会进入桌面启动。
 
 同一用户数据根目录还持有 Harness 与桌面诊断的持久合并日志。启动失败会先关闭子进程并完成日志写入。只有错误指向 schema 无效的 `session_projcache` 时，才会提供一项窄范围恢复：在用户通过原生对话框明确同意后，载体只删除该投影缓存并重试。会话日志、设置、凭据、profile 与 workspace 保持不变。其他错误只提供日志与退出。
 
@@ -26,7 +26,9 @@ client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`
 
 原生矩阵会从同一个检出 commit 运行 macOS arm64、macOS x64 与 Windows x64。每个 runner 都会执行完整漫途构建，对启动语法和品牌构建环境运行单元测试，只创建自己的原生安装包，再从解包应用的依赖目录启动 DSH。smoke 会执行进程 token 交换、请求已认证页面，并要求 HTTP 200、Web boot payload、`漫途Agent` 文档标题、包内 updater 依赖与预期的 release feed 配置同时存在。
 
-产物是未签名的内部 DMG、macOS 更新 ZIP 与一键 NSIS 安装包。私有 desktop workspace 不属于 npm release family；工作流只把这些文件作为私有 Actions artifact 保留，不创建 tag 或 GitHub release。只有某个目标的原生打包和 packaged smoke 都通过后，才可认为该目标完成验证。外部更新通道还需要已签名 release、macOS notarization，以及同时发布每个安装包及其更新 archive、blockmap 与生成元数据。
+内部打包工作流会生成未签名的 DMG、macOS 更新 ZIP 与一键 NSIS 安装包。私有 desktop workspace 仍不属于 npm release family；该工作流只把文件作为私有 Actions artifact 保留，不创建 tag 或 GitHub release。只有某个目标的原生打包和 packaged smoke 都通过后，才可认为该目标完成验证。
+
+macOS release 工作流通过受保护的 GitHub 环境 secret 为原生 arm64 与 x64 构建执行签名和 notarization。它会先验证 Developer ID 签名、Gatekeeper 评估、stapled ticket 与 packaged smoke，再合并两份架构专属通道文件。只有从精确版本 tag 发起的显式发布任务才会创建 GitHub release，其中包含两份 DMG、两份更新 ZIP、对应 blockmap、合并后的更新元数据与 SHA-256 哈希。工作流会拒绝已存在的 release；发布前还必须启用仓库级 Release Immutability，以阻止之后修改 tag 和产物。在 Windows 具备独立签名身份与发布路径之前，它不会进入外部更新通道。
 
 ## Alternatives considered
 
@@ -45,7 +47,7 @@ client 构建 profile `mantur` 会把 `DSH_CLIENT_TITLE` 固定为 `漫途Agent`
 - 桌面用户可以获得普通安装包，而 Web profile 仍是唯一的交互式 Harness 应用实现。
 - loopback 子进程增加了一条本地 HTTP 生命周期，并通过本地化原生对话框显式呈现启动失败。
 - 已安装桌面状态与 CLI 状态隔离；schema 无效的会话投影缓存可执行一次由用户同意的可丢弃重置，而不是无期阻止应用启动。
-- 更新检查会自动运行，但下载与重启安装仍由用户决定。未签名内部产物不构成可用的外部更新通道。
+- 更新检查会自动运行，但下载与重启安装仍由用户决定。只有已签名的 macOS release 产物构成外部更新通道。
 - 桌面端改动通过一条受监听的开发命令运行，不生成安装包；开发数据与已安装数据保持分离。
 - 完整运行时依赖闭包与解包文件使安装包大于专用客户端；这项成本避免了第二套应用运行时，并让 Loader 与原生模块路径保持为普通文件路径。
-- 正式图标品牌、签名、notarization 与 release 发布工作流仍是外部分发的显式前置条件，而不是内部基线中的隐藏默认值。
+- 签名与 notarization 凭据仍是受保护的部署输入。内部打包工作流无法访问这些凭据，也不能发布 release。
