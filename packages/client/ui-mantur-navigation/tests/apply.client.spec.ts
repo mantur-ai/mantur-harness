@@ -11,6 +11,7 @@ import { apply as hostApply } from '../src/index.ts'
 
 async function bench() {
   const ctx = new Context()
+  ctx.provide('remote', { $mount: () => Promise.resolve(() => {}) } as never)
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
@@ -30,7 +31,7 @@ async function bench() {
 describe('ui-mantur-navigation apply', () => {
   it('keeps the host entry inert and declares browser services', () => {
     expect(hostApply).not.toThrow()
-    expect(inject).toEqual(['slots', 'locale'])
+    expect(inject).toEqual(['slots', 'locale', 'remote'])
     expect(Object.keys(clientEntry).sort()).toEqual(['apply', 'inject'])
   })
 
@@ -40,7 +41,11 @@ describe('ui-mantur-navigation apply', () => {
     await fiber.await()
     expect(subject.slots.entries('sidebar.navigation')[0]?.component).toBe(MarketplaceNavigation)
     expect(subject.slots.entries('sidebar.workspaces.heading')[0]?.component).toBe(ProjectsHeading)
-    expect(subject.slots.entries('main.page')[0]?.component).toBe(MarketplacePage)
+    const mainPage = subject.slots.entries('main.page')[0]
+    expect(mainPage?.component).toBe(MarketplacePage)
+    const injected = (mainPage?.inject as (() => { controller: unknown; hooks: { marketplace: unknown } }))()
+    expect(injected.controller).toBeTruthy()
+    expect(injected.hooks.marketplace).toBeTruthy()
     expect(subject.locale.bind('navigation.mantur')('projects')).toBe('项目')
 
     await fiber.dispose()

@@ -1444,6 +1444,36 @@ export interface Config {
 
 Source: [`packages/bundle/mantur-app/src/index.ts:13`](../packages/bundle/mantur-app/src/index.ts)
 
+<a id="deepseek-aidsh-manturhub-marketplace"></a>
+
+## `@deepseek-ai/dsh-manturhub-marketplace`
+
+Requires: `manturAccount`
+
+```ts config-catalog
+/** Marketplace Host configuration. */
+export interface Config {
+  /** Harness home containing the live user Skill directory. */
+  readonly dshHome?: string
+  /** Maximum JSON bytes accepted from one ManturHub metadata response. */
+  readonly maxMetadataBytes?: number
+  /** Maximum compressed bytes accepted for one Skill bundle. */
+  readonly maxBundleBytes?: number
+  /** Maximum files accepted from one Skill archive. */
+  readonly maxFiles?: number
+  /** Maximum total uncompressed bytes accepted from one Skill archive. */
+  readonly maxUnpackedBytes?: number
+  /** Maximum bytes captured while inspecting an archive manifest. */
+  readonly maxListingBytes?: number
+  /** Timeout for catalog, detail, and authenticated download requests. */
+  readonly metadataTimeoutMs?: number
+  /** Timeout for an approved off-origin package download. */
+  readonly downloadTimeoutMs?: number
+}
+```
+
+Source: [`packages/skill/manturhub-marketplace/src/index.ts:20`](../packages/skill/manturhub-marketplace/src/index.ts)
+
 <a id="deepseek-aidsh-mcp-client"></a>
 
 ## `@deepseek-ai/dsh-mcp-client`

@@ -71,6 +71,9 @@ flowchart LR
   svc_authorization["ctx.authorization<br/>Authorization flow registry"]
   pkg_authorization_manturhub["authorization-manturhub"]
   svc_manturAccount["ctx.manturAccount<br/>Mantur account browser Remote"]
+  pkg_manturhub_marketplace["manturhub-marketplace"]
+  svc_manturMarketplace["ctx.manturMarketplace<br/>ManturHub Skill marketplace Host Remote"]
+  pkg_ui_mantur_navigation["ui-mantur-navigation"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
   pkg_session_telemetry_otel["session-telemetry-otel"]
@@ -276,6 +279,7 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_manturhub_marketplace --> svc_manturMarketplace
   pkg_message_feedback --> svc_messageFeedback
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
@@ -381,6 +385,7 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
+  svc_manturMarketplace --> pkg_ui_mantur_navigation
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -492,6 +497,7 @@ flowchart LR
 | `ctx.credentials` | `seam` | [`credentials`](../packages/credentials/credentials) | [`credentials-local`](../packages/credentials/credentials-local) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | 配置携带对机密信息的引用；提供方拥有实际值。消费方按操作解析，因此轮换后的凭据会在紧接着的下一次请求中生效；settings controller 提供不含实际值的视图和只写存储。 |
 | `ctx.authorization` | `seam` | [`authorization`](../packages/credentials/authorization) | - | [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | flow 由知道如何取得某份凭据的插件注册，并以其写入的记录为键；seam 拥有这段对话与"每个键同时只跑一次尝试"的生命周期，而非协议本身。 |
 | `ctx.manturAccount` | `core` | [`authorization-manturhub`](../packages/credentials/authorization-manturhub) | - | - | - | 提供浏览器安全的账号状态、设备登录进度、取消与退出能力，Host 凭据存储始终将 API Key 保持为私密信息。 |
+| `ctx.manturMarketplace` | `core` | [`manturhub-marketplace`](../packages/skill/manturhub-marketplace) | - | `ui-mantur-navigation` | - | 校验浏览器安全的目录元数据，并负责向实时 Skill 目录执行带认证、有界且可识别冲突的安装。 |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | 该 seam 捕获会话记录、进行脱敏并交给一个后端；没有其他组件消费该服务，其输出会离开当前进程。 |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | 各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。 |
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace), [`message-feedback`](../packages/feedback/message-feedback) | - | 等待所有已配置后端就绪，然后将领域形态发布为一个受生命周期约束的服务，用于类型化持久状态。 |

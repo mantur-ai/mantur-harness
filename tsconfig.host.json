@@ -269,6 +269,7 @@
     { "path": "./packages/test-support/agent-loop-testkit" },
     { "path": "./packages/acp/acp" },
     { "path": "./packages/credentials/authorization-manturhub" },
+    { "path": "./packages/skill/manturhub-marketplace" },
     { "path": "./packages/bundle/acp-app" },
     { "path": "./packages/bundle/base" },
     { "path": "./packages/bundle/headless" },

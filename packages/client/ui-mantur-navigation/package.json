@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-mantur-navigation",
-  "description": "Mantur-only sidebar navigation and marketplace page skeletons",
+  "description": "Mantur sidebar navigation and Skill marketplace",
   "version": "0.1.2-alpha.4",
   "publishConfig": { "access": "public" },
   "repository": {
@@ -20,6 +20,7 @@
   "dsh": {
     "client": {
       "inject": [
+        "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-renderer",
@@ -35,6 +36,9 @@
   "peerDependencies": { "@deepseek-ai/cordis": "workspace:^" },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-api-remotes": "workspace:^",
+    "@deepseek-ai/dsh-authorization-manturhub": "workspace:^",
+    "@deepseek-ai/dsh-client-store": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
@@ -43,6 +47,7 @@
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
     "@deepseek-ai/dsh-client-ui-workspace": "workspace:^",
+    "@deepseek-ai/dsh-manturhub-marketplace": "workspace:^",
     "@testing-library/react": "^16.1.0",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",

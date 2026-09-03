@@ -25,7 +25,7 @@ This bundle is the final layer of the shipped `mantur` profile. It retains the W
 
 Launch the complete product through `dsh --profile mantur`; the desktop carrier selects that profile automatically. The ordered bundle stack is `dsh-base`, `dsh-web-app`, then this layer. The `web` profile remains unchanged.
 
-The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent empty root page and returns to the current conversation without persisting a route. The Recipe page defines a Recipe as a proven creative example with a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost; it is not a generic workflow template. The page states that Recipes are free and operator execution requires real-time quote confirmation. Catalog data, downloads, and execution remain outside this MVP.
+The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent root page and returns to the current conversation without persisting a route. The Skill page loads ManturHub's public catalog and details, reuses ManturHub device login, and asks the Host to install a verified archive into this profile's live Skill directory. The Recipe page defines a Recipe as a proven creative example with a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost; it is not a generic workflow template. Recipe catalog data and execution remain deferred.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -57,7 +57,7 @@ Stable for a fixed working directory and underlying agent composition. The deskt
 - **Release assets remain pending** — the final macOS and Windows application icons require approved Mantur artwork.
 - **Three-platform installer verification remains pending** — macOS arm64, macOS x64, and Windows x64 packaging and signing must run on their native release runners.
 - **Capabilities remain installed** — Agent Preset and Plan packages are retained below this product layer; only their visible browser rows are disabled.
-- **Account scope is intentionally narrow** — this MVP provides sign-in, status, skip, and local sign-out; operator and skill access remain deferred.
+- **Recipe operations remain deferred** — device sign-in and Skill installation are connected, while recipe catalog, execution, quotes, and payment are not.
 
 <a id="dev-note"></a>
 ### Dev Note

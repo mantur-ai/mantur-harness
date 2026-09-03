@@ -43,6 +43,18 @@ interface Attempt {
   progress: ManturLoginProgress
 }
 
+/** Host-only options for one request to the configured ManturHub origin. */
+export interface ManturHubRequestOptions {
+  /** Attach the locally stored account grant; unsigned callers receive `undefined`. */
+  readonly authenticated: boolean
+  /** Additional non-secret request headers. */
+  readonly headers?: HeadersInit
+  /** Abort the network request. */
+  readonly signal?: AbortSignal
+  /** Redirect handling for the caller-owned protocol. */
+  readonly redirect?: RequestRedirect
+}
+
 const responseLimitBytes = 64 * 1024
 const defaultBaseUrl = 'https://hub.mantur.ai'
 
@@ -194,6 +206,33 @@ export class ManturHubAuthorization extends TypertRemoteService {
     ctx.effect(() => () => {
       if (this.currentAttempt !== undefined) ctx.authorization.cancel(MANTUR_ACCOUNT_CREDENTIAL)
     }, 'authorization-manturhub: cancel active attempt')
+  }
+
+  /**
+   * Send a Host-only GET to this account provider's configured deployment.
+   *
+   * The method accepts only root-relative paths so a stored grant cannot be
+   * forwarded to another origin. It is intentionally not a browser Remote.
+   *
+   * @param pathname - root-relative ManturHub API path.
+   * @param options - authentication, headers, cancellation, and redirect policy.
+   * @returns the response, or `undefined` when authentication was requested while signed out.
+   */
+  async request(pathname: string, options: ManturHubRequestOptions): Promise<Response | undefined> {
+    if (!pathname.startsWith('/') || pathname.startsWith('//')) {
+      throw new TypeError('authorization-manturhub: request pathname must be root-relative')
+    }
+    const headers = new Headers(options.headers)
+    if (options.authenticated) {
+      const grant = parseGrant(await this.ctx.credentials.readRecord(MANTUR_ACCOUNT_CREDENTIAL))
+      if (grant === undefined) return undefined
+      headers.set('x-api-key', grant.apiKey)
+    }
+    return await fetch(new URL(pathname, this.config.baseUrl), {
+      headers,
+      redirect: options.redirect ?? 'error',
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    })
   }
 
   /**

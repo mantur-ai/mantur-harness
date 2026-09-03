@@ -261,6 +261,18 @@ Host service registering the ManturHub authorization flow and account Remote.
 
 ```ts cordis-catalog
 /**
+ * Send a Host-only GET to this account provider's configured deployment.
+ *
+ * The method accepts only root-relative paths so a stored grant cannot be
+ * forwarded to another origin. It is intentionally not a browser Remote.
+ *
+ * @param pathname - root-relative ManturHub API path.
+ * @param options - authentication, headers, cancellation, and redirect policy.
+ * @returns the response, or `undefined` when authentication was requested while signed out.
+ */
+async request(pathname: string, options: ManturHubRequestOptions): Promise<Response | undefined>
+
+/**
  * Read local sign-in state without exposing the stored API key.
  * @returns signed-out or the sanitized account committed with the grant.
  */

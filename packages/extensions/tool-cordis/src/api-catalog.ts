@@ -1211,6 +1211,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host service registering the ManturHub authorization flow and account Remote.',
     methods: [
       {
+        signature: 'async request(pathname: string, options: ManturHubRequestOptions): Promise<Response | undefined>',
+        description: 'Send a Host-only GET to this account provider\'s configured deployment.\n\nThe method accepts only root-relative paths so a stored grant cannot be forwarded to another origin. It is intentionally not a browser Remote.',
+        parameters: [{ name: 'pathname', description: 'root-relative ManturHub API path.' }, { name: 'options', description: 'authentication, headers, cancellation, and redirect policy.' }],
+        returns: 'the response, or `undefined` when authentication was requested while signed out.',
+      },
+      {
         signature: '@Remote async status(): Promise<ManturAccountStatus>',
         description: 'Read local sign-in state without exposing the stored API key.',
         parameters: [],
@@ -1237,6 +1243,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async signOut(): Promise<void>',
         description: 'Remove the local ManturHub grant and cancel any unfinished login.',
         parameters: [],
+      },
+    ],
+  },
+  {
+    key: 'manturMarketplace',
+    summary: 'Host service for catalog reads and local Skill installation.',
+    description: 'Host service for catalog reads and local Skill installation.',
+    methods: [
+      {
+        signature: '@Remote async list(): Promise<ManturMarketplaceCatalog>',
+        description: 'Load the complete public Skill catalog and current local install flags.',
+        parameters: [],
+        returns: 'browser-safe catalog metadata.',
+      },
+      {
+        signature: '@Remote async detail(slug: string): Promise<ManturMarketplaceSkillDetail>',
+        description: 'Load one public Skill\'s detail metadata.',
+        parameters: [{ name: 'slug', description: 'validated Skill slug selected in the browser.' }],
+        returns: 'browser-safe Skill detail.',
+      },
+      {
+        signature: '@Remote async install(slug: string): Promise<ManturMarketplaceInstallResult>',
+        description: 'Download and atomically install one Skill into this running client\'s DSH_HOME.',
+        parameters: [{ name: 'slug', description: 'validated Skill slug selected in the browser.' }],
+        returns: 'Host-confirmed installed version.',
       },
     ],
   },
@@ -4418,6 +4449,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ManturAccountStatus = {\n    readonly status: \'signed-out\';\n} | {\n    readonly status: \'signed-in\';\n    readonly account: ManturAccount;\n};',
   },
   {
+    name: 'ManturHubRequestOptions',
+    declaration: 'export interface ManturHubRequestOptions {\n    readonly authenticated: boolean;\n    readonly headers?: HeadersInit;\n    readonly signal?: AbortSignal;\n    readonly redirect?: RequestRedirect;\n}',
+  },
+  {
     name: 'ManturLoginAttemptId',
     declaration: 'export type ManturLoginAttemptId = Branded<\'ManturLoginAttemptId\'>;',
   },
@@ -4428,6 +4463,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManturLoginStart',
     declaration: 'export interface ManturLoginStart {\n    readonly attemptId: ManturLoginAttemptId;\n    readonly verificationUrl: string;\n    readonly userCode: string;\n    readonly expiresAt: number;\n}',
+  },
+  {
+    name: 'ManturMarketplaceCatalog',
+    declaration: 'export interface ManturMarketplaceCatalog {\n    readonly skills: readonly ManturMarketplaceSkill[];\n    readonly installedCount: number;\n    readonly signedIn: boolean;\n}',
+  },
+  {
+    name: 'ManturMarketplaceInstallResult',
+    declaration: 'export interface ManturMarketplaceInstallResult {\n    readonly slug: string;\n    readonly version: string;\n    readonly installed: true;\n}',
+  },
+  {
+    name: 'ManturMarketplaceSkill',
+    declaration: 'export interface ManturMarketplaceSkill {\n    readonly slug: string;\n    readonly name: string;\n    readonly description: string;\n    readonly category: string;\n    readonly version: string;\n    readonly triggers: readonly string[];\n    readonly logoUrl?: string;\n    readonly installed: boolean;\n}',
+  },
+  {
+    name: 'ManturMarketplaceSkillDetail',
+    declaration: 'export interface ManturMarketplaceSkillDetail extends ManturMarketplaceSkill {\n    readonly usesOperators: readonly string[];\n    readonly introduction?: string;\n}',
   },
   {
     name: 'ManualCompactAgentContext',
