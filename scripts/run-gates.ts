@@ -491,7 +491,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
     return pnpmScript('web-snapshot', 'test:web:ci', {
       label: 'web browser snapshot',
       displayCommand: `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=${workers} pnpm run test:web:ci`,
-      env: { DSH_SNAPSHOT: 'replay' },
+      env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
       ...order,
       streamOutput: true,
     })
@@ -499,7 +499,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
   return pnpmScript('web-snapshot', 'test:web:built', {
     label: 'web browser snapshot',
     displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
-    env: { DSH_SNAPSHOT: 'replay' },
+    env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
     ...order,
   })
 }

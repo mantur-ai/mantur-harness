@@ -555,7 +555,7 @@ describe('Node 24 lane ownership', () => {
     )
     expect(subject.find(item => item.id === 'web-snapshot')).toMatchObject({
       displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
-      env: { DSH_SNAPSHOT: 'replay' },
+      env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
       after: [
         'publint',
         'lint-and-duplication',
@@ -576,7 +576,7 @@ describe('Linux primary graph', () => {
 
     expect(web).toMatchObject({
       displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
-      env: { DSH_SNAPSHOT: 'replay' },
+      env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
       needs: ['built-package-invariants'],
     })
   })
