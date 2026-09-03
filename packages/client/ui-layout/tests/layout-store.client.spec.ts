@@ -19,7 +19,13 @@ beforeEach(() => { localStorage.clear() })
 describe('createLayoutStore', () => {
   it('initializes the sidebar at its default width, details closed, wide viewport assumed', () => {
     const { store } = createLayoutStore().create()
-    expect(store.getSnapshot()).toEqual({ sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false })
+    expect(store.getSnapshot()).toEqual({
+      sidebar: SIDEBAR_DEFAULT,
+      details: 0,
+      narrow: false,
+      narrowExpanded: false,
+      mainPage: undefined,
+    })
   })
 
   it('each create() is an independent instance (factory is not a singleton)', () => {
@@ -85,6 +91,18 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().details).toBe(0)
   })
 
+  it('opens and closes a transient main page without persisting the selection', () => {
+    const first = createLayoutStore().create()
+    first.actions.openMainPage('skills' as never)
+    expect(first.store.getSnapshot().mainPage).toBe('skills')
+    first.actions.openMainPage('recipes' as never)
+    expect(first.store.getSnapshot().mainPage).toBe('recipes')
+    first.actions.closeMainPage()
+    expect(first.store.getSnapshot().mainPage).toBeUndefined()
+
+    expect(createLayoutStore().create().store.getSnapshot().mainPage).toBeUndefined()
+  })
+
   it('does not persist panel geometry', () => {
     const first = createLayoutStore().create()
     first.actions.setSidebar(400)
@@ -98,6 +116,7 @@ describe('createLayoutStore', () => {
       details: 0,
       narrow: false,
       narrowExpanded: false,
+      mainPage: undefined,
     })
   })
 })

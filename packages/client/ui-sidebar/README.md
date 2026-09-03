@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — ui-workspace fills `sidebar.workspaces`, ui-settings registers the trigger row and settings panel at `sidebar.settings`.
+The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — a product may fill `sidebar.navigation` above the browser, ui-workspace fills `sidebar.workspaces`, and ui-settings registers the trigger row and settings panel at `sidebar.settings`. The navigation occupant receives the transient main-page selection and its open and close actions; New Session closes a selected page before starting the Session.
 
 ### Brand and New Session
 
@@ -47,7 +47,7 @@ Scrollbars in the column are a pointer affordance: the shell rebinds the scrollb
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, the `sidebar.workspaces` and `sidebar.settings` child slots, and injected `startSession` plus sidebar-toggle callbacks. There is no plugin store.
+The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, `sidebar.navigation`, `sidebar.workspaces`, and `sidebar.settings`, plus injected `startSession` and sidebar-toggle callbacks. The navigation seat renders before the workspace seat; there is no plugin store.
 
 ### Slot discipline
 

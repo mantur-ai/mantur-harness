@@ -38,6 +38,7 @@
     "@deepseek-ai/dsh-authorization-manturhub": "workspace:^",
     "@deepseek-ai/dsh-client-ui-brand-mantur": "workspace:^",
     "@deepseek-ai/dsh-client-ui-mantur-account": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-mantur-navigation": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },

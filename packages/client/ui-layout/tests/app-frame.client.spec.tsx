@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * AppFrame interaction spec under the four-share props form: real layout
+ * AppFrame interaction spec under the slot props form: real layout
  * store instance (createLayoutStore().create() — the test-sanctioned engine
  * path), a recording renderSlot stub, and a SessionProvider component stub
  * (the real one is framework-wired to the renderer host; its own behavior is
@@ -63,6 +63,7 @@ function mountFrame() {
     if (key === 'sidebar') return <div data-testid="sidebar-content" />
     if (key === 'conversation') return <div data-testid="center-content" />
     if (key === 'details') return <div data-testid="details-content" />
+    if (key === 'main.page') return <div data-testid="main-page-content">marketplace</div>
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
     return <div data-testid="other-content" />
   }) as AppFrameProps['renderSlot']
@@ -254,7 +255,39 @@ describe('AppFrame', () => {
 
   it('sidebar slot receives live concession output as owner props', () => {
     const { slotCalls } = mountFrame()
-    expect(slotCalls.find(c => c.key === 'sidebar')!.props).toEqual({ collapsed: false, width: 280 })
+    const props = slotCalls.find(c => c.key === 'sidebar')!.props as {
+      collapsed: boolean
+      width: number
+      activeMainPage: unknown
+      openMainPage: unknown
+      closeMainPage: unknown
+    }
+    expect(props).toMatchObject({
+      collapsed: false,
+      width: 280,
+      activeMainPage: undefined,
+    })
+    expect(typeof props.openMainPage).toBe('function')
+    expect(typeof props.closeMainPage).toBe('function')
+  })
+
+  it('switches the center to a main page, keeps conversation state mounted, and returns', () => {
+    const { instance, getByTestId, queryByTestId, slotCalls } = mountFrame()
+    expect(queryByTestId('main-page-content')).toBeNull()
+
+    act(() => { instance.actions.openMainPage('skills' as never) })
+    expect(getByTestId('main-page-content')).toBeTruthy()
+    expect(getByTestId('center-content').parentElement?.hidden).toBe(true)
+    const props = slotCalls.filter(call => call.key === 'main.page').at(-1)?.props as {
+      activePage: unknown
+      closePage: unknown
+    }
+    expect(props.activePage).toBe('skills')
+    expect(typeof props.closePage).toBe('function')
+
+    act(() => { instance.actions.closeMainPage() })
+    expect(queryByTestId('main-page-content')).toBeNull()
+    expect(getByTestId('center-content').parentElement?.hidden).toBe(false)
   })
 
   it('sidebar drag widens through rAF-batched pointer moves', () => {
@@ -296,7 +329,7 @@ describe('AppFrame', () => {
     expect(getByTestId('sidebar-content')).toBeTruthy()
     expect(frame.hasAttribute('data-sidebar-collapsed')).toBe(true)
     const lastSidebarCall = slotCalls.filter(c => c.key === 'sidebar').at(-1)!
-    expect(lastSidebarCall.props).toEqual({ collapsed: true, width: SIDEBAR_COLLAPSED })
+    expect(lastSidebarCall.props).toMatchObject({ collapsed: true, width: SIDEBAR_COLLAPSED })
   })
 
   it('viewport shrink triggers the concession chain via ResizeObserver', () => {
@@ -328,7 +361,10 @@ describe('AppFrame — narrow-viewport auto-collapse', () => {
     const { frame, slotCalls } = mountFrame()
     expect(tracks(frame)).toEqual([SIDEBAR_COLLAPSED, 0])
     expect(frame.hasAttribute('data-sidebar-collapsed')).toBe(true)
-    expect(slotCalls.filter(c => c.key === 'sidebar').at(-1)!.props).toEqual({ collapsed: true, width: SIDEBAR_COLLAPSED })
+    expect(slotCalls.filter(c => c.key === 'sidebar').at(-1)!.props).toMatchObject({
+      collapsed: true,
+      width: SIDEBAR_COLLAPSED,
+    })
     expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
   })
 

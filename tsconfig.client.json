@@ -67,6 +67,7 @@
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-brand-mantur" },
     { "path": "./packages/client/ui-mantur-account" },
+    { "path": "./packages/client/ui-mantur-navigation" },
     { "path": "./packages/client/ui-approval" },
     { "path": "./packages/client/ui-chat" },
     { "path": "./packages/client/ui-conversation" },

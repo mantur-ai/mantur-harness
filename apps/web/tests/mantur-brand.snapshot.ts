@@ -110,6 +110,27 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     }
   }, 60_000)
 
+  it('switches between the Mantur marketplace pages and the current conversation', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-mantur-market-navigation'))
+    await page.getByText('项目', { exact: true }).waitFor({ timeout: 10_000 })
+    expect(await page.getByText('工作区', { exact: true }).count()).toBe(0)
+    await page.getByRole('navigation', { name: '功能' }).waitFor({ timeout: 10_000 })
+
+    const skills = page.getByRole('button', { name: '技能广场' })
+    await skills.click()
+    await page.getByRole('heading', { name: '技能广场' }).waitFor({ timeout: 10_000 })
+    expect(await skills.getAttribute('aria-current')).toBe('page')
+
+    await page.getByRole('button', { name: '配方广场' }).click()
+    await page.getByRole('heading', { name: '配方广场' }).waitFor({ timeout: 10_000 })
+    expect(await page.getByRole('button', { name: '配方广场' }).getAttribute('aria-current')).toBe('page')
+
+    await page.getByRole('button', { name: '返回对话' }).click()
+    await page.getByText('故事起于一念，余下交给漫途', { exact: true }).waitFor({ timeout: 10_000 })
+    expect(await page.getByRole('heading', { name: '配方广场' }).count()).toBe(0)
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
   it('renders the English Mantur surface while retaining model and permission selection', async () => {
     const englishScaffold = await launchWebScaffold({
       extraOverlayPath: OVERLAY,

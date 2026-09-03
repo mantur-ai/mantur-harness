@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, Models settings, DeepSeek API-key setup, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts independent Mantur brand and account plugins and disables the official brand row, preview notice, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
+This bundle is the final layer of the shipped `mantur` profile. It retains the Web runtime, model picker, permission picker, Models settings, DeepSeek API-key setup, and underlying agent capabilities while replacing the generic product identity with 漫途Agent: a Mantur-built agent for local comic-drama creation and production. It mounts independent Mantur brand, marketplace-navigation, and account plugins and disables the official brand row, preview notice, Agent Preset UI, Plan UI, Preview badge, and generic Web GUI prompt identity.
 
 ## Table of Contents
 
@@ -24,6 +24,8 @@ This bundle is the final layer of the shipped `mantur` profile. It retains the W
 ## Use this package
 
 Launch the complete product through `dsh --profile mantur`; the desktop carrier selects that profile automatically. The ordered bundle stack is `dsh-base`, `dsh-web-app`, then this layer. The `web` profile remains unchanged.
+
+The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent empty root page and returns to the current conversation without persisting a route. Catalog data, downloads, recipe execution, and payment remain outside this MVP.
 
 <a id="model-experience"></a>
 ## Model Experience

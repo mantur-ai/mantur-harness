@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器、Models 设置、DeepSeek API Key 配置与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途品牌与账号插件，并禁用官方品牌条目、预览版公告、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
+本 bundle 是随产品交付的 `mantur` profile 最后一层。它保留 Web 运行时、模型选择器、权限选择器、Models 设置、DeepSeek API Key 配置与底层 Agent 能力，同时把通用产品身份替换为漫途Agent：一个由漫途（Mantur）打造、用于本地漫剧创作与生产的 Agent。它挂载独立漫途品牌、广场导航与账号插件，并禁用官方品牌条目、预览版公告、Agent Preset 界面、Plan 界面、预览版徽标与通用 Web GUI 提示词身份。
 
 ## 目录
 
@@ -24,6 +24,8 @@ kind: "package-bundle"
 ## 使用本包
 
 通过 `dsh --profile mantur` 启动完整产品；桌面载体会自动选择该 profile。有序 bundle 栈为 `dsh-base`、`dsh-web-app` 与本层。`web` profile 保持不变。
+
+漫途侧栏在“项目”之前增加“功能”分组，并固定提供“技能广场”和“配方广场”入口。两个入口分别打开独立空主页面，可以返回当前对话，且不会持久化页面选择。目录数据、下载、配方执行和支付不属于本 MVP。
 
 <a id="model-experience"></a>
 ## 模型体验

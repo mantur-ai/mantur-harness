@@ -34,6 +34,9 @@ describe('dsh-mantur-app bundle', () => {
     expect(row('ui-brand-mantur')).toMatchObject({
       name: '@deepseek-ai/dsh-client-ui-brand-mantur',
     })
+    expect(row('ui-mantur-navigation')).toMatchObject({
+      name: '@deepseek-ai/dsh-client-ui-mantur-navigation',
+    })
     expect(row('authorization')).toMatchObject({ name: '@deepseek-ai/dsh-authorization' })
     expect(row('mantur-account')).toMatchObject({ name: '@deepseek-ai/dsh-authorization-manturhub' })
     expect(row('ui-mantur-account')).toMatchObject({ name: '@deepseek-ai/dsh-client-ui-mantur-account' })

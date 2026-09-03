@@ -802,13 +802,14 @@ function SearchResults({
 export function WorkspaceBrowser({
   wide,
   expandSidebar,
+  showConversation,
   useSessions,
   useSessionPendingInteraction,
   useWorkspaces,
   useStore,
   actions,
-  startSession,
-  open,
+  startSession: startSessionAction,
+  open: openSession,
   renameSession,
   forkSession,
   renameWorkspace,
@@ -824,6 +825,14 @@ export function WorkspaceBrowser({
   renderSlot,
   t,
 }: WorkspaceBrowserProps) {
+  const startSession = (workspaceId?: WorkspaceId): void => {
+    showConversation()
+    startSessionAction(workspaceId)
+  }
+  const open = (sessionId: SessionId): void => {
+    showConversation()
+    openSession(sessionId)
+  }
   const home = useHostInfo(info => info.home)
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
@@ -1072,7 +1081,11 @@ export function WorkspaceBrowser({
       <div className={css.sectionHeader}>
         {wide && (
           <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)}>
-            {groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')}
+            {groupBy === 'flat'
+              ? t('section.sessions')
+              : renderSlot('sidebar.workspaces.heading', {}, {
+                fallback: <>{t('section.workspaces')}</>,
+              })}
           </span>
         )}
         {wide && (

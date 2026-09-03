@@ -23,7 +23,7 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'main.page' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -149,7 +149,9 @@ export function AppFrame({
   const sidebarPreference = sidebarCollapsed
     ? 0
     : panels.sidebar === 0 ? SIDEBAR_DEFAULT : panels.sidebar
-  const cols = computeColumns(viewport, sidebarPreference, detailsSession === undefined ? 0 : panels.details)
+  const mainPageOpen = panels.mainPage !== undefined
+  const detailsPreference = mainPageOpen || detailsSession === undefined ? 0 : panels.details
+  const cols = computeColumns(viewport, sidebarPreference, detailsPreference)
   const colsRef = useRef(cols)
   colsRef.current = cols
 
@@ -194,6 +196,9 @@ export function AppFrame({
         {renderSlot('sidebar', {
           collapsed: sidebarCollapsed,
           width: cols.sidebar,
+          activeMainPage: panels.mainPage,
+          openMainPage: actions.openMainPage,
+          closeMainPage: actions.closeMainPage,
         })}
       </div>
       <>
@@ -202,7 +207,19 @@ export function AppFrame({
             the shell's own pending rendering. The conversation
             is session-maybe; SessionProvider withholds the strict details
             entry while no session is current. */}
-        <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
+        <CenterColumn>
+          <div className={css.conversationSurface} hidden={mainPageOpen}>
+            {renderSlot('conversation', {})}
+          </div>
+          {panels.mainPage !== undefined && (
+            <div className={css.mainPageSurface}>
+              {renderSlot('main.page', {
+                activePage: panels.mainPage,
+                closePage: actions.closeMainPage,
+              })}
+            </div>
+          )}
+        </CenterColumn>
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>
