@@ -57,7 +57,7 @@ const recipe = {
   price_dumplings: 0,
   author: '漫途创作实验室',
   copies: 128,
-  published_at: '2026-09-01T08:00:00.000Z',
+  published_at: '2026-08-25T03:51:03.407+00:00',
 }
 
 const recipeDetail = {
@@ -205,6 +205,7 @@ describe('ManturHub marketplace Host', () => {
       recipes: [{
         slug: recipe.slug,
         category: 'video',
+        publishedAt: recipe.published_at,
       }],
     })
     expect(catalog.recipes[0]?.coverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/recipe-cover\.jpg$/)
@@ -221,6 +222,7 @@ describe('ManturHub marketplace Host', () => {
       parameters: recipeDetail.params_json,
       models: recipeDetail.models,
       agentPayload: recipeDetail.agent_payload,
+      publishedAt: recipeDetail.published_at,
     })
     expect(detail.sourceUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/recipes\/rcp\.video\.story-vlog$/)
   })
@@ -240,6 +242,26 @@ describe('ManturHub marketplace Host', () => {
     expect(detail).not.toHaveProperty('sourceUrl')
     expect(detail).not.toHaveProperty('sourceName')
     expect(detail).not.toHaveProperty('sourceAvatarUrl')
+  })
+
+  it('accepts UTC Z Recipe timestamps and rejects timestamps without a timezone', async () => {
+    const utc = await boot({
+      recipeCatalog: {
+        recipes: [{ ...recipe, published_at: '2026-09-01T08:00:00.000Z' }],
+        total: 1, page: 1, page_size: 15, total_pages: 1, available_tags: [],
+      },
+    })
+    await expect(utc.service.listRecipes({})).resolves.toMatchObject({
+      recipes: [{ publishedAt: '2026-09-01T08:00:00.000Z' }],
+    })
+
+    const local = await boot({
+      recipeCatalog: {
+        recipes: [{ ...recipe, published_at: '2026-09-01T08:00:00.000' }],
+        total: 1, page: 1, page_size: 15, total_pages: 1, available_tags: [],
+      },
+    })
+    await expect(local.service.listRecipes({})).rejects.toThrow('could not be loaded')
   })
 
   it('rejects malformed Recipe requests before contacting ManturHub', async () => {
