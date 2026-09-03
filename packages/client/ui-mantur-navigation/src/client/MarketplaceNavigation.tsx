@@ -337,15 +337,16 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
   const loadPage = (page: number): void => {
     void controller.loadRecipes({ page, ...currentRecipeQuery(query, category) })
   }
-  const launch = async (): Promise<void> => {
-    if (detail === undefined) return
+  const launch = async (
+    selected: NonNullable<Extract<ManturRecipeMarketplaceState, { phase: 'ready' }>['detail']>,
+  ): Promise<void> => {
     if (await controller.startRecipe({
-      introduction: t('recipes.launchIntroduction').replace('{title}', detail.title),
-      identifier: t('recipes.launchIdentifier').replace('{slug}', detail.slug),
+      introduction: t('recipes.launchIntroduction').replace('{title}', selected.title),
+      identifier: t('recipes.launchIdentifier').replace('{slug}', selected.slug),
       platform: t('recipes.launchPlatform'),
-      ...(detail.sourceUrl === undefined
+      ...(selected.sourceUrl === undefined
         ? {}
-        : { source: t('recipes.launchSource').replace('{url}', detail.sourceUrl) }),
+        : { source: t('recipes.launchSource').replace('{url}', selected.sourceUrl) }),
     })) closePage()
   }
 
@@ -451,7 +452,7 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
             detail={detail}
             launching={ready?.launching === detail.slug}
             launchError={ready?.launchError}
-            launch={launch}
+            launch={() => launch(detail)}
             t={t}
           />
         )}

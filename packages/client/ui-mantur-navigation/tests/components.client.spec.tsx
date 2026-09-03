@@ -12,7 +12,10 @@ import type {
   ManturMarketplaceState, ManturMarketplaceStore, ManturRecipeMarketplaceState,
 } from '../src/client/store.ts'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 const t = makeTranslate(zh)
 const globalProps = {
@@ -577,5 +580,164 @@ describe('Mantur marketplace navigation', () => {
       />,
     )
     expect(screen.getAllByRole('button', { name: '已安装' }).every(button => button.hasAttribute('disabled'))).toBe(true)
+  })
+
+  it('loads filtered Recipe pages and exposes every catalog recovery action', async () => {
+    vi.useFakeTimers()
+    const failedProps = marketplaceProps(emptyReady, { phase: 'failed', query: { page: 2, category: 'video' } })
+    const view = render(
+      <MarketplacePage
+        {...globalProps} {...failedProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByText('配方列表加载失败，请检查网络后重试。')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
+    expect(failedProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ page: 2, category: 'video' })
+
+    const loadingProps = marketplaceProps(emptyReady, { phase: 'loading' })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...loadingProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByText('正在从 ManturHub 取回配方…')).toBeTruthy()
+
+    const detailLoadingProps = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [], total: 0, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detailLoading: recipe.slug,
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...detailLoadingProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByRole('status').textContent).toBe('正在展开配方…')
+
+    const detailErrorProps = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [], total: 0, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detailError: recipe.slug,
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...detailErrorProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '重新加载详情' }))
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }))
+    expect(detailErrorProps.controllerMocks.openRecipeDetail).toHaveBeenCalledWith(recipe.slug)
+    expect(detailErrorProps.controllerMocks.closeRecipeDetail).toHaveBeenCalledOnce()
+
+    const imageRecipe = { ...recipe, category: 'image' as const, sampleKind: 'image' as const, costEstimate: '' }
+    const catalogProps = marketplaceProps(emptyReady, {
+      phase: 'ready',
+      catalog: { recipes: [imageRecipe], total: 3, page: 2, pageSize: 1, totalPages: 3, availableTags: [] },
+      query: {},
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...catalogProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByText('运行前实时报价')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: `查看配方：${imageRecipe.title}` }))
+    fireEvent.click(screen.getByRole('button', { name: imageRecipe.title }))
+    fireEvent.click(screen.getByRole('button', { name: '上一页' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }))
+    expect(catalogProps.controllerMocks.openRecipeDetail).toHaveBeenCalledTimes(2)
+    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ page: 1 })
+    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenCalledWith({ page: 3 })
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' 旅行 ' } })
+    fireEvent.click(screen.getByRole('button', { name: '图片' }))
+    await vi.advanceTimersByTimeAsync(250)
+    expect(catalogProps.controllerMocks.loadRecipes).toHaveBeenLastCalledWith({ category: 'image', query: '旅行' })
+  })
+
+  it('renders Recipe detail variants and keeps failed launches on the page', async () => {
+    const catalog = { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] }
+    const imageDetail = {
+      ...recipe,
+      sampleKind: 'image' as const,
+      costEstimate: '',
+      sampleText: '',
+      promptTemplate: '',
+      parameters: { user_inputs: 42 },
+      models: [],
+      agentPayload: '请按配方执行。',
+    }
+    const props = marketplaceProps(emptyReady, {
+      phase: 'ready', catalog, query: {}, detail: imageDetail, launchError: 'no-workspace',
+    })
+    props.controllerMocks.startRecipe.mockResolvedValue(false)
+    const closePage = vi.fn()
+    const view = render(
+      <MarketplacePage
+        {...globalProps} {...props} activePage={MANTUR_MARKET_PAGES.recipes} closePage={closePage} t={t}
+      />,
+    )
+    expect(screen.getByRole('img', { name: imageDetail.title })).toBeTruthy()
+    expect(screen.getByText('运行前实时报价')).toBeTruthy()
+    expect(screen.getByText('42')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toBe('请先选择一个项目，再开始复刻。')
+    fireEvent.click(screen.getByRole('button', { name: '返回配方广场' }))
+    expect(props.controllerMocks.closeRecipeDetail).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: '交给 Agent 复刻' }))
+    await vi.waitFor(() => { expect(props.controllerMocks.startRecipe).toHaveBeenCalledOnce() })
+    expect(closePage).not.toHaveBeenCalled()
+    expect(props.controllerMocks.startRecipe).toHaveBeenCalledWith({
+      introduction: `我要复刻 ManturHub 配方「${imageDetail.title}」。`,
+      identifier: `配方标识：${imageDetail.slug}`,
+      platform: '配方平台：ManturHub',
+    })
+
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, {
+          phase: 'ready', catalog, query: {},
+          detail: { ...imageDetail, parameters: null }, launching: imageDetail.slug, launchError: 'failed',
+        })}
+        activePage={MANTUR_MARKET_PAGES.recipes} closePage={closePage} t={t}
+      />,
+    )
+    expect(screen.getByRole('button', { name: '正在创建新对话…' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('alert').textContent).toBe('新对话没有创建成功，请稍后重试。')
+
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, {
+          phase: 'ready', catalog, query: {}, detail: { ...imageDetail, parameters: '地点' },
+        })}
+        activePage={MANTUR_MARKET_PAGES.recipes} closePage={closePage} t={t}
+      />,
+    )
+    expect(screen.queryByText('你可以替换')).toBeNull()
+
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, {
+          phase: 'ready', catalog, query: {}, detail: { ...imageDetail, parameters: [] },
+        })}
+        activePage={MANTUR_MARKET_PAGES.recipes} closePage={closePage} t={t}
+      />,
+    )
+    expect(screen.queryByText('你可以替换')).toBeNull()
+
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...marketplaceProps(emptyReady, {
+          phase: 'ready', catalog, query: {}, detail: { ...imageDetail, parameters: { user_inputs: ['海边'] } },
+        })}
+        activePage={MANTUR_MARKET_PAGES.recipes} closePage={closePage} t={t}
+      />,
+    )
+    expect(screen.getByText('["海边"]')).toBeTruthy()
   })
 })
