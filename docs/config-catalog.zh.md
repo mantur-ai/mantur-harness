@@ -279,12 +279,19 @@ export interface Config {
 ```ts config-catalog
 /** ManturHub deployment endpoint. */
 export interface Config {
-  /** HTTP origin serving the ManturHub device and account APIs. */
+  /** Active ManturHub deployment; defaults to production. */
+  readonly environment?: ManturEnvironment
+  /** Production HTTP origin serving the ManturHub APIs. */
   readonly baseUrl?: string
+  /** Test HTTP origin; required before the test deployment can be selected. */
+  readonly testBaseUrl?: string
 }
+
+/** Named ManturHub deployment selected for every online Mantur request. */
+export type ManturEnvironment = 'production' | 'test'
 ```
 
-来源：[`packages/credentials/authorization-manturhub/src/index.ts:25`](../packages/credentials/authorization-manturhub/src/index.ts)
+来源：[`packages/credentials/authorization-manturhub/src/index.ts:35`](../packages/credentials/authorization-manturhub/src/index.ts)
 
 <a id="deepseek-aidsh-bash-local"></a>
 

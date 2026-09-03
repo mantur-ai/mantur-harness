@@ -32,6 +32,7 @@ const TOOL_SCHEMAS_EXPECTED = fileURLToPath(
   new URL('../../../snapshots/web/fresh-round-trip/tool-schemas.expected.json', import.meta.url),
 )
 const MARKETPLACE_EXPECTED = join(SNAPSHOT_DIR, 'marketplace.expected.md')
+const ACCOUNT_SETTINGS_EXPECTED = join(SNAPSHOT_DIR, 'account-settings.expected.md')
 const MODE = webSnapshotMode()
 
 const marketplaceSkill = {
@@ -226,6 +227,12 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     await dialog.waitFor({ timeout: 10_000 })
     expect(await dialog.getByRole('button', { name: 'Agent 预设' }).count()).toBe(0)
     await dialog.getByRole('button', { name: '模型' }).waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '漫途账号' }).click()
+    await dialog.getByText('服务环境', { exact: true }).waitFor({ timeout: 10_000 })
+    if (manturHub === undefined) throw new Error('ManturHub fixture did not start')
+    const accountSettings = (await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd))
+      .split(manturHub.baseUrl).join('{{manturHubUrl}}')
+    await compareOrRefreshGolden(ACCOUNT_SETTINGS_EXPECTED, accountSettings, MODE)
     await dialog.getByRole('button', { name: '关闭' }).click()
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)

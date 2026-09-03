@@ -279,6 +279,13 @@ async request(pathname: string, options: ManturHubRequestOptions): Promise<Respo
 @Remote async status(): Promise<ManturAccountStatus>
 
 /**
+ * Persist and activate one deployment selection through the settings provider.
+ * @param update - named environment and optional test origin.
+ * @returns the active browser-safe deployment after the committed write.
+ */
+@Remote async setEnvironment(update: ManturEnvironmentUpdate): Promise<ManturEnvironmentStatus>
+
+/**
  * Start one process-local device authorization attempt.
  * @returns browser-safe verification instructions after ManturHub creates the device session.
  */

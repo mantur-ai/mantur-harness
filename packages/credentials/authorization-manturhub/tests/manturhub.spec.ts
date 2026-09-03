@@ -7,7 +7,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import type { ManturLoginAttemptId, ManturLoginProgress } from '@deepseek-ai/dsh-authorization-manturhub/types'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
-import ManturHubAuthorization, { MANTUR_ACCOUNT_CREDENTIAL } from '../src/index.ts'
+import { FileSettingsProvider } from '@deepseek-ai/dsh-settings-file'
+import ManturHubAuthorization, {
+  MANTUR_ACCOUNT_CREDENTIAL,
+  MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE,
+  MANTUR_PRODUCTION_BASE_URL,
+  manturAccountCredential,
+  type Config,
+} from '../src/index.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 
@@ -79,28 +86,47 @@ function respond(response: ServerResponse, status: number, body: unknown): void 
   response.end(typeof body === 'string' ? body : JSON.stringify(body))
 }
 
-async function boot(origin?: string): Promise<{ ctx: Context; service: ManturHubAuthorization; path: string }> {
+async function boot(input: string | Config = {}, withSettings = true): Promise<{
+  ctx: Context
+  service: ManturHubAuthorization
+  path: string
+  settingsPath: string
+  stopSettings: () => Promise<void>
+}> {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-mantur-account-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   const path = join(dir, '.credentials.yaml')
+  const settingsPath = join(dir, 'settings.yaml')
   const ctx = new Context()
   cleanups.push(async () => { await ctx.fiber.dispose() })
+  let stopSettings = (): Promise<void> => Promise.resolve()
+  if (withSettings) {
+    const settingsFiber = ctx.plugin(FileSettingsProvider, { path: settingsPath, watch: false })
+    await settingsFiber
+    stopSettings = async () => { await settingsFiber.dispose() }
+  }
   await ctx.plugin(LocalCredentialProvider, { path, watch: false })
   await ctx.plugin(AuthorizationService)
-  const fiber = origin === undefined
-    ? ctx.plugin(ManturHubAuthorization)
-    : ctx.plugin(ManturHubAuthorization, { baseUrl: origin })
+  const fiber = ctx.plugin(ManturHubAuthorization, typeof input === 'string' ? { baseUrl: input } : input)
   await fiber.await()
-  return { ctx, service: ctx.manturAccount, path }
+  return { ctx, service: ctx.manturAccount, path, settingsPath, stopSettings }
+}
+
+function environment(origin: string, selected: 'production' | 'test' = 'production', testBaseUrl?: string) {
+  return {
+    environment: selected,
+    baseUrl: origin,
+    ...(testBaseUrl === undefined ? {} : { testBaseUrl }),
+  }
 }
 
 async function settled(service: ManturHubAuthorization, attemptId: ManturLoginAttemptId): Promise<ManturLoginProgress> {
-  for (let index = 0; index < 200; index += 1) {
+  for (let index = 0; index < 2_000; index += 1) {
     const progress = service.loginProgress(attemptId)
     if (progress.status !== 'pending') return progress
     await new Promise<void>(resolve => setImmediate(resolve))
   }
-  throw new Error('fake ManturHub login did not settle')
+  throw new Error(`fake ManturHub login did not settle: ${JSON.stringify(service.loginProgress(attemptId))}`)
 }
 
 async function waitForRequestCount(requests: readonly string[], prefix: string, count: number): Promise<void> {
@@ -154,9 +180,10 @@ describe('ManturHub device authorization', () => {
       status: 'authorized', account: { email: 'artist@example.com' },
     })
     await expect(subject.service.status()).resolves.toEqual({
-      status: 'signed-in', account: { email: 'artist@example.com' },
+      ...environment(hub.origin), status: 'signed-in', account: { email: 'artist@example.com' },
     })
-    expect(await subject.ctx.credentials.readRecord(MANTUR_ACCOUNT_CREDENTIAL)).toEqual({
+    const credential = manturAccountCredential('production', new URL(hub.origin))
+    expect(await subject.ctx.credentials.readRecord(credential)).toEqual({
       kind: 'grant',
       payload: { version: 1, apiKey: 'mantur-secret-key', account: { email: 'artist@example.com' } },
     })
@@ -165,14 +192,150 @@ describe('ManturHub device authorization', () => {
     await expect(subject.service.startLogin()).rejects.toThrow('already signed in')
 
     await subject.service.signOut()
-    await expect(subject.service.status()).resolves.toEqual({ status: 'signed-out' })
-    await expect(subject.ctx.credentials.readRecord(MANTUR_ACCOUNT_CREDENTIAL)).resolves.toBeUndefined()
+    await expect(subject.service.status()).resolves.toEqual({ ...environment(hub.origin), status: 'signed-out' })
+    await expect(subject.ctx.credentials.readRecord(credential)).resolves.toBeUndefined()
   })
 
   it('uses the production ManturHub origin when configuration omits baseUrl', async () => {
     const subject = await boot()
 
-    await expect(subject.service.status()).resolves.toEqual({ status: 'signed-out' })
+    expect(manturAccountCredential('production', new URL(MANTUR_PRODUCTION_BASE_URL)))
+      .toBe(MANTUR_ACCOUNT_CREDENTIAL)
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(MANTUR_PRODUCTION_BASE_URL), status: 'signed-out',
+    })
+  })
+
+  it('persists one active environment and isolates grants by deployment origin', async () => {
+    const production = await fakeHub()
+    const test = await fakeHub()
+    const alternateTest = await fakeHub()
+    const subject = await boot({ baseUrl: production.origin, testBaseUrl: test.origin })
+
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(production.origin, 'production', test.origin), status: 'signed-out',
+    })
+    const productionLogin = await subject.service.startLogin()
+    await expect(settled(subject.service, productionLogin.attemptId)).resolves.toMatchObject({ status: 'authorized' })
+
+    await expect(subject.service.setEnvironment({ environment: 'test', testBaseUrl: test.origin })).resolves.toEqual(
+      environment(test.origin, 'test', test.origin),
+    )
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(test.origin, 'test', test.origin), status: 'signed-out',
+    })
+    await subject.service.request('/environment-marker', { authenticated: false })
+    expect(test.requests).toContain('GET /environment-marker ')
+    expect(production.requests).not.toContain('GET /environment-marker ')
+
+    const testLogin = await subject.service.startLogin()
+    await expect(settled(subject.service, testLogin.attemptId)).resolves.toMatchObject({ status: 'authorized' })
+    const productionCredential = manturAccountCredential('production', new URL(production.origin))
+    const testCredential = manturAccountCredential('test', new URL(test.origin))
+    expect(productionCredential).not.toBe(testCredential)
+    await expect(subject.ctx.credentials.readRecord(productionCredential)).resolves.toBeDefined()
+    await expect(subject.ctx.credentials.readRecord(testCredential)).resolves.toBeDefined()
+
+    await subject.service.setEnvironment({ environment: 'production' })
+    await expect(subject.service.status()).resolves.toMatchObject({
+      environment: 'production', baseUrl: production.origin, status: 'signed-in',
+    })
+    await subject.service.setEnvironment({ environment: 'test', testBaseUrl: alternateTest.origin })
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(alternateTest.origin, 'test', alternateTest.origin), status: 'signed-out',
+    })
+    await expect(subject.ctx.credentials.readRecord(testCredential)).resolves.toBeDefined()
+    const settings = await readFile(subject.settingsPath, 'utf8')
+    expect(settings).toContain('environment: test')
+    expect(settings).toContain(alternateTest.origin)
+    expect(settings).not.toContain('mantur-secret-key')
+  })
+
+  it('rejects incomplete, invalid, and same-origin test environment settings', async () => {
+    const subject = await boot()
+
+    await expect(subject.service.setEnvironment({ environment: 'test' })).rejects.toThrow(
+      'environment could not be changed',
+    )
+    await expect(subject.service.setEnvironment({ environment: 'test', testBaseUrl: 'not a URL' })).rejects.toThrow(
+      'environment could not be changed',
+    )
+    await expect(subject.service.setEnvironment({
+      environment: 'test', testBaseUrl: MANTUR_PRODUCTION_BASE_URL,
+    })).rejects.toThrow('environment could not be changed')
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(MANTUR_PRODUCTION_BASE_URL), status: 'signed-out',
+    })
+    expect(() => new ManturHubAuthorization(
+      new Context(), { environment: 'staging' as never },
+    )).toThrow('environment must be')
+  })
+
+  it('cancels an active login when the selected environment changes', async () => {
+    const production = await fakeHub({ polls: [{ status: 'pending' }] })
+    const test = await fakeHub()
+    const subject = await boot({ baseUrl: production.origin, testBaseUrl: test.origin })
+    const start = await subject.service.startLogin()
+
+    await subject.service.setEnvironment({ environment: 'test', testBaseUrl: test.origin })
+
+    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'cancelled' })
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(test.origin, 'test', test.origin), status: 'signed-out',
+    })
+  })
+
+  it('cancels an active login after an external settings change', async () => {
+    const production = await fakeHub({ polls: [{ status: 'pending' }] })
+    const test = await fakeHub()
+    const subject = await boot({ baseUrl: production.origin, testBaseUrl: test.origin })
+    const start = await subject.service.startLogin()
+
+    await subject.ctx.settings.update(MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE, {
+      environment: 'test', testBaseUrl: test.origin,
+    })
+
+    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'cancelled' })
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(test.origin, 'test', test.origin), status: 'signed-out',
+    })
+  })
+
+  it('refuses to start login when the environment changes during the credential read', async () => {
+    const production = await fakeHub()
+    const test = await fakeHub()
+    const subject = await boot({ baseUrl: production.origin, testBaseUrl: test.origin })
+    const read = Promise.withResolvers<undefined>()
+    const readRecord = vi.spyOn(subject.ctx.credentials, 'readRecord').mockReturnValueOnce(read.promise)
+    const starting = subject.service.startLogin()
+    await waitForMockCall(readRecord)
+    await subject.ctx.settings.update(MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE, {
+      environment: 'test', testBaseUrl: test.origin,
+    })
+    await new Promise<void>(resolve => setImmediate(resolve))
+
+    read.resolve(undefined)
+
+    await expect(starting).rejects.toThrow('environment changed')
+    expect(production.requests).toEqual([])
+    expect(test.requests).toEqual([])
+  })
+
+  it('reports unavailable and failed settings writes without changing deployment', async () => {
+    const unavailable = await boot({}, false)
+    await expect(unavailable.service.setEnvironment({ environment: 'production' })).rejects.toThrow(
+      'settings are unavailable',
+    )
+
+    const subject = await boot()
+    vi.spyOn(subject.ctx.settings, 'update').mockRejectedValueOnce(new Error('disk failed'))
+    await expect(subject.service.setEnvironment({ environment: 'production' })).rejects.toThrow(
+      'settings could not be saved',
+    )
+    await subject.stopSettings()
+    await expect(subject.service.status()).resolves.toEqual({
+      ...environment(MANTUR_PRODUCTION_BASE_URL), status: 'signed-out',
+    })
   })
 
   it('never sends a stored grant to a URL that parses outside the configured origin', async () => {
@@ -209,7 +372,7 @@ describe('ManturHub device authorization', () => {
     const notices: unknown[] = []
 
     await expect(subject.ctx.authorization.begin({
-      key: MANTUR_ACCOUNT_CREDENTIAL,
+      key: manturAccountCredential('production', new URL(hub.origin)),
       method: 'device-code',
       interaction: {
         notify: (notice) => { notices.push(notice) },
@@ -223,7 +386,7 @@ describe('ManturHub device authorization', () => {
       code: 'MANT-1234',
     }])
     await expect(subject.service.status()).resolves.toEqual({
-      status: 'signed-in', account: { email: 'artist@example.com' },
+      ...environment(hub.origin), status: 'signed-in', account: { email: 'artist@example.com' },
     })
   })
 
@@ -274,7 +437,8 @@ describe('ManturHub device authorization', () => {
     const start = await subject.service.startLogin()
 
     await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'failed' })
-    await expect(subject.ctx.credentials.readRecord(MANTUR_ACCOUNT_CREDENTIAL)).resolves.toBeUndefined()
+    await expect(subject.ctx.credentials.readRecord(manturAccountCredential('production', new URL(hub.origin))))
+      .resolves.toBeUndefined()
   })
 
   it('rejects a duplicate attempt and distinguishes matching from foreign cancellation', async () => {
@@ -329,7 +493,7 @@ describe('ManturHub device authorization', () => {
     const subject = await boot(hub.origin)
 
     await expect(subject.service.startLogin()).rejects.toThrow('could not be started')
-    await expect(subject.service.status()).resolves.toEqual({ status: 'signed-out' })
+    await expect(subject.service.status()).resolves.toEqual({ ...environment(hub.origin), status: 'signed-out' })
   })
 
   it('rejects invalid endpoint configuration and damaged local credentials', async () => {
@@ -340,7 +504,7 @@ describe('ManturHub device authorization', () => {
     const hub = await fakeHub()
     const subject = await boot(hub.origin)
     await subject.ctx.credentials.modifyRecord(
-      MANTUR_ACCOUNT_CREDENTIAL,
+      manturAccountCredential('production', new URL(hub.origin)),
       () => Promise.resolve({ kind: 'api-key', key: 'wrong-record-kind' }),
     )
 

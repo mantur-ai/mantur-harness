@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-这个 Host 包为 `https://hub.mantur.ai` 注册一个 `ctx.authorization` 设备码 flow。Flow 创建并轮询 ManturHub 设备会话、核验账号，并且只把返回的 API Key 提交到 Host 凭据记录。生成的 `manturAccount` Remote 只返回设备登录说明、账号邮箱、进度和本机退出能力，绝不返回 API Key。
+这个 Host 包持有当前 ManturHub 线上或测试部署，为每个已配置 origin 注册一个 `ctx.authorization` 设备码 flow，并把所有 `manturAccount.request()` 统一路由到已选部署。每个 origin 使用独立的 Host 凭据记录。生成的 `manturAccount` Remote 返回部署状态、设备登录说明、账号邮箱、进度、本机退出和持久环境切换能力，绝不返回 API Key。
 
 ## 目录
 
@@ -24,7 +24,11 @@ kind: "package-reference"
 
 ## 配置
 
-`baseUrl` 默认为 `https://hub.mantur.ai`。测试与私有部署可以指定另一个 HTTP(S) origin。来自其他 origin 的验证地址会被拒绝。会话缺少 `interval` 或 `expires_in` 时，使用已安装 ManturHub CLI 的 5 秒与 600 秒值。`slow_down` 会给当前轮询间隔增加 5 秒；拒绝与过期会在不写入凭据的情况下结束本次尝试。
+`environment` 默认为 `production`。`baseUrl` 默认为 `https://hub.mantur.ai`，用于命名线上 origin；`testBaseUrl` 用于命名可选测试 origin，选择 `test` 前必须先配置。两个值都必须是不含凭据、路径、查询或片段的 HTTP(S) origin，且测试 origin 必须与线上不同。可写的 `manturhub` 设置分区会实时应用变更。切换环境会取消正在进行的设备 flow；桌面浏览器随后刷新，清空内存中的账号与广场状态。
+
+公共线上 origin 保留原凭据 key，因此现有线上登录仍然有效。其他线上或测试 origin 都使用由环境与 origin 共同区分的凭据 key。更换测试 URL 后会从未登录状态开始，不会把旧测试授权发送给新服务器。环境设置只保存名称与 URL；授权仍留在凭据提供方中。
+
+来自其他 origin 的验证地址会被拒绝。会话缺少 `interval` 或 `expires_in` 时使用 5 秒与 600 秒。`slow_down` 会给当前轮询间隔增加 5 秒；拒绝与过期会在不写入凭据的情况下结束本次尝试。
 
 <a id="model-experience"></a>
 ## 模型体验

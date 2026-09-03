@@ -17,7 +17,11 @@ async function bench() {
   ctx.provide('locale', locale)
   const remote = new TestRemote(ctx, {
     manturAccount: {
-      status: vi.fn(() => Promise.resolve({ ok: true, value: { status: 'signed-out' } })),
+      status: vi.fn(() => Promise.resolve({
+        ok: true,
+        value: { status: 'signed-out', environment: 'production', baseUrl: 'https://hub.mantur.ai' },
+      })),
+      setEnvironment: vi.fn(),
       startLogin: vi.fn(),
       loginProgress: vi.fn(),
       cancelLogin: vi.fn(),

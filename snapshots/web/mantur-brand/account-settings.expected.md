@@ -1,0 +1,28 @@
+- dialog "设置":
+  - navigation:
+    - text: 设置
+    - button "通用设置":
+      - img
+      - text: 通用设置
+    - button "漫途账号":
+      - img
+      - text: 漫途账号
+    - button "模型":
+      - img
+      - text: 模型
+    - button "插件":
+      - img
+      - text: 插件
+  - button "打开配置文件"
+  - button "关闭":
+    - img
+    - text: 关闭
+  - strong: 服务环境
+  - text: 登录、算子（Skill）广场与配方广场会统一使用所选环境；两套登录凭据互不共享。 当前环境
+  - combobox "当前环境":
+    - option "线上环境" [selected]
+    - option "测试环境"
+  - text: "当前地址: {{manturHubUrl}}"
+  - button "切换并刷新"
+  - text: 尚未登录漫途账号
+  - button "登录漫途账号"

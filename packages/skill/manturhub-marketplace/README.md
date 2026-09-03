@@ -25,7 +25,7 @@ This Host plugin exposes browser-safe ManturHub Skill and Recipe catalog and det
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, reads public Skill and Recipe catalog and detail endpoints, and installs Skills into `<DSH_HOME>/skills/<slug>`. Recipe list reads are fixed at the Hub-supported 15 entries per page and accept page, category, tag, and text filters. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, and both request stages. The defaults match the official ManturHub CLI policy.
+Compose this package through [`dsh-mantur-app`](../../bundle/mantur-app/README.md). It requires `manturAccount`, so public Skill and Recipe catalog reads, details, and authenticated downloads always use the account service's active production or test origin. It installs Skills into `<DSH_HOME>/skills/<slug>`. Recipe list reads are fixed at the Hub-supported 15 entries per page and accept page, category, tag, and text filters. Configuration bounds metadata bytes, compressed bytes, archive entries, uncompressed bytes, and both request stages. The defaults match the official ManturHub CLI policy.
 
 The list endpoint accepts the deployed `{ skills }` envelope and the CLI-compatible raw array. Detail accepts a direct Skill or `{ skill }`. Entries with `kind: suite` are excluded; a missing `kind` means `skill`.
 
@@ -65,6 +65,7 @@ Stable until installation commits a new Skill directory; later catalog tool outp
 <a id="known-limitations-and-deferred-work"></a>
 
 - There is no forced overwrite, uninstall, or local-conflict merge operation.
+- Environment switching isolates remote catalog data, downloads, and grants. The live local Skill directory and installer state remain shared, so an installed Skill stays available after a switch and normal version/conflict checks still apply.
 - Skill bundles must use ZIP. Extraction is implemented in-process and does not depend on platform archive commands.
 - Recipe handoff, operator execution, quote confirmation, and payment are outside this Host package; it returns the published `agent_payload` unchanged to its browser consumer.
 
