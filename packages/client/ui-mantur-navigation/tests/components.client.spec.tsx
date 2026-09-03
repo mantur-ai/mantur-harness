@@ -602,6 +602,14 @@ describe('Mantur marketplace navigation', () => {
     )
     expect(screen.getByText('正在从 ManturHub 取回配方…')).toBeTruthy()
 
+    const idleProps = marketplaceProps(emptyReady, { phase: 'idle' })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...idleProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(idleProps.controllerMocks.loadRecipes).toHaveBeenCalledWith()
+
     const detailLoadingProps = marketplaceProps(emptyReady, {
       phase: 'ready',
       catalog: { recipes: [], total: 0, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
@@ -642,8 +650,7 @@ describe('Mantur marketplace navigation', () => {
         {...globalProps} {...catalogProps} activePage={MANTUR_MARKET_PAGES.recipes} closePage={vi.fn()} t={t}
       />,
     )
-    await vi.advanceTimersByTimeAsync(250)
-    catalogProps.controllerMocks.loadRecipes.mockClear()
+    expect(catalogProps.controllerMocks.loadRecipes).not.toHaveBeenCalled()
     expect(screen.getByText('运行前实时报价')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: `查看配方：${imageRecipe.title}` }))
     fireEvent.click(screen.getByRole('button', { name: imageRecipe.title }))
