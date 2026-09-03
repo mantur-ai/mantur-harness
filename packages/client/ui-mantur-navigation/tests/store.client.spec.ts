@@ -137,20 +137,39 @@ describe('Mantur marketplace store', () => {
     })
   })
 
-  it.each([
-    ['mantur-marketplace/auth-required', 'auth-required'],
-    ['gateway/internal', 'failed'],
-  ] as const)('maps %s installation failures', async (code, expected) => {
+  it('marks the catalog signed out when the Host reports expired authorization', async () => {
     const store = subject({
       manturMarketplace: {
-        installSkill: () => Promise.resolve({ ok: false as const, error: { code, message: 'failed' } }),
+        installSkill: () => Promise.resolve({
+          ok: false as const,
+          error: { code: 'mantur-marketplace/auth-required', message: 'expired' },
+        }),
       },
     })
     store.store.set({ phase: 'ready', catalog: { skills: [listed], installedCount: 0, signedIn: true } })
 
     await store.install(listed.slug)
 
-    expect(store.store.getSnapshot()).toMatchObject({ installError: expected })
+    expect(store.store.getSnapshot()).toMatchObject({
+      installError: 'auth-required',
+      catalog: { signedIn: false },
+    })
+  })
+
+  it('maps generic installation failures', async () => {
+    const store = subject({
+      manturMarketplace: {
+        installSkill: () => Promise.resolve({
+          ok: false as const,
+          error: { code: 'gateway/internal', message: 'failed' },
+        }),
+      },
+    })
+    store.store.set({ phase: 'ready', catalog: { skills: [listed], installedCount: 0, signedIn: true } })
+
+    await store.install(listed.slug)
+
+    expect(store.store.getSnapshot()).toMatchObject({ installError: 'failed', catalog: { signedIn: true } })
   })
 
   it('requires sign-in and ignores duplicate or inapplicable installation requests', async () => {

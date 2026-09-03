@@ -229,20 +229,25 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
     await page.getByText('故事导演', { exact: true }).click()
     await page.getByRole('dialog', { name: '故事导演' }).waitFor({ timeout: 10_000 })
     await page.getByText('版本 1.2.3', { exact: true }).waitFor({ timeout: 10_000 })
-    const detail = await captureStableAria(page, 'main', scaffold.workspaceCwd)
+    const detail = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    expect(detail).toContain('版本 1.2.3')
 
     await page.getByRole('button', { name: '登录后安装' }).click()
     await page.getByText('MANTUR-1234', { exact: true }).waitFor({ timeout: 10_000 }).catch(async () => {
       throw new Error(`Mantur marketplace login did not start. Requests: ${manturHub?.requests.join(', ') ?? 'fixture unavailable'}. Page errors: ${tripwire.pageErrors.map(String).join('; ')}. Main: ${await page.locator('main').innerText()}`)
     })
-    const loginGate = await captureStableAria(page, 'main', scaffold.workspaceCwd)
     if (manturHub === undefined) throw new Error('ManturHub fixture did not start')
+    const loginGate = (await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd))
+      .split(manturHub.baseUrl).join('{{manturHubUrl}}')
+    expect(loginGate).toContain('MANTUR-1234')
     manturHub.authorize()
     const detailInstall = page.getByRole('dialog', { name: '故事导演' }).getByRole('button', { name: '安装技能' })
     await detailInstall.waitFor({ timeout: 10_000 })
     await detailInstall.click()
     await page.getByRole('alert').filter({ hasText: '技能安装失败' }).waitFor({ timeout: 10_000 })
-    const installFailure = await captureStableAria(page, 'main', scaffold.workspaceCwd)
+    const installFailure = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    expect(installFailure).toContain('alert')
+    expect(installFailure).toContain('技能安装失败')
     await compareOrRefreshGolden(
       MARKETPLACE_EXPECTED,
       [`## Catalog\n\n${catalog}`, `## Detail\n\n${detail}`, `## Login gate\n\n${loginGate}`, `## Install failure\n\n${installFailure}`].join('\n\n'),

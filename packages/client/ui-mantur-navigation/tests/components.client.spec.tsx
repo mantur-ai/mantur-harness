@@ -202,7 +202,11 @@ describe('Mantur marketplace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: '安装技能' }))
     expect(signedInProps.controllerMocks.install).toHaveBeenCalledWith('story-director')
 
-    const directFailureProps = marketplaceProps({ ...signedIn, installError: 'auth-required' })
+    const directFailureProps = marketplaceProps({
+      ...signedIn,
+      catalog: { ...signedIn.catalog, signedIn: false },
+      installError: 'auth-required',
+    })
     view.rerender(
       <MarketplacePage
         {...globalProps}
@@ -213,6 +217,26 @@ describe('Mantur marketplace navigation', () => {
       />,
     )
     expect(screen.getByRole('alert').textContent).toContain('ManturHub 登录已失效')
+    fireEvent.click(screen.getByRole('button', { name: /故事导演/ }))
+    expect(directFailureProps.controllerMocks.openDetail).toHaveBeenCalledWith(listed.slug)
+
+    const reloginProps = marketplaceProps({
+      ...signedIn,
+      catalog: { ...signedIn.catalog, signedIn: false },
+      detail: { ...listed, usesOperators: [] },
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps}
+        {...reloginProps}
+        activePage={MANTUR_MARKET_PAGES.skills}
+        closePage={closePage}
+        t={t}
+      />,
+    )
+    expect(screen.queryByRole('alert')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '登录后安装' }))
+    expect(reloginProps.controllerMocks.startLogin).toHaveBeenCalledOnce()
 
     const installingProps = marketplaceProps({
       ...signedIn, installing: listed.slug, detail: { ...listed, usesOperators: [] },

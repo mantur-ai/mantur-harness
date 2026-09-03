@@ -100,7 +100,14 @@ export class ManturMarketplaceStore {
         : result.error.code === 'mantur-marketplace/local-conflict'
           ? 'local-conflict'
           : 'failed'
-      this.store.set({ ...pending, installing: undefined, installError })
+      this.store.set({
+        ...pending,
+        installing: undefined,
+        installError,
+        catalog: installError === 'auth-required'
+          ? { ...pending.catalog, signedIn: false }
+          : pending.catalog,
+      })
       return
     }
     const skills = pending.catalog.skills.map(skill => skill.slug === slug
