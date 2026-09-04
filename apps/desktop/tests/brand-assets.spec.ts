@@ -25,5 +25,6 @@ describe('Mantur desktop brand assets', () => {
     ])
     expect(desktopLogo).toEqual(webLogo)
     expect(desktopLogo.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    expect(desktopLogo[25]).toBe(2)
   })
 })

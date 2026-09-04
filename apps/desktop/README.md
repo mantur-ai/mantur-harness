@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. Both native package targets use the approved blue infinity-loop logo, and the desktop package does not implement another agent runtime.
+The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. Development and packaged applications use the approved blue infinity-loop logo for the native window, macOS Dock, About panel, and installer assets. The desktop package does not implement another agent runtime.
 
 ## Develop without packaging
 
@@ -78,6 +78,6 @@ The same update controller runs on macOS Intel, macOS Apple Silicon, and Windows
 ## Known limitations
 
 - The `Desktop package` artifacts remain unsigned internal installers. macOS Gatekeeper and Windows SmartScreen can warn for those files; use only the `Desktop release` artifacts for external macOS distribution.
-- The approved icon source is a 1024 px transparent PNG. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
+- The approved icon source is a 1024 px PNG with an opaque white background. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
 - The signed release workflow publishes macOS only. Windows external updates remain unsupported until a Windows code-signing identity and protected publication path exist.
 - Each target is valid only after its native runner completes both packaging and the smoke. A build on one architecture is not evidence for another target.

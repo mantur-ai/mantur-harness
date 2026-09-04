@@ -17,6 +17,7 @@ import { buildApplicationMenu } from './update-menu.ts'
 import { startAutoUpdates, type DesktopUpdateController, type DesktopUpdateState } from './updater.ts'
 
 const APP_NAME = '漫途Agent'
+const APP_ICON = fileURLToPath(new URL('../resources/mantur-logo.png', import.meta.url))
 const STARTUP_PAGE = fileURLToPath(new URL('../resources/startup.html', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
@@ -88,6 +89,7 @@ function createWindow(target = STARTUP_PAGE): BrowserWindow {
     show: false,
     backgroundColor: '#f7f8fa',
     title: APP_NAME,
+    icon: APP_ICON,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -239,7 +241,12 @@ if (!singleInstance) {
     mainWindow?.focus()
   })
   void app.whenReady().then(() => {
-    app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion() })
+    if (process.platform === 'darwin') app.dock?.setIcon(APP_ICON)
+    app.setAboutPanelOptions({
+      applicationName: APP_NAME,
+      applicationVersion: app.getVersion(),
+      iconPath: APP_ICON,
+    })
     renderApplicationMenu()
     return launch()
   }).catch((error: unknown) => {
