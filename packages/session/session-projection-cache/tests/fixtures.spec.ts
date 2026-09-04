@@ -66,6 +66,7 @@ const titleUnit = {
 } satisfies ProjectionDefinition<'title', string | null>
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url))
+const rewriteTimeoutMs = process.platform === 'win32' ? 30_000 : 5_000
 
 /** One archived per-record document (`{version, record}`). */
 interface FixtureDoc {
@@ -131,7 +132,7 @@ async function assertRewrite(ctx: Context, root: string, id: SessionId): Promise
     expect(doc.version).toBe(projectionCacheDomainSpec.version)
     expect(doc.record.identity).toMatchObject({ isSeeded: false, inheritedEventCount: 0 })
     expect(doc.record.rows['title']?.val).toBe('重写标题')
-  }, { timeout: 5_000 })
+  }, { timeout: rewriteTimeoutMs })
 }
 
 afterEach(async () => {
