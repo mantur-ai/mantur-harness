@@ -1,10 +1,12 @@
-/** Run serial browser owners before one bounded snapshot pool. */
+/** Run build readers before the serial browser owner that rewrites build output. */
 import { spawn } from 'node:child_process'
 import { pnpmInvocation } from './pnpm-invocation.ts'
 
-const serialFiles = [
-  'apps/web/tests/hmr-live.e2e.ts',
+const beforePoolFiles = [
   'apps/web/tests/cordis-tool-round.e2e.ts',
+]
+const afterPoolFiles = [
+  'apps/web/tests/hmr-live.e2e.ts',
 ]
 const workerRaw = process.env.DSH_WEB_SNAPSHOT_WORKERS
 const workers = Number.parseInt(workerRaw ?? '', 10)
@@ -13,20 +15,23 @@ if (!Number.isSafeInteger(workers) || workers < 2 || String(workers) !== workerR
 }
 const invocation = pnpmInvocation(['exec', 'vitest', 'run', '--config', 'vitest.web.config.ts'])
 let serialStatus = 0
-for (const file of serialFiles) {
+for (const file of beforePoolFiles) {
   serialStatus = await run(invocation.command, [...invocation.args, file])
   if (serialStatus !== 0) break
 }
 if (serialStatus === 0) {
-  process.exitCode = await run(invocation.command, [
+  serialStatus = await run(invocation.command, [
     ...invocation.args,
-    ...serialFiles.map(file => `--exclude=${file}`),
+    ...[...beforePoolFiles, ...afterPoolFiles].map(file => `--exclude=${file}`),
     '--fileParallelism',
     `--maxWorkers=${String(workers)}`,
   ])
-} else {
-  process.exitCode = serialStatus
 }
+for (const file of afterPoolFiles) {
+  if (serialStatus !== 0) break
+  serialStatus = await run(invocation.command, [...invocation.args, file])
+}
+process.exitCode = serialStatus
 
 function run(command: string, args: string[]): Promise<number> {
   return new Promise((resolveRun, reject) => {

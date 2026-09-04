@@ -86,7 +86,8 @@ The registry is host+per-scope layered, the shape the tools registry established
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry, `SkillRegistry` service, candidate and definition validation, shared model-facing rendering |
-| — | No runtime invariant companion is published; provider/runtime maps and revisioned caches mutate atomically inside the registry, which exposes no independent change event or snapshot for cross-checking them. |
+| [`src/types.ts`](src/types.ts) | Client-safe `skills/change` declaration shared by Host producers and Remote consumers |
+| — | No runtime invariant companion is published; provider/runtime maps, revisioned caches, and change emission are owned by the same registry operation, so no independently maintained relationship can diverge. |
 
 ### Catalog collection
 

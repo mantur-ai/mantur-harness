@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import AuthorizationService from '@deepseek-ai/dsh-authorization'
+import AuthorizationService, { type AuthorizationSettlement } from '@deepseek-ai/dsh-authorization'
 import type { ManturLoginAttemptId, ManturLoginProgress } from '@deepseek-ai/dsh-authorization-manturhub/types'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
-import ManturHubAuthorization, { MANTUR_ACCOUNT_CREDENTIAL } from '../src/index.ts'
+import ManturHubAuthorization, { MANTUR_ACCOUNT_CREDENTIAL, readManturHubJson } from '../src/index.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 
@@ -94,13 +94,23 @@ async function boot(origin?: string): Promise<{ ctx: Context; service: ManturHub
   return { ctx, service: ctx.manturAccount, path }
 }
 
-async function settled(service: ManturHubAuthorization, attemptId: ManturLoginAttemptId): Promise<ManturLoginProgress> {
-  for (let index = 0; index < 200; index += 1) {
-    const progress = service.loginProgress(attemptId)
-    if (progress.status !== 'pending') return progress
-    await new Promise<void>(resolve => setImmediate(resolve))
-  }
-  throw new Error('fake ManturHub login did not settle')
+function nextAttemptSettlement(ctx: Context): Promise<AuthorizationSettlement> {
+  const completed = Promise.withResolvers<AuthorizationSettlement>()
+  const dispose = ctx.on('authorization/settled', (key, settlement) => {
+    if (key !== MANTUR_ACCOUNT_CREDENTIAL) return
+    dispose()
+    setImmediate(() => { completed.resolve(settlement) })
+  })
+  return completed.promise
+}
+
+async function settled(
+  service: ManturHubAuthorization,
+  attemptId: ManturLoginAttemptId,
+  completion: Promise<AuthorizationSettlement>,
+): Promise<ManturLoginProgress> {
+  await completion
+  return service.loginProgress(attemptId)
 }
 
 async function waitForRequestCount(requests: readonly string[], prefix: string, count: number): Promise<void> {
@@ -140,17 +150,36 @@ async function waitForMockCall(mock: MockCallReader): Promise<void> {
 }
 
 describe('ManturHub device authorization', () => {
+  it('shares bounded ManturHub JSON reads without changing caller diagnostics', async () => {
+    await expect(readManturHubJson(
+      new Response('{"ready":true}'),
+      64,
+      'response',
+    )).resolves.toEqual({ ready: true })
+    await expect(readManturHubJson(
+      new Response('too large'),
+      1,
+      'metadata',
+    )).rejects.toThrow('ManturHub metadata exceeded 1 bytes')
+    await expect(readManturHubJson(
+      new Response(null),
+      64,
+      'response',
+    )).rejects.toThrow('ManturHub returned no response body')
+  })
+
   it('uses session defaults, stores the key only on the Host, and projects only email', async () => {
     const hub = await fakeHub()
     const subject = await boot(hub.origin)
     const before = Date.now()
 
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
     expect(start).toMatchObject({ verificationUrl: `${hub.origin}/device`, userCode: 'MANT-1234' })
     expect(start.expiresAt).toBeGreaterThanOrEqual(before + 600_000)
     expect(start.expiresAt).toBeLessThanOrEqual(Date.now() + 600_000)
     expect(JSON.stringify(start)).not.toContain('mantur-secret-key')
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({
       status: 'authorized', account: { email: 'artist@example.com' },
     })
     await expect(subject.service.status()).resolves.toEqual({
@@ -192,8 +221,10 @@ describe('ManturHub device authorization', () => {
     })
     expect(publicResponse?.status).toBe(404)
 
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
-    await expect(settled(subject.service, start.attemptId)).resolves.toMatchObject({ status: 'authorized' })
+    await expect(settled(subject.service, start.attemptId, completion))
+      .resolves.toMatchObject({ status: 'authorized' })
     await expect(subject.service.request('/api/v1/me', { authenticated: true }))
       .resolves.toMatchObject({ status: 200 })
     const foreignHost = new URL(foreign.origin).host
@@ -247,6 +278,7 @@ describe('ManturHub device authorization', () => {
     ] })
     const subject = await boot(hub.origin)
 
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
     const prefix = 'GET /api/v1/cli/poll'
     await waitForRequestCount(hub.requests, prefix, 1)
@@ -258,7 +290,7 @@ describe('ManturHub device authorization', () => {
     await waitForTimerCount(1)
     await vi.advanceTimersByTimeAsync(10_000)
     await waitForRequestCount(hub.requests, prefix, 3)
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({
       status: 'authorized', account: { email: 'artist@example.com' },
     })
   })
@@ -271,9 +303,10 @@ describe('ManturHub device authorization', () => {
     const hub = await fakeHub({ polls: [poll] })
     const subject = await boot(hub.origin)
 
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
 
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'failed' })
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({ status: 'failed' })
     await expect(subject.ctx.credentials.readRecord(MANTUR_ACCOUNT_CREDENTIAL)).resolves.toBeUndefined()
   })
 
@@ -284,6 +317,7 @@ describe('ManturHub device authorization', () => {
     const hub = await fakeHub({ polls: [{ status: 'pending' }] })
     const subject = await boot(hub.origin)
 
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
     await expect(subject.service.startLogin()).rejects.toThrow('already running')
     subject.service.cancelLogin('foreign' as ManturLoginAttemptId)
@@ -291,7 +325,7 @@ describe('ManturHub device authorization', () => {
     await waitForTimeoutCall(timeout, 5_000)
     subject.service.cancelLogin(start.attemptId)
 
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'cancelled' })
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({ status: 'cancelled' })
     await waitForMockCall(clearTimeout)
     expect(() => subject.service.loginProgress('foreign' as ManturLoginAttemptId)).toThrow('unknown')
   })
@@ -299,11 +333,12 @@ describe('ManturHub device authorization', () => {
   it('signs out while a device attempt is active', async () => {
     const hub = await fakeHub({ polls: [{ status: 'pending' }] })
     const subject = await boot(hub.origin)
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
 
     await subject.service.signOut()
 
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'cancelled' })
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({ status: 'cancelled' })
   })
 
   it('cancels an active attempt when its plugin context is disposed', async () => {
@@ -312,8 +347,9 @@ describe('ManturHub device authorization', () => {
     const start = await subject.service.startLogin()
 
     await subject.ctx.fiber.dispose()
+    await new Promise<void>(resolve => setImmediate(resolve))
 
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'cancelled' })
+    expect(subject.service.loginProgress(start.attemptId)).toEqual({ status: 'cancelled' })
   })
 
   it.each([
@@ -347,11 +383,15 @@ describe('ManturHub device authorization', () => {
     await expect(subject.service.status()).rejects.toThrow('could not be read')
   })
 
-  it('reports account verification and local sign-out failures', async () => {
+  // This case crosses three loopback requests and initializes the encrypted
+  // credential store under coverage. The settlement event remains the
+  // completion barrier; the outer budget stays above the 30 s request limit.
+  it('reports account verification and local sign-out failures', { timeout: 90_000 }, async () => {
     const hub = await fakeHub({ account: { status: 500, body: { error: 'broken' } } })
     const subject = await boot(hub.origin)
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'failed' })
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({ status: 'failed' })
 
     vi.spyOn(subject.ctx.credentials, 'deleteRecord').mockRejectedValueOnce(new Error('disk failed'))
     await expect(subject.service.signOut()).rejects.toThrow('could not be signed out')
@@ -363,9 +403,10 @@ describe('ManturHub device authorization', () => {
   ])('fails a non-success $status polling response without retrying it', async (poll) => {
     const hub = await fakeHub({ polls: [poll], pollHttpStatus: 503 })
     const subject = await boot(hub.origin)
+    const completion = nextAttemptSettlement(subject.ctx)
     const start = await subject.service.startLogin()
 
-    await expect(settled(subject.service, start.attemptId)).resolves.toEqual({ status: 'failed' })
+    await expect(settled(subject.service, start.attemptId, completion)).resolves.toEqual({ status: 'failed' })
     expect(hub.requests.filter(request => request.startsWith('GET /api/v1/cli/poll'))).toHaveLength(1)
   })
 })

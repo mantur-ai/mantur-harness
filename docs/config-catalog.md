@@ -2150,7 +2150,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/skill/src/index.ts:280`](../packages/skill/skill/src/index.ts)
+Source: [`packages/skill/skill/src/index.ts:281`](../packages/skill/skill/src/index.ts)
 
 <a id="deepseek-aidsh-skill-filesystem"></a>
 

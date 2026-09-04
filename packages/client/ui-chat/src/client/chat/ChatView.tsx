@@ -315,6 +315,11 @@ export function ChatView({
   )
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
+  const pendingReaderMovement = (el: HTMLElement): boolean => {
+    if (!scrollSamplePendingRef.current) return false
+    const floor = Math.max(0, el.scrollHeight - el.clientHeight)
+    return Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
+  }
   /** Paging anchor: semantic row/position at click, updated by reader scrolls
    * while the request is pending and restored after the prepend lands. */
   const anchorRef = useRef<PagingAnchor | null>(null)
@@ -465,11 +470,15 @@ export function ChatView({
   }
 
   useLayoutEffect(() => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const el = scrollerOf(local)
+    const appendedUser = lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
+    const appendedSteering = lastSteeringId !== null && lastSteeringId !== lastSteeringIdRef.current
+    const appendedSubmission = lastSubmissionId !== null && lastSubmissionId !== lastSubmissionIdRef.current
+    const forceFollow = appendedUser || appendedSteering || appendedSubmission
+    if (!forceFollow && pendingReaderMovement(el)) return
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -522,9 +531,6 @@ export function ChatView({
     firstSeqRef.current = firstSeq
     // Own words must be visible: a new trailing user node force-scrolls
     // (send lives in the composer, so arrival is detected here, not armed there).
-    const appendedUser = lastKey !== lastKeyRef.current && lastNode?.kind === 'user'
-    const appendedSteering = lastSteeringId !== null && lastSteeringId !== lastSteeringIdRef.current
-    const appendedSubmission = lastSubmissionId !== null && lastSubmissionId !== lastSubmissionIdRef.current
     const tipMoved = followSigRef.current !== followSig
     lastKeyRef.current = lastKey
     lastSteeringIdRef.current = lastSteeringId
@@ -532,7 +538,7 @@ export function ChatView({
     followSigRef.current = followSig
     // Follow new flow content while pinned; do NOT re-pin on every render
     // merely because atBottomRef is true (scroll threshold → setState → snap).
-    if (appendedUser || appendedSteering || appendedSubmission || (tipMoved && atBottomRef.current)) {
+    if (forceFollow || (tipMoved && atBottomRef.current)) {
       toBottom(el)
       return
     }
@@ -613,10 +619,10 @@ export function ChatView({
   // initializer a function initial value would need never exists.
   const followRef = useRef<(() => void) | null>(null)
   followRef.current = () => {
-    if (scrollSamplePendingRef.current) return
     const local = listRef.current
     if (local !== null && atBottomRef.current) {
       const el = scrollerOf(local)
+      if (pendingReaderMovement(el)) return
       el.scrollTop = el.scrollHeight
       observedTopRef.current = el.scrollTop
       chatScroll.save(null)

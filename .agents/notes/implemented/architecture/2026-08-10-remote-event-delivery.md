@@ -26,7 +26,7 @@ When an `Events` member reaches a Host-only symbol such as a Service, `Agent`, o
 
 All allowlisted events use this path, and dedicated frames and Client aliases are removed. Model consumers subscribe directly to `llm/adapters-updated` and `settings/document-updated`; preset consumers subscribe to `agent-preset/selected`; stateless Session and dynamic-Cordis notifications use `emit`; Approval and Question use Agent-scoped `waterfall`. Data that needs a baseline, projection, or deduplication retains a dedicated Remote stream.
 
-`skills/change`, `tools/change`, and `system-prompt/change` have the same pure invalidation form but no shipped consumer. The rule that every abstraction needs a current owner and need keeps them outside the allowlist; they remain only an extension point recorded here.
+`skills/change` has a shipped `ui-skill` consumer, so the allowlist forwards it and the Client invalidates every touched session catalog before the next lookup. `tools/change` and `system-prompt/change` have the same pure invalidation form but no shipped consumer, so the rule that every abstraction needs a current owner and need keeps them outside the allowlist.
 
 ### Consumer contract (`dsh-typert-protocol`)
 
@@ -96,6 +96,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'cordis/inspect-query-resolved', mode: 'emit' },
   { event: 'llm/adapters-updated', mode: 'emit' },
   { event: 'settings/document-updated', mode: 'emit' },
+  { event: 'skills/change', mode: 'emit' },
   { event: 'user-questions/request', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]
 
@@ -107,7 +108,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 ```
 
-Adding an event is therefore one array entry: type projection, the `$on` key set, Host dispatch mode, and the forwarding loop all derive from it. `ctx.remote.$on('slots/changed', …)` for a Client-local event and `$on('skills/change', …)` for a declared but unselected event are compile errors.
+Adding an event is therefore one array entry: type projection, the `$on` key set, Host dispatch mode, and the forwarding loop all derive from it. `ctx.remote.$on('slots/changed', …)` for a Client-local event and `$on('tools/change', …)` for a declared but unselected event are compile errors.
 
 The declaration's trailing `satisfies` applies Host event-vocabulary and mode constraints to the same allowlist:
 
@@ -151,8 +152,8 @@ The few required Client symbols are mirrored on the test side: `scaffold.ts` exp
 | `dsh-typert-protocol` | `src/types.ts` provides forwardable-mode derivation, selection, and Client-listener projection; `TypertClientRemote` exposes only `$on`. Types only, no runtime |
 | `api/gateway` | Host provides one Remote event source, `$events`, pending-waterfall coordination, and `$events/result`; Client registers the private pump as the Connection generation source and owns frame validation and Cordis dispatch |
 | `api/remotes` | `src/remote-events.ts` (mode-bearing allowlist value) and `src/types.ts` (key projection and selection) belong to both faces; Host registers each Client source and validates JSON before queueing; Client continues to compose generated Remote contributions |
-| Root `tsconfig.base.json` | Adds source-plane `paths` entries for `dsh-settings/types`, `dsh-credentials/types`, and `dsh-api-remotes/types` |
-| `dsh-commands` / `dsh-settings` / `dsh-credentials` | Moves each `interface Events` member to the owner's Client-safe `./types`; settings and credentials add that export, move brands and pure types with it, retain constructors in index, and include `lib/types/**/*.js` in published files |
+| Root `tsconfig.base.json` | Adds source-plane `paths` entries for `dsh-settings/types`, `dsh-credentials/types`, `dsh-skill/types`, and `dsh-api-remotes/types` |
+| `dsh-commands` / `dsh-settings` / `dsh-credentials` / `dsh-skill` | Keeps each forwarded `interface Events` member in the owner's Client-safe `./types`; index re-exports those declarations while Host implementations retain their runtime code |
 | `dsh-session` | Exposes `isJsonValue` for validation of every event argument by the API Remotes Host source |
 | `client/runtime` | Removes the bridge from Host frames to the Remote subscription table; it only publishes `connection/reset` after a Connection generation is established |
 | Consumers | Client plugins subscribe directly through `ctx.remote.$on(...)`, import owner event declarations type-only, and inject `'remote'` |
@@ -178,7 +179,7 @@ The few required Client symbols are mirrored on the test side: `scaffold.ts` exp
 ## Verification
 
 - A real Host-source composition test proves that two Client streams each receive `{ event, args }`, disconnecting one does not affect the other, and non-JSON arguments fail loudly without poisoning later valid delivery.
-- Type negatives reject unselected events, non-`void` unscoped events, non-Agent-scoped waterfalls, and allowlist modes that disagree with signatures. `$on('slots/changed', …)` and `$on('skills/change', …)` both fail to compile, so `$on`'s key set equals the allowlist.
+- Type negatives reject unselected events, non-`void` unscoped events, non-Agent-scoped waterfalls, and allowlist modes that disagree with signatures. `$on('slots/changed', …)` and `$on('tools/change', …)` both fail to compile, so `$on`'s key set equals the allowlist. Host-source coverage forwards `skills/change`, and `ui-skill` coverage proves that the next lookup fetches a changed catalog.
 - Consumer `$on('settings/document-updated', …)` resolves `ns` as `SettingsNamespace`, preserving the brand across the wire.
 - A `$on` disposer belongs to the calling fiber, and registering the same function object twice produces independently removable registrations; subscriptions are addressed by registration rather than listener identity.
 - Ordinary notifications contain both a throwing listener and a listener returning a rejected Promise. Waterfall tests pin Client result, `next()`, rejection, cancellation, first claim across multiple Clients, and reconnect replay of a pending request.

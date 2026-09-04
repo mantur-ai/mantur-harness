@@ -32,6 +32,10 @@ env:
 
 jobs:
   preview:
+    # Cloudflare deployment and Access credentials belong to the upstream
+    # repository. Fork CI verifies product behavior in ci.yml; it does not
+    # publish an external preview or report missing infrastructure as a defect.
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     runs-on: dsh-ubuntu-24-04-16core
     name: cloudflare pages preview
     steps:

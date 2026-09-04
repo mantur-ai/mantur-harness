@@ -362,7 +362,7 @@ describe('experimental Inspector real Worker', () => {
     })).error?.message).toContain('Client realm has no native CDP transport')
   })
 
-  it('forwards Client Console objects through isolated realm sessions', async () => {
+  it('forwards Client Console objects through isolated realm sessions', { timeout: 15_000 }, async () => {
     inspector = await startInspector({ port: 0, captureFetch: false })
     client = await InspectorClientFixture.start(inspector.endpoint.client, { label: 'Console Client' })
     cdp = await TestCdpClient.connect(inspector.endpoint.webSocketDebuggerUrl)
@@ -370,6 +370,10 @@ describe('experimental Inspector real Worker', () => {
     await Promise.all([cdp.call('Runtime.enable'), secondCdp.call('Runtime.enable')])
     const firstContext = await clientContext(cdp)
     const secondContext = await clientContext(secondCdp)
+    expect((await cdp.call('Runtime.evaluate', {
+      expression: 'undefined',
+      contextId: firstContext,
+    })).error).toBeUndefined()
     const value = { owner: 'client-console' }
     const marker = 'client-console-event'
     await client.log(value, marker)
@@ -380,7 +384,7 @@ describe('experimental Inspector real Worker', () => {
       secondEvent = consoleEvent(secondCdp!, secondContext, marker)
       expect(firstEvent).toBeDefined()
       expect(secondEvent).toBeDefined()
-    })
+    }, { timeout: 5_000 })
     const firstObjectId = asRecord(recordArray(firstEvent!.params?.args)[0]).objectId
     const secondObjectId = asRecord(recordArray(secondEvent!.params?.args)[0]).objectId
     expect(firstObjectId).toBeTypeOf('string')

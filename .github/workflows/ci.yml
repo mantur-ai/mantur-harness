@@ -20,9 +20,13 @@ concurrency:
 
 jobs:
 
-  # Three enterprise jobs isolate coverage, static analysis, and the
+  # Three high-capacity jobs isolate coverage, static analysis, and the
   # build-backed consumer tail. The consumer job owns the only Linux build so
   # all three jobs enter runner allocation independently.
+  # Mantur's public fork cannot access the upstream enterprise pools, so its
+  # pull requests use standard GitHub-hosted runners without changing which
+  # jobs execute. The upstream repository retains its enterprise and failover
+  # selection below.
   #
   # FAILOVER (Linux): each Linux enterprise job resolves its pool through the
   # DSH_CI_FAILOVER_LINUX repository variable. Unset (normal), the expressions
@@ -39,13 +43,17 @@ jobs:
   node-24:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'ubuntu-24.04'
+          || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'dsh-ubuntu-24-04-16core' }}
     name: node 24 / static
     env:
-      DSH_GATE_CONCURRENCY: '8'
+      # Standard hosted runners have four cores; two concurrent compiler-heavy
+      # gates stay within their memory budget. Upstream keeps the 16-core lane.
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}
       # Stop the aggregate at the first blocking gate failure so a red run
       # does not keep burning enterprise runner time on the remaining gates.
       DSH_GATE_FAIL_FAST: '1'
@@ -94,17 +102,19 @@ jobs:
   node-24-coverage:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'ubuntu-24.04'
+          || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'dsh-ubuntu-24-04-16core' }}
     name: node 24 / coverage
     env:
-      # Partitioning replaces the instrumented share; this budget gives the
-      # exempt-heavy gate two workers on both hosted and failover runners.
-      DSH_COVERAGE_MAX_WORKERS: '6'
-      DSH_COVERAGE_PARTITIONS: '4'
-      DSH_GATE_CONCURRENCY: '3'
+      # The Mantur fork runs two single-worker partitions, then its one-worker
+      # exempt lane. Upstream retains four partitions beside two exempt workers.
+      DSH_COVERAGE_MAX_WORKERS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}
+      DSH_COVERAGE_PARTITIONS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '4' }}
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '3' }}
       # A gate failure aborts the sibling gate instead of waiting out its
       # multi-minute instrumented run.
       DSH_GATE_FAIL_FAST: '1'
@@ -159,23 +169,26 @@ jobs:
   node-24-consumers:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'ubuntu-24.04'
+          || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'dsh-ubuntu-24-04-16core' }}
     name: node 24 / snapshots and artifacts
     env:
-      DSH_GATE_CONCURRENCY: '10'
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '10' }}
       DSH_NODE_COMPAT_SKIP_TYPECHECK: '1'
-      DSH_OXLINT_THREADS: '8'
-      DSH_PUBLINT_CONCURRENCY: '8'
-      DSH_WEB_SNAPSHOT_WORKERS: '6'
+      DSH_OXLINT_THREADS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}
+      DSH_PUBLINT_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}
+      DSH_WEB_SNAPSHOT_WORKERS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}
       # A failing gate aborts its running siblings: a failing build stops the
       # independent Node compatibility smoke, and a failing reader (e.g.
       # publint) stops the remaining artifact consumers.
       DSH_GATE_FAIL_FAST: '1'
-      # Failover halves snapshot concurrency for the shared 64-core VM.
-      DSH_SNAPSHOT_MAX_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '12' || '32' }}
+      # The four-core fork runner uses two snapshot workers. Failover halves
+      # upstream concurrency for the shared 64-core VM.
+      DSH_SNAPSHOT_MAX_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '12' || '32' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -432,13 +445,17 @@ jobs:
   windows-build:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'windows-2025'
+          || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
           || 'dsh-windows-2025-16core' }}
     name: windows node 24 / build
     timeout-minutes: 60
     env:
+      # An empty upstream value preserves run-gates' two-job default.
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '' }}
       # A failing build or site aborts the sibling gate on the same runner.
       DSH_GATE_FAIL_FAST: '1'
     steps:
@@ -476,17 +493,19 @@ jobs:
   windows-coverage:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'windows-2025'
+          || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
           || 'dsh-windows-2025-16core' }}
     name: windows node 24 / coverage
     timeout-minutes: 120
     env:
-      DSH_COVERAGE_MAX_WORKERS: '6'
-      DSH_COVERAGE_PARTITIONS: '4'
+      DSH_COVERAGE_MAX_WORKERS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '6' }}
+      DSH_COVERAGE_PARTITIONS: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '4' }}
       DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
-      DSH_GATE_CONCURRENCY: '3'
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '1' || '3' }}
       # A gate failure aborts the sibling gate instead of waiting out its
       # multi-minute instrumented run.
       DSH_GATE_FAIL_FAST: '1'
@@ -552,7 +571,9 @@ jobs:
   windows-native-tests:
     if: github.event_name == 'pull_request'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'windows-2025'
+          || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
           || 'dsh-windows-2025-16core' }}
@@ -588,27 +609,26 @@ jobs:
           }
       - name: Run Windows-specific native tests
         shell: pwsh
-        run: >-
-          pnpm exec vitest run
-          --no-file-parallelism
-          --testTimeout 90000
-          packages/shell/tool-pwsh/tests/loader.spec.ts
-          packages/workflow/workflow-worker-thread/tests/workflow-worker-thread.spec.ts
-          packages/workflow/tool-ralph/tests/integration.spec.ts
-          packages/subprocess/subprocess-local/tests/process-exit.spec.ts
+        run: |
+          pnpm exec vitest run --no-file-parallelism --testTimeout 90000 packages/shell/tool-pwsh/tests/loader.spec.ts packages/workflow/workflow-worker-thread/tests/workflow-worker-thread.spec.ts packages/workflow/tool-ralph/tests/integration.spec.ts
+          pnpm exec vitest run --no-file-parallelism --testTimeout 90000 packages/subprocess/subprocess-local/tests/process-exit.spec.ts
 
   windows-observational:
     if: github.event_name == 'pull_request'
     continue-on-error: true
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
+      ${{ github.repository == 'mantur-ai/mantur-harness'
+          && 'windows-2025'
+          || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "dsh-win-ci", "windows"]')
           || 'dsh-windows-2025-16core' }}
     name: windows node 24 / observational
     timeout-minutes: 60
     env:
-      DSH_PUBLINT_CONCURRENCY: '8'
+      # Empty keeps the upstream aggregate at its runner-derived default.
+      DSH_GATE_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '' }}
+      DSH_PUBLINT_CONCURRENCY: ${{ github.repository == 'mantur-ai/mantur-harness' && '2' || '8' }}
     steps:
       - uses: actions/checkout@v6
         with:

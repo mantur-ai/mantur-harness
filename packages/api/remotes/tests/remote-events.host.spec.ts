@@ -112,6 +112,11 @@ describe('Remote event Host source', () => {
       done: false,
       value: { event: 'commands/change', args: [] },
     })
+    emitRaw(ctx, 'skills/change', [])
+    await expect(second.next()).resolves.toEqual({
+      done: false,
+      value: { event: 'skills/change', args: [] },
+    })
 
     const secondDone = second.next()
     secondAbort.abort(new Error('second Client disconnected'))

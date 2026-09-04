@@ -88,6 +88,8 @@ export class SessionProjectionCache extends Service {
 
   private table?: KvTable<SessionId, CheckpointRecord>
   private readonly dirty = new Map<Session, DirtyState>()
+  /** Per-session checkpoint tail; captures enter in call order before asynchronous log flushing. */
+  private readonly writeTails = new Map<Session, Promise<void>>()
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'sessionProjectionCache')
@@ -205,19 +207,30 @@ export class SessionProjectionCache extends Service {
   async write(session: Session): Promise<void> {
     const rows = this.ctx.sessionProjections.checkpoint(session)
     this.markClean(session)
-    // Durability barrier: the checkpoint cut was taken above, so flushing
-    // AFTER it guarantees every event inside the cut is durably logged
-    // before the cache row lands — a crash can leave the cache behind the
-    // log (longer tail replay) but never ahead of it (phantom values folded
-    // from events no stored log contains). At detach the store entry is
-    // already gone; persistence's own retirement drain covers that path and
-    // any residual overreach is caught by the cold read's anchored floor.
-    if (this.ctx.sessions.get(session.id) === session) await this.ctx.sessions.flush(session)
-    await this.put(
-      session.id,
-      identityOf(session.header, session.inheritedEventCount),
-      rows,
-    )
+    const previous = this.writeTails.get(session)
+    const current = (previous ?? Promise.resolve()).catch(() => {}).then(async () => {
+      // Durability barrier: the checkpoint cut was taken above, so flushing
+      // AFTER it guarantees every event inside the cut is durably logged
+      // before the cache row lands — a crash can leave the cache behind the
+      // log (longer tail replay) but never ahead of it (phantom values folded
+      // from events no stored log contains). The per-session tail begins
+      // before this asynchronous barrier, so an older cut cannot land after
+      // a newer one when two mandatory points overlap. At detach the store
+      // entry is already gone; persistence's own retirement drain covers
+      // that path and the cold read's anchored floor catches residual overreach.
+      if (this.ctx.sessions.get(session.id) === session) await this.ctx.sessions.flush(session)
+      await this.put(
+        session.id,
+        identityOf(session.header, session.inheritedEventCount),
+        rows,
+      )
+    })
+    this.writeTails.set(session, current)
+    try {
+      await current
+    } finally {
+      if (this.writeTails.get(session) === current) this.writeTails.delete(session)
+    }
   }
 
   /**
@@ -258,6 +271,13 @@ export class SessionProjectionCache extends Service {
   // --- write-behind (throttle + mandatory points) ---
 
   private installWritePath(): void {
+    // Registered before listeners so disposal removes every producer first,
+    // then drains captured writes before the domain-close effect runs.
+    this.ctx.effect(() => async () => {
+      await Promise.allSettled(this.writeTails.values())
+      this.writeTails.clear()
+    }, 'sessionProjectionCache.writeDrain')
+
     // Every committed event advances the dirty counter; turn/end is a
     // mandatory point (the durable value most reads want is the turn-final
     // one), count/interval throttle the in-turn stream.

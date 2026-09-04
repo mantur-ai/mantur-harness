@@ -312,12 +312,14 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
   }, 35_000)
 })
 
-const hasPwsh = spawnSync(
+const hasNativePwsh = process.platform === 'win32' && spawnSync(
   resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$true'],
   { encoding: 'utf8' },
 ).status === 0
 
-describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
+// The shipped pwsh backend targets Windows ConPTY. A POSIX host that happens
+// to install pwsh does not provide the process and readiness substrate under test.
+describe.skipIf(!hasNativePwsh)('terminal-bash pwsh real shell', () => {
   it('bootstraps a persistent pwsh, persists state, and scrubs secrets', async () => {
     const previous = process.env.DSH_TEST_SECRET
     process.env.DSH_TEST_SECRET = 'must-not-leak'
@@ -334,7 +336,7 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
         text: '$env:KEEP = "ok"; Set-Location /',
         submit: true,
       })
-      expect((await first.done).waitReason).toBe('stdin_read')
+      expectReadyForNextSend((await first.done).waitReason)
       const second = ctx.terminals.startSend(agent, created.sessionId, {
         text: 'Write-Output "keep=$env:KEEP secret=$env:DSH_TEST_SECRET"',
         submit: true,

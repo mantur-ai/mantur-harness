@@ -90,6 +90,7 @@ describe('web e2e: /feedback command acknowledgement', () => {
     // The command plane settles without a model turn: the ack row names the
     // recorded session and the mounted FULL backend's disclosure.
     await page.getByText(/Feedback recorded for session/).waitFor({ timeout: 10_000 })
+    await expect.poll(() => input.textContent(), { timeout: 10_000 }).toBe('')
     expect(await page.getByText(/Session sharing is enabled/).count()).toBe(1)
     const snapshot = await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(ACK_EXPECTED, snapshot, MODE)

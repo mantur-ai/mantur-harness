@@ -372,8 +372,17 @@ describe.skipIf(MODE === 'record')('web snapshot: Mantur product identity', () =
 
       await recipePage.getByRole('button', { name: '配方广场' }).click()
       await recipePage.getByText(marketplaceRecipe.title, { exact: true }).click()
-      await recipePage.route('**/api/session/prompt', route => route.abort('failed'))
+      const promptRejected = Promise.withResolvers<undefined>()
+      await recipePage.route('**/api/session/prompt', async (route) => {
+        try {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+          promptRejected.resolve(undefined)
+        } catch (error) {
+          promptRejected.reject(error)
+        }
+      })
       await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()
+      await promptRejected.promise
       await recipePage.getByRole('alert').filter({ hasText: '新对话没有创建成功' }).waitFor({ timeout: 10_000 })
       expect(createRequests).toHaveLength(createRequestsBeforeRecipe + 2)
       await recipePage.getByRole('button', { name: '交给 Agent 复刻' }).click()

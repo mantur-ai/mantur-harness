@@ -6,7 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import * as yaml from 'js-yaml'
 import { applyEntryPatches, entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
-import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt, type PromptAssembly } from '@deepseek-ai/dsh-system-prompt'
 import * as ManturApp from '../src/index.ts'
 
 const root = fileURLToPath(new URL('../../..', import.meta.url))
@@ -64,11 +64,37 @@ describe('dsh-mantur-app bundle', () => {
     await ctx.plugin(SystemPrompt, systemPromptConfig)
     await ctx.plugin(ManturApp, manturConfig)
     ctx.systemPrompt.variable('cwd', () => '/work')
+    ctx.systemPrompt.section({ name: 'product:guidance', order: 100, text: 'Keep the project organized.' })
     const assembly = await ctx.systemPrompt.assemble()
-    expect(assembly.sections.map(section => section.name)).toEqual(['deployment:persona'])
+    expect(assembly.sections.map(section => section.name)).toEqual(['deployment:persona', 'product:guidance'])
     expect(renderPrompt(assembly)).toMatchInlineSnapshot(`
-      "你是漫途Agent，由漫途（Mantur）打造，专门在用户电脑本地完成漫剧创作与生产。你的职责是围绕漫剧项目完成故事构思、剧本、分镜、视觉素材、音频、剪辑方案和制作交付。你应使用当前本地工作区与可用工具直接推进制作，在获得必要授权后执行本地操作，并保持项目文件清晰有序。你的工作目录是 /work。"
+      "你是漫途Agent，由漫途（Mantur）打造，专门在用户电脑本地完成漫剧创作与生产。你的职责是围绕漫剧项目完成故事构思、剧本、分镜、视觉素材、音频、剪辑方案和制作交付。你应使用当前本地工作区与可用工具直接推进制作，在获得必要授权后执行本地操作，并保持项目文件清晰有序。你的工作目录是 /work。\n\nKeep the project organized."
     `)
     await ctx.fiber.dispose()
+  })
+
+  it('adds the Mantur persona when the delegated assembly has no persona section', async () => {
+    let transform: ((
+      assembly: PromptAssembly,
+      context: unknown,
+      next: () => Promise<PromptAssembly>,
+    ) => Promise<PromptAssembly>) | undefined
+    const ctx = {
+      on: (_event: string, listener: typeof transform) => { transform = listener },
+    } as unknown as Context
+    ManturApp.apply(ctx, { persona: 'Mantur persona.' })
+    const delegated: PromptAssembly = {
+      sections: [{ name: 'product:guidance', text: 'Keep the project organized.' }],
+      contexts: [],
+      tools: [],
+      variables: {},
+    }
+
+    const assembly = await transform!(delegated, {}, () => Promise.resolve(delegated))
+
+    expect(assembly.sections).toEqual([
+      { name: 'deployment:persona', text: 'Mantur persona.' },
+      { name: 'product:guidance', text: 'Keep the project organized.' },
+    ])
   })
 })

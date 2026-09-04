@@ -1,6 +1,6 @@
 /** Mantur feature navigation and root-page skeletons. */
 
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import clsx from 'clsx'
 import {
   IconChevronLeftOutline14, IconChevronRightOutline14, IconCopyOutline16,
@@ -325,9 +325,15 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
   const ready = state.phase === 'ready' ? state : undefined
   const detail = ready?.detail
   const detailError = ready?.detailError
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState<(typeof recipeCategories)[number]>('')
+  const [query, setQuery] = useState(ready?.query.query ?? '')
+  const [category, setCategory] = useState<(typeof recipeCategories)[number]>(ready?.query.category ?? '')
+  const appliedFilter = useRef({ query, category })
   useEffect(() => {
+    if (state.phase === 'idle') void controller.loadRecipes()
+  }, [controller, state.phase])
+  useEffect(() => {
+    if (appliedFilter.current.query === query && appliedFilter.current.category === category) return
+    appliedFilter.current = { query, category }
     const timer = window.setTimeout(() => {
       void controller.loadRecipes(currentRecipeQuery(query, category))
     }, 250)
@@ -337,15 +343,16 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
   const loadPage = (page: number): void => {
     void controller.loadRecipes({ page, ...currentRecipeQuery(query, category) })
   }
-  const launch = async (): Promise<void> => {
-    if (detail === undefined) return
+  const launch = async (
+    selected: NonNullable<Extract<ManturRecipeMarketplaceState, { phase: 'ready' }>['detail']>,
+  ): Promise<void> => {
     if (await controller.startRecipe({
-      introduction: t('recipes.launchIntroduction').replace('{title}', detail.title),
-      identifier: t('recipes.launchIdentifier').replace('{slug}', detail.slug),
+      introduction: t('recipes.launchIntroduction').replace('{title}', selected.title),
+      identifier: t('recipes.launchIdentifier').replace('{slug}', selected.slug),
       platform: t('recipes.launchPlatform'),
-      ...(detail.sourceUrl === undefined
+      ...(selected.sourceUrl === undefined
         ? {}
-        : { source: t('recipes.launchSource').replace('{url}', detail.sourceUrl) }),
+        : { source: t('recipes.launchSource').replace('{url}', selected.sourceUrl) }),
     })) closePage()
   }
 
@@ -451,7 +458,7 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
             detail={detail}
             launching={ready?.launching === detail.slug}
             launchError={ready?.launchError}
-            launch={launch}
+            launch={() => launch(detail)}
             t={t}
           />
         )}

@@ -394,5 +394,5 @@ A skill provider, runtime contribution, or provider-backed catalog may have chan
 'skills/change'(): void
 ```
 
-Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)
+Source: [`packages/skill/skill/src/types.ts`](../../packages/skill/skill/src/types.ts)
 <!-- END GENERATED cordis-surface -->

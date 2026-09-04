@@ -491,7 +491,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
     return pnpmScript('web-snapshot', 'test:web:ci', {
       label: 'web browser snapshot',
       displayCommand: `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=${workers} pnpm run test:web:ci`,
-      env: { DSH_SNAPSHOT: 'replay' },
+      env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
       ...order,
       streamOutput: true,
     })
@@ -499,7 +499,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
   return pnpmScript('web-snapshot', 'test:web:built', {
     label: 'web browser snapshot',
     displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
-    env: { DSH_SNAPSHOT: 'replay' },
+    env: { DSH_SNAPSHOT: 'replay', TZ: 'Asia/Shanghai' },
     ...order,
   })
 }
@@ -1493,8 +1493,13 @@ export function taskkillArgs(rootPid: number, descendants: number[]): string[][]
   return [rootPid, ...descendants].map(pid => ['/PID', String(pid), '/T', '/F'])
 }
 
-/** Breadth-first walk of the pid/ppid rows starting at `root`. */
-function collectDescendants(root: number, rows: Array<[number, number]>): number[] {
+/**
+ * Breadth-first walk of the pid/ppid rows starting at `root`.
+ * @param root - the process whose descendants are wanted.
+ * @param rows - one process-table snapshot as pid/ppid pairs.
+ * @returns distinct descendant pids in breadth-first order.
+ */
+export function collectDescendants(root: number, rows: Array<[number, number]>): number[] {
   const byParent = new Map<number, number[]>()
   for (const [pid, ppid] of rows) {
     const children = byParent.get(ppid) ?? []
@@ -1502,10 +1507,12 @@ function collectDescendants(root: number, rows: Array<[number, number]>): number
     byParent.set(ppid, children)
   }
   const result: number[] = []
-  const queue = byParent.get(root) ?? []
+  const visited = new Set([root])
+  const queue = [...(byParent.get(root) ?? [])]
   for (let index = 0; index < queue.length; index += 1) {
     const pid = queue[index]
-    if (pid === undefined) continue
+    if (pid === undefined || visited.has(pid)) continue
+    visited.add(pid)
     result.push(pid)
     queue.push(...(byParent.get(pid) ?? []))
   }
