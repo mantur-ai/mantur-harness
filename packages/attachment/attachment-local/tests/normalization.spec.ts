@@ -291,20 +291,20 @@ describe('normalizeImage', () => {
 
   it('keeps an antialiased text screenshot readable on the JPEG ladder', async () => {
     const source = new Uint8Array(await sharp(Buffer.from(`
-      <svg width="1024" height="512" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1024" height="512" fill="white"/>
-        <text x="48" y="290" font-size="170" fill="#112f4d">Readable text</text>
+      <svg width="512" height="256" xmlns="http://www.w3.org/2000/svg">
+        <rect width="512" height="256" fill="white"/>
+        <text x="24" y="145" font-size="85" fill="#112f4d">Readable text</text>
       </svg>
     `)).removeAlpha().png().toBuffer())
 
     const normalized = await normalizeImage(source, await detectImage(source), {
       maxPixels: POLICY.maxPixels,
-      maxDimension: 512,
+      maxDimension: 256,
       maxBytes: POLICY.maxBytes,
     })
     const stats = await sharp(normalized.data).greyscale().stats()
 
-    expect(normalized).toMatchObject({ mediaType: 'image/jpeg', width: 512, height: 256 })
+    expect(normalized).toMatchObject({ mediaType: 'image/jpeg', width: 256, height: 128 })
     expect(stats.channels[0]?.min).toBeLessThan(80)
     expect(stats.channels[0]?.max).toBeGreaterThan(240)
   })
