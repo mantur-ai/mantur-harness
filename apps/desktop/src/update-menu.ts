@@ -42,6 +42,7 @@ function statusLabel(state: DesktopUpdateState, copy: UpdateMenuCopy): string | 
     case 'ready': return copy.updateReadyStatus(state.version)
     case 'up-to-date': return copy.upToDateStatus
     case 'error': return copy.updateErrorStatus
+    /* v8 ignore next -- DesktopUpdateState is closed and every variant is handled above. */
     default: return state satisfies never
   }
 }

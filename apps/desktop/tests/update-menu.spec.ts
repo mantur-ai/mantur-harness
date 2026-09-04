@@ -65,8 +65,12 @@ describe('desktop update menu', () => {
       updatePresentation('darwin', { kind: 'idle' }),
       updatePresentation('win32', { kind: 'idle' }),
       updatePresentation('darwin', { kind: 'checking' }),
+      updatePresentation('darwin', { kind: 'available', version: '1.3.0', prompting: false }),
+      updatePresentation('darwin', { kind: 'available', version: '1.3.0', prompting: true }),
       updatePresentation('darwin', { kind: 'downloading', version: '1.3.0', percent: 42 }),
       updatePresentation('darwin', { kind: 'ready', version: '1.3.0', prompting: false }),
+      updatePresentation('darwin', { kind: 'ready', version: '1.3.0', prompting: true }),
+      updatePresentation('darwin', { kind: 'up-to-date', requestedByUser: true }),
       updatePresentation('darwin', { kind: 'error', detail: 'network', requestedByUser: true }),
     ]).toMatchSnapshot()
   })
