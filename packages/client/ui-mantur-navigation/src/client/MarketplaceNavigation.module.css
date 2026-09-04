@@ -35,7 +35,8 @@
 }
 
 .navigationItem:focus-visible,
-.back:focus-visible {
+.back:focus-visible,
+.install:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
 }
@@ -347,6 +348,10 @@
   background: var(--dsw-alias-interactive-bg-active);
   color: var(--dsw-alias-label-tertiary);
   cursor: default;
+}
+
+.install:not(:disabled):hover {
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 88%, var(--dsw-alias-label-primary));
 }
 
 .detail {

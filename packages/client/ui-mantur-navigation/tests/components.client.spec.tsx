@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   MANTUR_MARKET_PAGES, MarketplaceNavigation, MarketplacePage,
@@ -48,7 +48,7 @@ const recipe = {
 
 type ControllerMocks = {
   [K in
-    | 'load' | 'openDetail' | 'closeDetail' | 'install' | 'startLogin' | 'cancelLogin'
+    | 'load' | 'openDetail' | 'closeDetail' | 'install' | 'startSkill' | 'startLogin' | 'cancelLogin'
     | 'loadRecipes' | 'openRecipeDetail' | 'closeRecipeDetail' | 'startRecipe'
   ]: ReturnType<typeof vi.fn>
 }
@@ -66,6 +66,7 @@ function marketplaceProps(
     openDetail: vi.fn(),
     closeDetail: vi.fn(),
     install: vi.fn(),
+    startSkill: vi.fn(),
     startLogin: vi.fn(),
     cancelLogin: vi.fn(),
     loadRecipes: vi.fn(),
@@ -435,7 +436,8 @@ describe('Mantur marketplace navigation', () => {
         t={t}
       />,
     )
-    expect(screen.getByRole('button', { name: '已安装' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: '使用技能' }))
+    expect(installedProps.controllerMocks.startSkill).toHaveBeenCalledWith(installed.slug)
 
     const signedOut: ManturMarketplaceState = {
       phase: 'ready',
@@ -454,6 +456,60 @@ describe('Mantur marketplace navigation', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: '登录后安装' }))
     expect(signedOutProps.controllerMocks.startLogin).toHaveBeenCalledOnce()
+  })
+
+  it('opens a successful installed Skill launch and presents pending or failed launches', async () => {
+    const installed = {
+      slug: 'story-director', name: '故事导演', description: '把故事变成分镜', category: '剧本创作',
+      version: '1.2.3', triggers: ['写分镜'], installed: true,
+    }
+    const closePage = vi.fn()
+    const props = marketplaceProps({
+      phase: 'ready', catalog: { skills: [installed], installedCount: 1, signedIn: true },
+    })
+    props.controllerMocks.startSkill.mockResolvedValue(true)
+    const view = render(
+      <MarketplacePage
+        {...globalProps} {...props} activePage={MANTUR_MARKET_PAGES.skills} closePage={closePage} t={t}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '使用技能' }))
+    await waitFor(() => { expect(closePage).toHaveBeenCalledOnce() })
+
+    const pending = marketplaceProps({
+      phase: 'ready', catalog: { skills: [installed], installedCount: 1, signedIn: true },
+      detail: { ...installed, usesOperators: [] }, using: installed.slug,
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...pending} activePage={MANTUR_MARKET_PAGES.skills} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getAllByRole('button', { name: '正在创建…' })
+      .every(button => button.hasAttribute('disabled'))).toBe(true)
+
+    const missingProject = marketplaceProps({
+      phase: 'ready', catalog: { skills: [installed], installedCount: 1, signedIn: true },
+      useError: 'no-workspace',
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...missingProject} activePage={MANTUR_MARKET_PAGES.skills} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByRole('alert').textContent).toContain('请先选择一个项目')
+
+    const failedDetail = marketplaceProps({
+      phase: 'ready', catalog: { skills: [installed], installedCount: 1, signedIn: true },
+      detail: { ...installed, usesOperators: [] }, useError: 'failed',
+    })
+    view.rerender(
+      <MarketplacePage
+        {...globalProps} {...failedDetail} activePage={MANTUR_MARKET_PAGES.skills} closePage={vi.fn()} t={t}
+      />,
+    )
+    expect(screen.getByRole('alert').textContent).toContain('新对话没有创建成功')
   })
 
   it('filters the catalog, opens details, and presents detail outcomes', () => {
@@ -579,7 +635,9 @@ describe('Mantur marketplace navigation', () => {
         {...globalProps} {...installedProps} activePage={MANTUR_MARKET_PAGES.skills} closePage={vi.fn()} t={t}
       />,
     )
-    expect(screen.getAllByRole('button', { name: '已安装' }).every(button => button.hasAttribute('disabled'))).toBe(true)
+    const useButtons = screen.getAllByRole('button', { name: '使用技能' })
+    fireEvent.click(useButtons[useButtons.length - 1] as HTMLElement)
+    expect(installedProps.controllerMocks.startSkill).toHaveBeenCalledWith(installed.slug)
   })
 
   it('loads filtered Recipe pages and exposes every catalog recovery action', async () => {
