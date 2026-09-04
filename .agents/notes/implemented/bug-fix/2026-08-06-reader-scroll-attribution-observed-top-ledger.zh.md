@@ -10,7 +10,7 @@ ChatView 的贴底跟随此前只把滚轮／触控板手势识别为读者输�
 
 ## 决策
 
-读者输入不再依据设备来识别。ChatView 维护一份 observed-top ledger（`observedTopRef`）：即最近一次由主线程交付、或由组件自身写入的 `scrollTop`，并在每一个程序化写入点（贴底跟随、打开时恢复、前置锚定、尺寸变化跟随以及滚动交付本身）同步记录。滚动事件到达时，偏离 `min(ledger, floor)` 超过半像素的位置即为读者输入；落在 ledger 上的位置（迟到的程序化交付），或恰好落在收缩后底部上的位置（内容收缩后的浏览器钳制），则维持当前的所有权状态。此后所有权只经由读者输入、按既有阈值规则变化：位置距底部在 `FOLLOW_THRESHOLD` 以内则重新贴底，超出则释放跟随并显示「回到底部」。滚轮监听器及其 epoch 簿记已删除；组件只监听 `scroll`，因此滚轮、触控、滚动条、键盘以及未来任何输入来源都由同一条规则覆盖。
+读者输入不再依据设备来识别。ChatView 维护一份 observed-top ledger（`observedTopRef`）：即最近一次由主线程交付、或由组件自身写入的 `scrollTop`，并在每一个程序化写入点（贴底跟随、打开时恢复、前置锚定、尺寸变化跟随以及滚动交付本身）同步记录。滚动事件到达时，偏离 `min(ledger, floor)` 超过半像素的位置即为读者输入；落在 ledger 上的位置（迟到的程序化交付），或恰好落在收缩后底部上的位置（内容收缩后的浏览器钳制），则维持当前的所有权状态。待采样滚动只有在当前位置偏离 ledger 时才会阻止布局与尺寸变化跟随；迟到的程序化交付在等待采样期间不能让已贴底的文本记录停在新增流式内容上方。新追加的用户消息、转向消息或排队提交仍会在该防护之前强制将自身内容带入视图，保持既有的发送约定。此后所有权只经由读者输入、按既有阈值规则变化：位置距底部在 `FOLLOW_THRESHOLD` 以内则重新贴底，超出则释放跟随并显示「回到底部」。滚轮监听器及其 epoch 簿记已删除；组件只监听 `scroll`，因此滚轮、触控、滚动条、键盘以及未来任何输入来源都由同一条规则覆盖。
 
 ## 约定变更：收缩与重新增长被合并的钳制
 
@@ -18,7 +18,7 @@ ChatView 的贴底跟随此前只把滚轮／触控板手势识别为读者输�
 
 ## 测试
 
-`packages/client/ui-chat/tests/chat-view.client.spec.tsx` 中的单元测试直接钉住 ledger 约定：`readerScroll` 辅助函数交付一个组件从未写入过的位置，程序化交付落在 ledger 上，流收尾阶段的收缩钳制保持跟随。`apps/web/tests/chat-scroll-contract.e2e.ts` 中的两个场景扩展了[浏览器 e2e 车道](../testing/2026-07-24-web-gui-browser-e2e-lane.zh.md)：在已停稳的 transcript 上做键盘翻页，以及对着按节奏推进的流式输出做一次触控式惯性快滑（momentum fling）；两者在仅认滚轮的实现下均为红、在 ledger 下均为绿。
+`packages/client/ui-chat/tests/chat-view.client.spec.tsx` 中的单元测试直接钉住 ledger 约定：`readerScroll` 辅助函数交付一个组件从未写入过的位置，程序化交付落在 ledger 上，流收尾阶段的收缩钳制保持跟随，尺寸变化跟随还能区分待交付的程序化滚动与待交付的读者滚动。`apps/web/tests/chat-scroll-contract.e2e.ts` 中的两个场景扩展了[浏览器 e2e 车道](../testing/2026-07-24-web-gui-browser-e2e-lane.zh.md)：在已停稳的 transcript 上做键盘翻页，以及对着按节奏推进的流式输出做一次触控式惯性快滑（momentum fling）；两者在仅认滚轮的实现下均为红、在 ledger 下均为绿。
 
 该车道的 Chromium 无法合成任何非滚轮的设备滚动，这限定了 e2e 能真实驱动的范围：触控来源的 `Input.synthesizeScrollGesture` 与手工构造的 `Input.dispatchTouchEvent` 序列都能交付 DOM 事件，却从不移动滚动容器（无头模式与 Xvfb 下的有头模式皆然）；`default` 手势来源合成的是滚轮事件；合成器滚动条则完全无视合成的鼠标输入，且只有移除 `--hide-scrollbars` 后才能看到滚动条槽。键盘是唯一可用的非滚轮原语，因此由它承担真实输入流水线的证明；快滑场景则把触控的特征（组件从未写入过的逐帧衰减位移）直接回放进滚动容器。
 

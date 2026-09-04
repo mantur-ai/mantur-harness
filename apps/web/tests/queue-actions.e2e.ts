@@ -92,6 +92,7 @@ describe('web e2e: queue row actions', () => {
     await input.fill(ACTIVE_PROMPT)
     await input.press('Enter')
     await expect.poll(() => existsSync(readyFile), { timeout: 15_000 }).toBe(true)
+    await page.getByText('partial', { exact: true }).waitFor({ timeout: 10_000 })
 
     for (const text of [REMOVE, EDIT]) {
       // A just-submitted composer is read-only for the prompt round-trip.
@@ -102,6 +103,8 @@ describe('web e2e: queue row actions', () => {
     const queueHeader = page.getByRole('button', { name: '2 queued messages' })
     await expect.poll(() => queueHeader.getAttribute('aria-expanded'), { timeout: 10_000 })
       .toBe('false')
+    await page.getByRole('textbox', { name: 'Cmd/Ctrl+Enter steers all queued messages' })
+      .waitFor({ timeout: 10_000 })
     const collapsedSnapshot = await captureStableAria(
       page,
       '[class*="centerCol"]',
@@ -241,6 +244,11 @@ describe('web e2e: queue row actions', () => {
     await compareOrRefreshGolden(LAYOUT_EXPECTED, layoutSnapshot, MODE)
 
     const expectAlignedContextPanels = async () => {
+      const conversation = page.locator('[data-phase]').first()
+      await expect.poll(() => conversation.evaluate(root => (
+        getComputedStyle(root).getPropertyValue('--dsh-conversation-column-width').trim()
+          === `${(root as HTMLElement).offsetWidth}px`
+      )), { timeout: 10_000 }).toBe(true)
       const queuePanelBox = await page.locator('[data-queue-dock] > div').boundingBox()
       const todoBox = await page.locator('[data-testid="todo-panel"]').boundingBox()
       const goalBox = await page.locator('[data-goal-bar] > div').boundingBox()
@@ -256,6 +264,11 @@ describe('web e2e: queue row actions', () => {
     }
     await expectAlignedContextPanels()
     await page.setViewportSize({ width: 640, height: 1000 })
+    const collapsedFrame = page.locator('[data-sidebar-collapsed]').first()
+    await collapsedFrame.waitFor({ timeout: 10_000 })
+    await expect.poll(() => collapsedFrame.evaluate(frame => (
+      frame.getAnimations().every(animation => animation.playState !== 'running')
+    )), { timeout: 10_000 }).toBe(true)
     await expectAlignedContextPanels()
     await page.setViewportSize({ width: 1680, height: 1000 })
 

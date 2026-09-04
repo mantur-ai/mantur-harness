@@ -9,6 +9,10 @@ import { AccountSection } from '../src/client/AccountSection.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 
+vi.mock('@deepseek-ai/dsh-authorization-manturhub/remote', () => ({
+  default: { package: '@deepseek-ai/dsh-authorization-manturhub', descriptors: [] },
+}))
+
 async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()

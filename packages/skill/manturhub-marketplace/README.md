@@ -74,7 +74,7 @@ Stable until installation commits a new Skill directory; later catalog tool outp
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Host tests use real loopback HTTP servers and temporary `DSH_HOME` directories. They prove deployed response envelopes, credential isolation, archive policy, local-conflict refusal, rollback, and live filesystem watcher invalidation.
+Host tests use real loopback HTTP servers and temporary `DSH_HOME` directories. Metadata buffering uses the bounded JSON reader owned by [`authorization-manturhub`](../../credentials/authorization-manturhub/README.md). The tests prove deployed response envelopes, credential isolation, archive policy, local-conflict refusal, rollback, and live filesystem watcher invalidation.
 
 </details>
 

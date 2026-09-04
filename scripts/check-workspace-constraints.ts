@@ -398,7 +398,8 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     }
   }
 
-  return errors.map(error => `${relative(root, join(root, dir, 'package.json'))}: ${error}`)
+  const manifestPath = relative(root, join(root, dir, 'package.json')).replaceAll('\\', '/')
+  return errors.map(error => `${manifestPath}: ${error}`)
 }
 
 /**

@@ -540,4 +540,175 @@ describe('Mantur marketplace store', () => {
     await vi.runAllTimersAsync()
     expect(store.store.getSnapshot()).toMatchObject({ phase: 'ready' })
   })
+
+  it('ignores stale Recipe reads and rejects detail actions without a ready catalog', async () => {
+    const list = Promise.withResolvers<{ ok: false; error: { code: string; message: string } }>()
+    const detail = Promise.withResolvers<{ ok: false; error: { code: string; message: string } }>()
+    const store = subject({
+      manturMarketplace: { listRecipes: () => list.promise, recipeDetail: () => detail.promise },
+    })
+
+    const loading = store.loadRecipes()
+    store.dispose()
+    list.resolve({ ok: false, error: { code: 'gateway/internal', message: 'failed' } })
+    await loading
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading' })
+
+    await store.openRecipeDetail(recipe.slug)
+    store.closeRecipeDetail()
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading' })
+
+    store.recipes.set({
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+    })
+    const opening = store.openRecipeDetail(recipe.slug)
+    store.closeRecipeDetail()
+    detail.resolve({ ok: false, error: { code: 'gateway/internal', message: 'failed' } })
+    await opening
+    expect(store.recipes.getSnapshot()).not.toHaveProperty('detailError')
+  })
+
+  it('rejects Recipe launches without a selectable detail or required client services', async () => {
+    const idle = new ManturMarketplaceStore({ remote: {}, get: () => undefined } as unknown as Context)
+    await expect(idle.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    idle.recipes.set({
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+    })
+    await expect(idle.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    idle.recipes.set({ ...idle.recipes.getSnapshot() as Extract<ReturnType<typeof idle.recipes.getSnapshot>, { phase: 'ready' }>, detail: recipeDetail, launching: recipe.slug })
+    await expect(idle.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+
+    idle.recipes.set({ ...idle.recipes.getSnapshot() as Extract<ReturnType<typeof idle.recipes.getSnapshot>, { phase: 'ready' }>, launching: undefined })
+    await expect(idle.startRecipe(zhLaunchCopy)).rejects.toThrow('Recipe launch services are unavailable')
+
+    const sessionsOnly = new ManturMarketplaceStore({
+      remote: {},
+      get: (name: string) => name === 'sessions' ? {} : undefined,
+    } as unknown as Context)
+    sessionsOnly.recipes.set({
+      phase: 'ready',
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail: recipeDetail,
+    })
+    await expect(sessionsOnly.startRecipe(zhLaunchCopy)).rejects.toThrow('Recipe launch services are unavailable')
+  })
+
+  it('archives a failed pending Recipe Session when the selected Workspace changes', async () => {
+    const selection = { current: 'session-current-1' }
+    const items = [
+      { workspaceId: 'workspace-1', sessionIds: ['session-current-1'] },
+      { workspaceId: 'workspace-2', sessionIds: ['session-current-2'] },
+    ]
+    const archiveSession = vi.fn().mockResolvedValue(undefined)
+    const send = vi.fn().mockRejectedValue(new Error('failed'))
+    let bindingMode: 'conversation' | 'missing-binding' | 'missing-conversation' = 'conversation'
+    const sessions = {
+      list: { getSnapshot: () => selection },
+      create: vi.fn()
+        .mockResolvedValueOnce('session-recipe-1')
+        .mockResolvedValueOnce('session-recipe-2'),
+      binding: () => bindingMode === 'missing-binding'
+        ? undefined
+        : { ctx: { get: () => bindingMode === 'conversation' ? { send } : undefined } },
+      open: vi.fn(),
+    }
+    const store = new ManturMarketplaceStore({
+      remote: {},
+      get: (name: string) => name === 'sessions'
+        ? sessions
+        : name === 'workspaces'
+          ? { list: { getSnapshot: () => ({ items }) }, archiveSession }
+          : undefined,
+    } as unknown as Context)
+    const ready = {
+      phase: 'ready' as const,
+      catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+      query: {},
+      detail: recipeDetail,
+    }
+
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    selection.current = 'session-current-2'
+    bindingMode = 'missing-binding'
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    expect(archiveSession).toHaveBeenCalledWith('session-recipe-1')
+    expect(store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: undefined, launchError: 'failed',
+    })
+    expect(sessions.open).not.toHaveBeenCalled()
+
+    bindingMode = 'missing-conversation'
+    store.recipes.set(ready)
+    await expect(store.startRecipe(zhLaunchCopy)).resolves.toBe(false)
+    expect(sessions.create).toHaveBeenCalledTimes(2)
+    expect(store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: undefined, launchError: 'failed',
+    })
+    expect(sessions.open).not.toHaveBeenCalled()
+  })
+
+  it('does not overwrite Recipe state changed while submission settles', async () => {
+    const makeStore = (send: ReturnType<typeof vi.fn>) => {
+      const sessions = {
+        list: { getSnapshot: () => ({ current: 'session-current' }) },
+        create: vi.fn().mockResolvedValue('session-recipe'),
+        binding: () => ({ ctx: { get: () => ({ send }) } }),
+        open: vi.fn(),
+      }
+      const store = new ManturMarketplaceStore({
+        remote: {},
+        get: (name: string) => name === 'sessions'
+          ? sessions
+          : name === 'workspaces'
+            ? { list: { getSnapshot: () => ({ items: [{ workspaceId: 'workspace-1', sessionIds: ['session-current'] }] }) } }
+            : undefined,
+      } as unknown as Context)
+      store.recipes.set({
+        phase: 'ready',
+        catalog: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: [] },
+        query: {},
+        detail: recipeDetail,
+      })
+      return { sessions, store }
+    }
+
+    const successfulCompletion = Promise.withResolvers<undefined>()
+    const successfulEntered = Promise.withResolvers<undefined>()
+    const successful = makeStore(vi.fn(() => {
+      successfulEntered.resolve(undefined)
+      return successfulCompletion.promise
+    }))
+    const successfulLaunch = successful.store.startRecipe(zhLaunchCopy)
+    await successfulEntered.promise
+    expect(successful.store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: recipe.slug,
+    })
+    successful.store.recipes.set({ phase: 'failed', query: {} })
+    successfulCompletion.resolve(undefined)
+    await expect(successfulLaunch).resolves.toBe(true)
+    expect(successful.store.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
+
+    const failedCompletion = Promise.withResolvers<undefined>()
+    const failedEntered = Promise.withResolvers<undefined>()
+    const failed = makeStore(vi.fn(() => {
+      failedEntered.resolve(undefined)
+      return failedCompletion.promise
+    }))
+    const failedLaunch = failed.store.startRecipe(zhLaunchCopy)
+    await failedEntered.promise
+    expect(failed.store.recipes.getSnapshot()).toMatchObject({
+      phase: 'ready', launching: recipe.slug,
+    })
+    failed.store.recipes.set({ phase: 'failed', query: {} })
+    failedCompletion.reject(new Error('failed'))
+    await expect(failedLaunch).resolves.toBe(false)
+    expect(failed.store.recipes.getSnapshot()).toEqual({ phase: 'failed', query: {} })
+  })
 })

@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { ManturHubRequestOptions } from '@deepseek-ai/dsh-authorization-manturhub'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as SkillFileSystem from '@deepseek-ai/dsh-skill-filesystem'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { strToU8, zipSync } from 'fflate'
 import { afterEach, describe, expect, it } from 'vitest'
 import ManturHubMarketplace from '../src/index.ts'
@@ -197,7 +198,7 @@ describe('ManturHub marketplace Host', () => {
   it('loads public Recipe pages and resolves media URLs against the configured Hub', async () => {
     const subject = await boot({ signedIn: false })
 
-    const catalog = await subject.service.listRecipes({ category: 'video', query: '旅行' })
+    const catalog = await subject.service.listRecipes({ category: 'video', tag: ' 电影感 ', query: '旅行' })
     expect(catalog).toMatchObject({
       total: 1,
       page: 1,
@@ -209,7 +210,7 @@ describe('ManturHub marketplace Host', () => {
       }],
     })
     expect(catalog.recipes[0]?.coverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/recipe-cover\.jpg$/)
-    expect(subject.requests).toContain('/api/v1/recipes?page=1&pageSize=15&compact=true&cat=video&q=%E6%97%85%E8%A1%8C  mantur-agent')
+    expect(subject.requests).toContain('/api/v1/recipes?page=1&pageSize=15&compact=true&cat=video&tag=%E7%94%B5%E5%BD%B1%E6%84%9F&q=%E6%97%85%E8%A1%8C  mantur-agent')
   })
 
   it('loads public Recipe detail with the authoritative Agent payload', async () => {
@@ -266,10 +267,41 @@ describe('ManturHub marketplace Host', () => {
 
   it('rejects malformed Recipe requests before contacting ManturHub', async () => {
     const subject = await boot()
+    await expect(subject.service.listRecipes({ page: Number.NaN })).rejects.toMatchObject({ code: 'gateway/bad-request' })
     await expect(subject.service.listRecipes({ page: 0 })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(subject.service.listRecipes({ tag: '   ' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
     await expect(subject.service.listRecipes({ query: '   ' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
     await expect(subject.service.recipeDetail('../private')).rejects.toMatchObject({ code: 'gateway/bad-request' })
     expect(subject.requests).toEqual([])
+  })
+
+  it.each([
+    ['missing response', undefined],
+    ['HTTP failure', new Response('', { status: 503 })],
+  ])('maps a Recipe catalog %s to a gateway failure', async (_label, response) => {
+    const subject = await boot({ accountRequest: () => Promise.resolve(response) })
+    await expect(subject.service.listRecipes({})).rejects.toMatchObject({ code: 'gateway/internal' })
+  })
+
+  it.each([
+    ['missing response', undefined],
+    ['HTTP failure', new Response('', { status: 503 })],
+  ])('maps a Recipe detail %s to a gateway failure', async (_label, response) => {
+    const subject = await boot({ accountRequest: () => Promise.resolve(response) })
+    await expect(subject.service.recipeDetail(recipe.slug)).rejects.toMatchObject({ code: 'gateway/internal' })
+  })
+
+  it('preserves Recipe RemoteErrors raised by the account request', async () => {
+    const failure = new RemoteError('gateway/bad-request', 'fixture rejection', {})
+    const subject = await boot({ accountRequest: () => Promise.reject(failure) })
+
+    await expect(subject.service.listRecipes({})).rejects.toBe(failure)
+    await expect(subject.service.recipeDetail(recipe.slug)).rejects.toBe(failure)
+  })
+
+  it('rejects Recipe detail metadata for a different slug', async () => {
+    const subject = await boot({ recipeDetail: { ...recipeDetail, slug: 'rcp.video.other' } })
+    await expect(subject.service.recipeDetail(recipe.slug)).rejects.toMatchObject({ code: 'gateway/internal' })
   })
 
   it('rejects unsafe public URLs returned in Recipe metadata', async () => {
@@ -471,7 +503,7 @@ describe('ManturHub marketplace Host', () => {
     await expect(subject.service.installSkill(skill.slug)).rejects.toThrow('could not be installed')
   })
 
-  it('restores the previous Skill when tracking-state commit fails', async () => {
+  it.skipIf(process.platform === 'win32')('restores the previous Skill when a POSIX permission blocks the state commit', async () => {
     let archive = bundle({
       'SKILL.md': '---\nname: story-director\nversion: 1.2.3\n---\n\nold body\n',
     })
@@ -502,21 +534,24 @@ describe('ManturHub marketplace Host', () => {
     expect(subject.requests.some(request => request.includes('/download'))).toBe(false)
   })
 
-  it.each([
-    ['symbolic link', async (directory: string) => { await symlink('SKILL.md', join(directory, 'local-link')) }],
-    ['special file', async (directory: string) => {
-      const { execFile } = await import('node:child_process')
-      await new Promise<void>((resolve, reject) => {
-        execFile('mkfifo', [join(directory, 'local-pipe')], (error) => {
-          if (error === null) resolve()
-          else reject(new Error('mkfifo failed', { cause: error }))
-        })
-      })
-    }],
-  ])('refuses a tracked tree containing a %s', async (_label, mutate) => {
+  it('refuses a tracked tree containing a symbolic link', async () => {
     const subject = await boot()
     await subject.service.installSkill(skill.slug)
-    await mutate(join(subject.home, 'skills', skill.slug))
+    await symlink('SKILL.md', join(subject.home, 'skills', skill.slug, 'local-link'))
+
+    await expect(subject.service.installSkill(skill.slug)).rejects.toThrow('could not be installed')
+  })
+
+  it.skipIf(process.platform === 'win32')('refuses a tracked tree containing a POSIX special file', async () => {
+    const subject = await boot()
+    await subject.service.installSkill(skill.slug)
+    const { execFile } = await import('node:child_process')
+    await new Promise<void>((resolve, reject) => {
+      execFile('mkfifo', [join(subject.home, 'skills', skill.slug, 'local-pipe')], (error) => {
+        if (error === null) resolve()
+        else reject(new Error('mkfifo failed', { cause: error }))
+      })
+    })
 
     await expect(subject.service.installSkill(skill.slug)).rejects.toThrow('could not be installed')
   })

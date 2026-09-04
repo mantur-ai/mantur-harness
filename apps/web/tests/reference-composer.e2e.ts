@@ -282,6 +282,7 @@ describe.skipIf(MODE === 'record')('web e2e: file and session references through
     // lists the folder's children.
     await writeComposerDraft(page, input, '@folderx')
     await menu.getByRole('option', { name: /^folderx\// }).waitFor()
+    await expect.poll(() => menu.getAttribute('aria-busy')).toBe('false')
     await page.keyboard.press('Tab')
     await expect.poll(() => input.textContent()).toBe('@folderx/')
     await menu.getByRole('option', { name: /child\.txt/ }).waitFor()
@@ -320,6 +321,7 @@ describe.skipIf(MODE === 'record')('web e2e: file and session references through
     // The same listing reached by drilling owes the user the way back.
     await writeComposerDraft(page, input, '@folderx')
     await menu.getByRole('option', { name: /^folderx\// }).waitFor()
+    await expect.poll(() => menu.getAttribute('aria-busy')).toBe('false')
     await page.keyboard.press('Tab')
     await menu.getByRole('option', { name: /child\.txt/ }).waitFor()
     await crumbs.waitFor()
