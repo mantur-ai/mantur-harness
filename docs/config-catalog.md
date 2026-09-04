@@ -289,7 +289,7 @@ export interface Config {
 export type ManturEnvironment = 'production' | 'test'
 ```
 
-Source: [`packages/credentials/authorization-manturhub/src/index.ts:35`](../packages/credentials/authorization-manturhub/src/index.ts)
+Source: [`packages/credentials/authorization-manturhub/src/index.ts:29`](../packages/credentials/authorization-manturhub/src/index.ts)
 
 <a id="deepseek-aidsh-bash-local"></a>
 

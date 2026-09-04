@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This Host package owns the active ManturHub production or test deployment, registers one `ctx.authorization` device-code flow per configured origin, and routes every `manturAccount.request()` through the selected deployment. Each origin has a distinct Host credential record. The generated `manturAccount` Remote returns deployment status, device instructions, account email, progress, local sign-out, and a persistent environment switch; it never returns an API key.
+This Host package owns the active ManturHub production or test deployment, registers one `ctx.authorization` device-code flow per configured origin, and routes every `manturAccount.request()` through the selected deployment. Each origin has a distinct Host credential record. The generated `manturAccount` Remote returns device instructions, account email, progress, and local sign-out; it never returns an API key or environment configuration.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ This Host package owns the active ManturHub production or test deployment, regis
 
 ## Configuration
 
-`environment` defaults to `production`. `baseUrl` defaults to `https://hub.mantur.ai` and names the production origin; `testBaseUrl` names the optional test origin and is required before `test` can be selected. Both values must be HTTP(S) origins without credentials, paths, queries, or fragments, and the test origin must differ from production. The writable `manturhub` settings section applies changes live. Changing the selected environment cancels an active device flow, while the desktop browser reload clears its in-memory account and marketplace state.
+`environment` defaults to `production`. `baseUrl` defaults to `https://hub.mantur.ai` and names the production origin; `testBaseUrl` names the optional test origin and is required before `test` can be selected. Both values must be HTTP(S) origins without credentials, paths, queries, or fragments, and the test origin must differ from production. Maintainers select the environment through the `mantur-account` row in a machine-local `cordis.patch.yml`; the account browser Remote cannot read or change it. Restarting the desktop application after a change clears its in-memory account and marketplace state.
 
-The public production origin retains the original credential key so an existing production login remains valid. Every other production or test origin uses an environment-and-origin-specific credential key. Changing a test URL therefore starts signed out instead of sending the previous test grant to a new server. Environment settings persist only names and URLs; grants remain in the credential provider.
+The public production origin retains the original credential key so an existing production login remains valid. Every other production or test origin uses an environment-and-origin-specific credential key. Changing a test URL therefore starts signed out instead of sending the previous test grant to a new server. Grants remain in the credential provider and never belong in the patch file.
 
 A verification URL on another origin is rejected. A session that omits `interval` or `expires_in` uses 5 seconds and 600 seconds. `slow_down` adds 5 seconds to the active polling interval; denial and expiry end the attempt without a credential.
 

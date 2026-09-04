@@ -23,5 +23,5 @@ export function AccountSection({ controller, t, useAccount }: AccountSectionProp
   useEffect(() => {
     if (state.phase === 'idle') void controller.load()
   }, [controller, state.phase])
-  return <AccountView state={state} controller={controller} t={t} showEnvironment />
+  return <AccountView state={state} controller={controller} t={t} />
 }

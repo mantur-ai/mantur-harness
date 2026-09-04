@@ -27,7 +27,7 @@ kind: "package-reference"
 
 只通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合这个包。所有者声明完成后，该包填充 `sidebar.navigation`、`sidebar.workspaces.heading` 和 `main.page`，再挂载浏览器安全的广场 Remote。打开技能页面会加载公开目录与本地安装标记；选择卡片会加载详情；登录后的安装请求通过 Host 写入文件，且只有 Host 确认后才更新可见卡片。未登录时，安装入口会启动现有 ManturHub 设备登录流程。页面选择存放在布局的临时 store 中，因此每次刷新都回到当前对话，不会把广场页面写入磁盘。
 
-配方页面通过服务端文本与分类筛选加载公开 ManturHub 目录，展示效果样片与分页，并在页面内打开包含可替换输入、提示词模板、模型、算子和权威复刻说明的详情。配方本身免费，算子执行采用实时报价，并在开始前由用户确认。“交给 Agent 复刻”会在当前项目中新建会话，并把 Hub 返回的 `agent_payload` 连同配方 slug 与 ManturHub 标识作为首条用户消息提交。仅当 ManturHub 发布来源 URL 时，这条消息才包含该地址。环境切换后，账号设置页会刷新浏览器，返回对话页并丢弃两个广场 store，然后才请求已选 origin。
+配方页面通过服务端文本与分类筛选加载公开 ManturHub 目录，展示效果样片与分页，并在页面内打开包含可替换输入、提示词模板、模型、算子和权威复刻说明的详情。配方本身免费，算子执行采用实时报价，并在开始前由用户确认。“交给 Agent 复刻”会在当前项目中新建会话，并把 Hub 返回的 `agent_payload` 连同配方 slug 与 ManturHub 标识作为首条用户消息提交。仅当 ManturHub 发布来源 URL 时，这条消息才包含该地址。两个广场都使用 Host 本机配置选定的部署。
 
 -----
 

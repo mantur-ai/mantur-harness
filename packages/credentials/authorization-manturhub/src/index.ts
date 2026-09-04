@@ -6,15 +6,12 @@ import s from '@deepseek-ai/schemastery'
 import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
 import { credentialKey, type CredentialKey, type CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type {} from '@deepseek-ai/dsh-settings'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
 import type {
   ManturAccount,
   ManturAccountStatus,
   ManturEnvironment,
-  ManturEnvironmentStatus,
-  ManturEnvironmentUpdate,
   ManturLoginAttemptId,
   ManturLoginProgress,
   ManturLoginStart,
@@ -24,9 +21,6 @@ export type * from './types.ts'
 
 /** Credential record owned by this authorization provider. */
 export const MANTUR_ACCOUNT_CREDENTIAL = credentialKey('authorization-manturhub', 'account')
-
-/** Settings namespace shared by the Host and account configuration UI. */
-export const MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE = 'manturhub'
 
 /** Public production deployment used when no endpoint override is configured. */
 export const MANTUR_PRODUCTION_BASE_URL = 'https://hub.mantur.ai'
@@ -188,15 +182,6 @@ function resolveConfig(config: Config): ResolvedConfig {
   return { active: production, production, ...(test === undefined ? {} : { test }) }
 }
 
-/** Project endpoint selection without exposing its environment-specific credential key. */
-function projectEnvironment(config: ResolvedConfig): ManturEnvironmentStatus {
-  return {
-    environment: config.active.environment,
-    baseUrl: config.active.baseUrl.origin,
-    ...(config.test === undefined ? {} : { testBaseUrl: config.test.baseUrl.origin }),
-  }
-}
-
 /**
  * Read and parse one ManturHub JSON response without unbounded buffering.
  * @param response - ManturHub HTTP response whose body remains unread.
@@ -285,9 +270,7 @@ export class ManturHubAuthorization extends TypertRemoteService {
     testBaseUrl: s.string(),
   })
 
-  private source: () => Config
-  private config: ResolvedConfig
-  private readonly flowDisposers = new Map<CredentialKey, () => void>()
+  private readonly config: ResolvedConfig
   private currentAttempt: Attempt | undefined
   private lastAttempt: Attempt | undefined
 
@@ -297,65 +280,29 @@ export class ManturHubAuthorization extends TypertRemoteService {
    */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'manturAccount', { namespace: 'manturAccount' })
-    this.source = () => config
-    this.config = resolveConfig(this.source())
+    this.config = resolveConfig(config)
     ctx.effect(() => {
-      this.syncFlows()
-      return () => {
-        for (const dispose of this.flowDisposers.values()) dispose()
-        this.flowDisposers.clear()
-      }
-    }, 'authorization-manturhub: deployment flows')
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE, ManturHubAuthorization.Config, config, {
-        validate: resolveConfig,
-        setSource: (source) => { this.source = source },
-        onChange: () => { this.refreshConfig() },
-      })
-    })
-    ctx.effect(() => () => {
-      if (this.currentAttempt !== undefined) ctx.authorization.cancel(this.currentAttempt.deployment.credential)
-    }, 'authorization-manturhub: cancel active attempt')
-  }
-
-  /** Re-resolve the settings snapshot and replace only deployment flows whose origin changed. */
-  private refreshConfig(): void {
-    const previous = this.config.active
-    const next = resolveConfig(this.source())
-    if (this.currentAttempt !== undefined
-      && previous.credential !== next.active.credential) {
-      this.ctx.authorization.cancel(this.currentAttempt.deployment.credential)
-    }
-    this.config = next
-    this.syncFlows()
-  }
-
-  /** Keep one authorization flow registered for each configured deployment origin. */
-  private syncFlows(): void {
-    const desired = new Map<CredentialKey, ResolvedEnvironment>([
-      [this.config.production.credential, this.config.production],
-      ...(this.config.test === undefined
-        ? []
-        : [[this.config.test.credential, this.config.test] as const]),
-    ])
-    for (const [key, dispose] of this.flowDisposers) {
-      if (desired.has(key)) continue
-      dispose()
-      this.flowDisposers.delete(key)
-    }
-    for (const [key, deployment] of desired) {
-      if (this.flowDisposers.has(key)) continue
-      this.flowDisposers.set(key, this.ctx.authorization.registerFlow({
-        key,
+      const deployments = [
+        this.config.production,
+        ...(this.config.test === undefined ? [] : [this.config.test]),
+      ]
+      const disposers = deployments.map(deployment => ctx.authorization.registerFlow({
+        key: deployment.credential,
         label: deployment.environment === 'production' ? 'ManturHub' : 'ManturHub (Test)',
         methods: [{ id: 'device-code', label: 'Device code' }],
         run: session => this.runDeviceFlow(
           session,
-          this.currentAttempt?.deployment.credential === key ? this.currentAttempt : undefined,
+          this.currentAttempt?.deployment.credential === deployment.credential ? this.currentAttempt : undefined,
           deployment,
         ),
       }))
-    }
+      return () => {
+        for (const dispose of disposers) dispose()
+      }
+    }, 'authorization-manturhub: deployment flows')
+    ctx.effect(() => () => {
+      if (this.currentAttempt !== undefined) ctx.authorization.cancel(this.currentAttempt.deployment.credential)
+    }, 'authorization-manturhub: cancel active attempt')
   }
 
   /**
@@ -393,53 +340,14 @@ export class ManturHubAuthorization extends TypertRemoteService {
    */
   @Remote
   async status(): Promise<ManturAccountStatus> {
-    const config = this.config
-    const environment = projectEnvironment(config)
     try {
-      const grant = parseGrant(await this.ctx.credentials.readRecord(config.active.credential))
+      const grant = parseGrant(await this.ctx.credentials.readRecord(this.config.active.credential))
       return grant === undefined
-        ? { ...environment, status: 'signed-out' }
-        : { ...environment, status: 'signed-in', account: grant.account }
+        ? { status: 'signed-out' }
+        : { status: 'signed-in', account: grant.account }
     } catch (error) {
       throw new RemoteError('gateway/internal', 'ManturHub account credential could not be read', {}, { cause: error })
     }
-  }
-
-  /**
-   * Persist and activate one deployment selection through the settings provider.
-   * @param update - named environment and optional test origin.
-   * @returns the active browser-safe deployment after the committed write.
-   */
-  @Remote
-  async setEnvironment(update: ManturEnvironmentUpdate): Promise<ManturEnvironmentStatus> {
-    const settings = this.ctx.get('settings')
-    if (settings === undefined) {
-      throw new RemoteError('gateway/internal', 'ManturHub environment settings are unavailable', {})
-    }
-    const testBaseUrl = update.testBaseUrl?.trim()
-    const next: Config = {
-      ...this.source(),
-      environment: update.environment,
-      ...(testBaseUrl === undefined || testBaseUrl === '' ? {} : { testBaseUrl }),
-    }
-    try {
-      resolveConfig(next)
-    } catch (error) {
-      throw new RemoteError('gateway/bad-request', 'ManturHub environment could not be changed', {}, { cause: error })
-    }
-    if (this.currentAttempt !== undefined) {
-      this.ctx.authorization.cancel(this.currentAttempt.deployment.credential)
-    }
-    try {
-      await settings.update(MANTUR_ENVIRONMENT_SETTINGS_NAMESPACE, {
-        environment: update.environment,
-        ...(testBaseUrl === undefined || testBaseUrl === '' ? {} : { testBaseUrl }),
-      })
-    } catch (error) {
-      throw new RemoteError('gateway/internal', 'ManturHub environment settings could not be saved', {}, { cause: error })
-    }
-    this.refreshConfig()
-    return projectEnvironment(this.config)
   }
 
   /**
@@ -456,10 +364,6 @@ export class ManturHubAuthorization extends TypertRemoteService {
     if (grant !== undefined) {
       throw new RemoteError('gateway/bad-request', 'the ManturHub account is already signed in', {})
     }
-    if (deployment.credential !== this.config.active.credential) {
-      throw new RemoteError('gateway/bad-request', 'the ManturHub environment changed while sign-in was starting', {})
-    }
-
     const attempt: Attempt = {
       id: brandString<ManturLoginAttemptId>(randomUUID()),
       deployment,

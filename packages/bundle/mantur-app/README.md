@@ -25,7 +25,19 @@ This bundle is the final layer of the shipped `mantur` profile. It retains the W
 
 Launch the complete product through `dsh --profile mantur`; the desktop carrier selects that profile automatically. The ordered bundle stack is `dsh-base`, `dsh-web-app`, then this layer. The `web` profile remains unchanged.
 
-The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent root page and returns to the current conversation without persisting a route. The Skill page loads ManturHub's public catalog and details, reuses ManturHub device login, and asks the Host to install a verified archive into this profile's live Skill directory. The Recipe page defines a Recipe as a proven creative example with a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost; it is not a generic workflow template. The Mantur Account settings page switches login, both marketplaces, details, and downloads together between production and a configured test origin, with separate grants and a browser reload after each change.
+The Mantur sidebar adds a Features group before Projects, with fixed Skill Marketplace and Recipe Marketplace entries. Each entry opens an independent root page and returns to the current conversation without persisting a route. The Skill page loads ManturHub's public catalog and details, reuses ManturHub device login, and asks the Host to install a verified archive into this profile's live Skill directory. The Recipe page defines a Recipe as a proven creative example with a result sample, prompt template, reproducible operator parameters, model and operator details, and an estimated recreation cost; it is not a generic workflow template. The account page exposes login and sign-out only. Login, both marketplaces, details, and downloads use the deployment selected in the machine-local profile configuration, with separate grants per origin.
+
+Maintainers switch the installed macOS application by editing `~/Library/Application Support/mantur-agent/harness/profiles/mantur/cordis.patch.yml`. Development runs use the sibling `mantur-agent-dev` directory. The patch replaces the complete `mantur-account` config, so keep all three fields and change only `environment` during routine switching:
+
+```yaml
+- id: mantur-account
+  config:
+    environment: test
+    baseUrl: https://hub.mantur.ai
+    testBaseUrl: https://test.example.com
+```
+
+Use `environment: production` to return to production. Quit and reopen the desktop application after each edit so browser account and marketplace state cannot survive a deployment change. The profile rejects a missing test URL, a path-bearing URL such as `https://test.example.com/api`, and a test origin equal to `baseUrl`.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -57,7 +69,7 @@ Stable for a fixed working directory and underlying agent composition. The deskt
 - **Release assets remain pending** — the final macOS and Windows application icons require approved Mantur artwork.
 - **Three-platform installer verification remains pending** — macOS arm64, macOS x64, and Windows x64 packaging and signing must run on their native release runners.
 - **Capabilities remain installed** — Agent Preset and Plan packages are retained below this product layer; only their visible browser rows are disabled.
-- **Local Skills remain shared** — environment switching isolates online requests and grants, while Skills installed into this profile's live local directory remain available in both environments.
+- **Local Skills remain shared** — machine-local environment selection isolates online requests and grants, while Skills installed into this profile's live local directory remain available in both environments.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -9,9 +9,9 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This browser package adds the first Mantur onboarding step and a Mantur Account settings page. A user can sign in through a system-browser device flow or choose Not now; either path transfers onboarding to the existing DeepSeek API-key step. The Settings page shows sanitized account status, supports local sign-out, and switches all Mantur online features between production and a user-supplied test origin.
+This browser package adds the first Mantur onboarding step and a Mantur Account settings page. A user can sign in through a system-browser device flow or choose Not now; either path transfers onboarding to the existing DeepSeek API-key step. The Settings page shows sanitized account status and supports local sign-out. Environment selection remains a machine-local Host configuration and is not exposed in the browser.
 
-The browser receives only environment names and origins, an attempt id, verification URL, user code, expiry, progress, and account email. It never receives the ManturHub API key. A successful environment change reloads the client so account, Skill Marketplace, and Recipe Marketplace controllers cannot retain results from the previous deployment.
+The browser receives only an attempt id, verification URL, user code, expiry, progress, and account email. It never receives the ManturHub API key or configured deployment origin.
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ The account surfaces do not alter model request prefixes or cache reuse.
 <a id="known-limitations-and-deferred-work"></a>
 
 - Not now applies to the current empty-session onboarding sequence and is offered again in a later fresh sequence.
-- Environment selection isolates online data and credentials. Skills already installed into the local live directory remain available after a switch.
+- Skills already installed into the local live directory remain available when a maintainer changes the Host environment configuration.
 
 <a id="dev-note"></a>
 ### Dev Note
