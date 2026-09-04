@@ -91,7 +91,7 @@ type SkillSource = 'project-dsh' | 'project-agents' | 'runtime' | 'user-dsh' | '
 
 ## Summaries, candidates, and complete definitions
 
-`SkillSummary` is the registry's invocation-neutral summary shape. Consumers choose which entries and fields to render; the model session catalog uses only model-invocable `name` and `description`, never the body or absolute file path. `SkillInvocationPolicy` normalizes the two independent invocation controls into positive booleans, and every resolved summary, candidate, and definition carries it without turning arbitrary frontmatter into the domain model.
+`SkillSummary` is the registry's invocation-neutral summary shape. Consumers choose which entries and fields to render; human-facing catalogs may show `title`, while every invocation continues to address the kebab-case `name`. The model session catalog uses only model-invocable `name` and `description`, never the title, body, or absolute file path. `SkillInvocationPolicy` normalizes the two independent invocation controls into positive booleans, and every resolved summary, candidate, and definition carries it without turning arbitrary frontmatter into the domain model.
 
 ```ts type-equiv
 /** Invocation controls shared by skill discovery consumers. */
@@ -108,6 +108,8 @@ interface SkillInvocationPolicy {
 interface SkillSummary {
   /** Kebab-case identifier used to address the skill. */
   readonly name: string
+  /** Optional human-facing title; invocation continues to use {@link name}. */
+  readonly title?: string
   /** Short routing description shown by discovery consumers. */
   readonly description: string
   /** Optional extra routing guidance. */

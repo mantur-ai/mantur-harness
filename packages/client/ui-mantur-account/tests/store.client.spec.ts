@@ -10,8 +10,7 @@ const login: ManturLoginStart = {
   expiresAt: 10_000,
 }
 
-const production = { environment: 'production' as const, baseUrl: 'https://hub.mantur.ai' }
-const signedOut = { ...production, status: 'signed-out' as const }
+const signedOut = { status: 'signed-out' as const }
 
 const success = <T>(value: T) => Promise.resolve({ ok: true as const, value })
 const failure = () => Promise.resolve({
@@ -20,17 +19,15 @@ const failure = () => Promise.resolve({
 })
 
 function harness() {
-  const reload = vi.fn()
   const remote = {
     status: vi.fn(),
-    setEnvironment: vi.fn(),
     startLogin: vi.fn(),
     loginProgress: vi.fn(),
     cancelLogin: vi.fn(),
     signOut: vi.fn(),
   }
-  const controller = new ManturAccountStore({ remote: { manturAccount: remote } } as never, reload)
-  return { controller, reload, remote }
+  const controller = new ManturAccountStore({ remote: { manturAccount: remote } } as never)
+  return { controller, remote }
 }
 
 afterEach(() => {
@@ -44,17 +41,17 @@ describe('ManturAccountStore', () => {
     const subject = harness()
     subject.remote.status
       .mockReturnValueOnce(success(signedOut))
-      .mockReturnValueOnce(success({ ...production, status: 'signed-in', account: { email: 'artist@example.com' } }))
+      .mockReturnValueOnce(success({ status: 'signed-in', account: { email: 'artist@example.com' } }))
       .mockReturnValueOnce(failure())
 
     await subject.controller.load()
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
     await subject.controller.load()
     expect(subject.controller.store.getSnapshot()).toEqual({
-      phase: 'signed-in', account: { email: 'artist@example.com' }, environment: production,
+      phase: 'signed-in', account: { email: 'artist@example.com' },
     })
     await subject.controller.load()
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'failed', environment: production })
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'failed' })
   })
 
   it('does not let stale load success or failure replace a newer state', async () => {
@@ -65,9 +62,9 @@ describe('ManturAccountStore', () => {
       .mockReturnValueOnce(success(signedOut))
     const first = subject.controller.load()
     await subject.controller.load()
-    staleSuccess.resolve(await success({ ...production, status: 'signed-in', account: { email: 'old@example.com' } }))
+    staleSuccess.resolve(await success({ status: 'signed-in', account: { email: 'old@example.com' } }))
     await first
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
 
     const staleFailure = Promise.withResolvers<Awaited<ReturnType<typeof failure>>>()
     subject.remote.status
@@ -77,7 +74,7 @@ describe('ManturAccountStore', () => {
     await subject.controller.load()
     staleFailure.resolve(await failure())
     await third
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
   })
 
   it('polls pending login progress until authorization succeeds', async () => {
@@ -112,7 +109,7 @@ describe('ManturAccountStore', () => {
     await stale.controller.load()
     deferred.resolve(await success(login))
     await starting
-    expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
 
     const staleFailure = Promise.withResolvers<Awaited<ReturnType<typeof failure>>>()
     stale.remote.startLogin.mockReturnValueOnce(staleFailure.promise)
@@ -120,7 +117,7 @@ describe('ManturAccountStore', () => {
     await stale.controller.load()
     staleFailure.resolve(await failure())
     await startingFailure
-    expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
   })
 
   it.each([
@@ -161,7 +158,7 @@ describe('ManturAccountStore', () => {
       await stale.controller.load()
       deferred.resolve(await progress)
       await Promise.resolve()
-      expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+      expect(stale.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
     }
   })
 
@@ -195,7 +192,7 @@ describe('ManturAccountStore', () => {
     await subject.controller.load()
     deferred.resolve(await success(undefined))
     await signingOut
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
 
     const staleFailure = Promise.withResolvers<Awaited<ReturnType<typeof failure>>>()
     subject.remote.signOut.mockReturnValueOnce(staleFailure.promise)
@@ -203,78 +200,7 @@ describe('ManturAccountStore', () => {
     await subject.controller.load()
     staleFailure.resolve(await failure())
     await failedSignOut
-    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
-  })
-
-  it('validates, persists, and reloads environment selection', async () => {
-    const missing = harness()
-    missing.remote.status.mockReturnValue(success({
-      ...signedOut, testBaseUrl: 'https://saved-test.mantur.example',
-    }))
-    await missing.controller.load()
-    await missing.controller.setEnvironment('test', '   ')
-    expect(missing.remote.setEnvironment).not.toHaveBeenCalled()
-    expect(missing.controller.store.getSnapshot()).toEqual({
-      phase: 'signed-out',
-      environment: { ...production, testBaseUrl: 'https://saved-test.mantur.example' },
-      environmentError: 'missing-test-url',
-    })
-
-    const switched = harness()
-    switched.remote.status.mockReturnValue(success(signedOut))
-    switched.remote.setEnvironment.mockReturnValue(success({
-      environment: 'test', baseUrl: 'https://test.mantur.example', testBaseUrl: 'https://test.mantur.example',
-    }))
-    await switched.controller.load()
-    await switched.controller.setEnvironment('test', ' https://test.mantur.example ')
-    expect(switched.remote.setEnvironment).toHaveBeenCalledWith({
-      environment: 'test', testBaseUrl: 'https://test.mantur.example',
-    })
-    expect(switched.reload).toHaveBeenCalledOnce()
-
-    const failed = harness()
-    failed.remote.status.mockReturnValue(success(signedOut))
-    failed.remote.setEnvironment.mockReturnValue(failure())
-    await failed.controller.load()
-    await failed.controller.setEnvironment('production', '')
-    expect(failed.reload).not.toHaveBeenCalled()
-    expect(failed.controller.store.getSnapshot()).toEqual({
-      phase: 'signed-out', environment: production, environmentBusy: false, environmentError: 'failed',
-    })
-  })
-
-  it('ignores stale environment success and failure settlements', async () => {
-    for (const settlement of [success(production), failure()]) {
-      const subject = harness()
-      subject.remote.status.mockReturnValue(success(signedOut))
-      await subject.controller.load()
-      const deferred = Promise.withResolvers<Awaited<typeof settlement>>()
-      subject.remote.setEnvironment.mockReturnValue(deferred.promise)
-      const switching = subject.controller.setEnvironment('production', '')
-      await subject.controller.load()
-      deferred.resolve(await settlement)
-      await switching
-      expect(subject.reload).not.toHaveBeenCalled()
-      expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out', environment: production })
-    }
-  })
-
-  it('uses browser reload when no reload override is supplied', async () => {
-    const reload = vi.fn()
-    vi.stubGlobal('window', { location: { reload } })
-    const remote = {
-      status: vi.fn(),
-      setEnvironment: vi.fn(() => success(production)),
-      startLogin: vi.fn(),
-      loginProgress: vi.fn(),
-      cancelLogin: vi.fn(),
-      signOut: vi.fn(),
-    }
-    const controller = new ManturAccountStore({ remote: { manturAccount: remote } } as never)
-
-    await controller.setEnvironment('production', '')
-
-    expect(reload).toHaveBeenCalledOnce()
+    expect(subject.controller.store.getSnapshot()).toEqual({ phase: 'signed-out' })
   })
 
   it('invalidates scheduled polling when disposed', async () => {

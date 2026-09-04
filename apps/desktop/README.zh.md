@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。两个原生打包目标都使用已确认的蓝色无限环 Logo，桌面包不会实现另一套 agent 运行时。
+桌面应用是由漫途（Mantur）打造、专门在本地完成漫剧创作与生产的漫途Agent。Electron 只负责原生窗口和一个子进程；子进程在随机 loopback 端口启动随附的 `dsh --profile mantur` 应用。开发应用与打包应用都把已确认的蓝色无限环 Logo 用于原生窗口、macOS Dock、关于面板和安装包资源。桌面包不会实现另一套 agent 运行时。
 
 ## 不打包开发
 
@@ -59,7 +59,7 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 | Secret | `APPLE_ID` | 用于 notarization 的 Apple ID |
 | Secret | `APPLE_APP_SPECIFIC_PASSWORD` | 该 Apple ID 的 App 专用密码 |
 
-工作流会把两份原生 `latest-mac.yml` 合并为一份可区分架构的更新通道，并把完整候选产物与 `SHA256SUMS` 保留七天。必须从精确匹配 `desktop-v<apps/desktop 版本>` 的 tag 运行。`publish=false` 会在组装候选产物后停止；`publish=true` 会创建 GitHub release，并同时上传 DMG、更新 ZIP、blockmap、更新元数据与哈希。工作流会拒绝使用已有 release 的 tag，不会替换已发布文件；仓库级 Release Immutability 则会继续阻止之后修改 tag 或产物。
+工作流会把两份原生 `latest-mac.yml` 合并为一份可区分架构的更新通道，并把完整候选产物与 `SHA256SUMS` 保留七天。必须从精确匹配 `v<apps/desktop 版本>` 的 tag 运行；electron-updater 可以从 GitHub feed 中选择这种兼容 semver 的预发布 tag。`publish=false` 会在组装候选产物后停止；`publish=true` 会创建 GitHub release，并同时上传 DMG、更新 ZIP、blockmap、更新元数据与哈希。工作流会拒绝使用已有 release 的 tag，不会替换已发布文件；仓库级 Release Immutability 则会继续阻止之后修改 tag 或产物。
 
 ## 运行时设计
 
@@ -71,11 +71,13 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 如果启动错误只识别到过期的 `session_projcache` schema，载体会先关闭失败的子进程并完成日志写入，再由本地化原生对话框在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
 
-已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。在任一对话框等待期间关闭 updater，会取消后续下载或安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
+已打包应用会在 macOS 的原生应用菜单和 Windows 的帮助菜单中显示当前版本与**检查更新…**。菜单会显示检查中、下载进度、可安装、已是最新版与失败状态；手动检查还会打开本地化的结果或错误对话框。应用启动后会开始检查，并每六小时重复。stable 构建只接收 stable release，版本号含 `alpha`、`beta` 或 `rc` 的构建可以接收预发布版本。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。选择稍后会在菜单中保留重启安装操作。在任一对话框等待期间关闭 updater，会取消后续下载或安装。
+
+macOS Intel、macOS Apple Silicon 与 Windows 使用同一个更新控制器。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows 对外更新需要代码签名身份、受保护的发布凭据与生成的 NSIS 更新产物；本仓库不提供或绕过这些前置条件。
 
 ## 已知限制
 
 - `Desktop package` 产物仍是未签名的内部安装包。macOS Gatekeeper 与 Windows SmartScreen 可能对这些文件显示警告；对外分发 macOS 客户端时只能使用 `Desktop release` 产物。
-- 已确认的图标源文件是 1024 px 透明 PNG。macOS 和 Windows 包会在原生构建时生成各自的平台图标格式；当前没有矢量源文件。
+- 原生图标源文件是带白色圆角底和透明外角的 1024 px PNG，Web 客户端单独使用透明 Logo。macOS 和 Windows 包会在原生构建时生成各自的平台图标格式；当前没有矢量源文件。
 - 已签名的 release 工作流只发布 macOS。Windows 在具备代码签名身份与受保护的发布路径之前不支持外部更新。
 - 每个目标只在其原生 runner 同时完成打包和 smoke 后有效。一个架构上的构建不能作为另一目标的证据。

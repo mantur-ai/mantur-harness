@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. Both native package targets use the approved blue infinity-loop logo, and the desktop package does not implement another agent runtime.
+The desktop application is 漫途Agent, built by Mantur to create and produce comic dramas locally. Electron owns the native window and one child process; the child starts the shipped `dsh --profile mantur` application on a random loopback port. Development and packaged applications use the approved blue infinity-loop logo for the native window, macOS Dock, About panel, and installer assets. The desktop package does not implement another agent runtime.
 
 ## Develop without packaging
 
@@ -59,7 +59,7 @@ Before public distribution, enable Release Immutability in the repository settin
 | Secret | `APPLE_ID` | Apple ID used for notarization |
 | Secret | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
 
-The workflow combines both native `latest-mac.yml` files into one architecture-aware update channel and retains the complete candidate plus `SHA256SUMS` for seven days. Run it from the exact `desktop-v<apps/desktop version>` tag. `publish=false` stops after assembling the candidate; `publish=true` creates a GitHub release with the DMGs, update ZIPs, blockmaps, update metadata, and hashes. The workflow refuses a tag that already owns a release instead of replacing published files; repository-level Release Immutability then prevents later tag or asset changes.
+The workflow combines both native `latest-mac.yml` files into one architecture-aware update channel and retains the complete candidate plus `SHA256SUMS` for seven days. Run it from the exact `v<apps/desktop version>` tag; this semver-compatible tag lets electron-updater select prereleases from the GitHub feed. `publish=false` stops after assembling the candidate; `publish=true` creates a GitHub release with the DMGs, update ZIPs, blockmaps, update metadata, and hashes. The workflow refuses a tag that already owns a release instead of replacing published files; repository-level Release Immutability then prevents later tag or asset changes.
 
 ## Runtime design
 
@@ -71,11 +71,13 @@ The permanent application identifier is `ai.mantur.agent`. Before Electron becom
 
 If startup identifies only a stale `session_projcache` schema, the carrier closes the failed child process and its log before the localized native dialog can remove that disposable projection cache and retry after the user explicitly approves the action. It never deletes session logs, settings, credentials, profiles, or workspaces. Other startup failures offer the log and quit instead of guessing a repair.
 
-Packaged applications check the `mantur-ai/mantur-harness` GitHub Releases feed after startup and every six hours. A new version is downloaded only after the user confirms, and a downloaded version is installed only after a second confirmation to stop Harness and restart. Closing the updater while either prompt is pending suppresses the pending download or installation. macOS release updates require a signed and notarized application plus the generated ZIP and update metadata; the DMG remains the human installation artifact. Windows releases likewise require code signing and the generated NSIS update assets.
+Packaged applications show the current version and **Check for Updates…** in the native application menu on macOS and the Help menu on Windows. The menu reports checking, download progress, ready-to-install, up-to-date, and failed states; a manual check also opens a localized result or error dialog. Checks start after launch and repeat every six hours. Stable builds accept only stable releases, while versions containing `alpha`, `beta`, or `rc` can accept prereleases. A new version downloads only after user confirmation, and a downloaded version installs only after a second confirmation to stop Harness and restart. Choosing Later leaves a restart-and-install action in the menu. Closing the updater while either prompt is pending suppresses the pending download or installation.
+
+The same update controller runs on macOS Intel, macOS Apple Silicon, and Windows. macOS release updates require a signed and notarized application plus the generated ZIP and update metadata; the DMG remains the human installation artifact. Windows public updates require a code-signing identity, protected publication credentials, and the generated NSIS update assets; this repository does not supply or bypass those prerequisites.
 
 ## Known limitations
 
 - The `Desktop package` artifacts remain unsigned internal installers. macOS Gatekeeper and Windows SmartScreen can warn for those files; use only the `Desktop release` artifacts for external macOS distribution.
-- The approved icon source is a 1024 px transparent PNG. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
+- The native icon source is a 1024 px PNG with a white rounded tile and transparent outer corners. The Web client uses the transparent logo separately. macOS and Windows packages derive their platform icon formats during the native build; a vector source remains unavailable.
 - The signed release workflow publishes macOS only. Windows external updates remain unsupported until a Windows code-signing identity and protected publication path exist.
 - Each target is valid only after its native runner completes both packaging and the smoke. A build on one architecture is not evidence for another target.

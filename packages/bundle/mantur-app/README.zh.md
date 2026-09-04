@@ -25,7 +25,19 @@ kind: "package-bundle"
 
 通过 `dsh --profile mantur` 启动完整产品；桌面载体会自动选择该 profile。有序 bundle 栈为 `dsh-base`、`dsh-web-app` 与本层。`web` profile 保持不变。
 
-漫途侧栏在“项目”之前增加“功能”分组，并固定提供“技能广场”和“配方广场”入口。两个入口分别打开独立主页面，可以返回当前对话，且不会持久化页面选择。Skill 页面加载 ManturHub 公开目录与详情，复用 ManturHub 设备登录，并请求 Host 把校验后的压缩包安装到当前 profile 的实时 Skill 目录。配方页面把配方定义为带有效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本的优秀验证案例，而不是通用工作流模板。“漫途账号”设置页可以把登录、两个广场、详情与下载统一切换到线上环境或已配置的测试 origin；两套授权分开保存，每次变更后都会刷新浏览器。
+漫途侧栏在“项目”之前增加“功能”分组，并固定提供“技能广场”和“配方广场”入口。两个入口分别打开独立主页面，可以返回当前对话，且不会持久化页面选择。Skill 页面加载 ManturHub 公开目录与详情，复用 ManturHub 设备登录，并请求 Host 把校验后的压缩包安装到当前 profile 的实时 Skill 目录。配方页面把配方定义为带有效果样片、提示词模板、可复现算子参数、模型与算子信息和预计复刻成本的优秀验证案例，而不是通用工作流模板。账号页只提供登录与退出。登录、两个广场、详情与下载统一使用本机 profile 配置选定的部署，且每个 origin 的授权分开保存。
+
+维护者通过编辑 `~/Library/Application Support/mantur-agent/harness/profiles/mantur/cordis.patch.yml` 切换已安装的 macOS 应用。开发运行使用并列的 `mantur-agent-dev` 目录。patch 会替换完整的 `mantur-account` config，因此应保留三个字段，日常切换只改 `environment`：
+
+```yaml
+- id: mantur-account
+  config:
+    environment: test
+    baseUrl: https://hub.mantur.ai
+    testBaseUrl: https://test.example.com
+```
+
+把 `environment` 改为 `production` 即可返回线上环境。每次编辑后应退出并重新打开桌面应用，避免浏览器账号与广场状态跨环境留存。profile 会拒绝缺少测试 URL、含路径的 URL（例如 `https://test.example.com/api`）以及与 `baseUrl` 相同的测试 origin。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -57,7 +69,7 @@ kind: "package-bundle"
 - **发行视觉资产待定**—最终 macOS 与 Windows 应用图标需要已批准的漫途素材。
 - **三平台安装包验证待完成**—macOS arm64、macOS x64 与 Windows x64 的打包和签名必须在各自原生发行 runner 上执行。
 - **能力仍保留安装**—Agent Preset 与 Plan 包保留在本产品层之下；只禁用它们可见的浏览器条目。
-- **本机 Skill 仍然共享**—环境切换会隔离在线请求与授权，但已经安装到当前 profile 本机实时目录的 Skill 会在两个环境中继续可用。
+- **本机 Skill 仍然共享**—本机环境选择会隔离在线请求与授权，但已经安装到当前 profile 本机实时目录的 Skill 会在两个环境中继续可用。
 
 <a id="dev-note"></a>
 ### 开发备注

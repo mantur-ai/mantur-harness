@@ -23,9 +23,8 @@ async function bench() {
     manturAccount: {
       status: vi.fn(() => Promise.resolve({
         ok: true,
-        value: { status: 'signed-out', environment: 'production', baseUrl: 'https://hub.mantur.ai' },
+        value: { status: 'signed-out' },
       })),
-      setEnvironment: vi.fn(),
       startLogin: vi.fn(),
       loginProgress: vi.fn(),
       cancelLogin: vi.fn(),

@@ -22,13 +22,16 @@ export type ManturMarketplaceState =
     readonly detailError?: string | undefined
     readonly installing?: string | undefined
     readonly installError?: 'auth-required' | 'local-conflict' | 'failed' | undefined
+    readonly using?: string | undefined
+    readonly useError?: 'no-workspace' | 'failed' | undefined
     readonly login?: ManturLoginStart | undefined
     readonly loginPhase?: 'starting' | 'authorizing' | 'failed' | undefined
   }
 
 /** Client-visible Recipe catalog, detail, and launch state. */
 export type ManturRecipeMarketplaceState =
-  | { readonly phase: 'idle' | 'loading' }
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'loading'; readonly query: ManturMarketplaceRecipeQuery }
   | { readonly phase: 'failed'; readonly query: ManturMarketplaceRecipeQuery }
   | {
     readonly phase: 'ready'
@@ -55,6 +58,16 @@ function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: 
   throw new Error(`${result.error.code}: ${result.error.message}`)
 }
 
+/** Return a stable identity for one Recipe catalog request. */
+function recipeQueryKey(query: ManturMarketplaceRecipeQuery): string {
+  return JSON.stringify([
+    query.page ?? 1,
+    query.category ?? '',
+    query.tag ?? '',
+    query.query ?? '',
+  ])
+}
+
 /** Root-scoped controller for catalog and detail reads. */
 export class ManturMarketplaceStore {
   /** Snapshot consumed by the Skill page. */
@@ -65,6 +78,7 @@ export class ManturMarketplaceStore {
   private recipeGeneration = 0
   private loginGeneration = 0
   private loginTimer: number | undefined
+  private pendingSkillSession: { readonly workspaceId: WorkspaceId; readonly sessionId: SessionId } | undefined
   private pendingRecipeSession: { readonly workspaceId: WorkspaceId; readonly sessionId: SessionId } | undefined
 
   /** @param ctx - client context carrying the generated marketplace Remote. */
@@ -82,18 +96,40 @@ export class ManturMarketplaceStore {
     }
   }
 
+  /** Load the Skill catalog only when this controller has no settled state. */
+  async ensureSkillCatalog(): Promise<void> {
+    if (this.store.getSnapshot().phase !== 'idle') return
+    await this.load()
+  }
+
+  /**
+   * Reuse the current Recipe catalog when it represents the requested query.
+   * @param query - page and optional category, tag, and text filters.
+   */
+  async ensureRecipeCatalog(query: ManturMarketplaceRecipeQuery = {}): Promise<void> {
+    const key = recipeQueryKey(query)
+    const current = this.recipes.getSnapshot()
+    if (current.phase !== 'idle'
+      && recipeQueryKey(current.query) === key) return
+    await this.loadRecipes(query)
+  }
+
   /**
    * Load one public Recipe page with server-side filters.
    * @param query - page and optional category, tag, and text filters.
    */
   async loadRecipes(query: ManturMarketplaceRecipeQuery = {}): Promise<void> {
     const generation = ++this.recipeGeneration
-    this.recipes.set({ phase: 'loading' })
+    this.recipes.set({ phase: 'loading', query })
     try {
       const catalog = unwrap(await this.ctx.remote.manturMarketplace.listRecipes(query))
-      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'ready', catalog, query })
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ phase: 'ready', catalog, query })
+      }
     } catch {
-      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'failed', query })
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ phase: 'failed', query })
+      }
     }
   }
 
@@ -253,6 +289,55 @@ export class ManturMarketplaceStore {
       },
       ...(pending.detail?.slug === slug ? { detail: { ...pending.detail, installed: true } } : {}),
     })
+  }
+
+  /**
+   * Start a default-named Session in the current Workspace with an installed Skill command as its draft.
+   * @param slug - Installed Skill selected by the user.
+   * @returns whether the draft is ready in the newly opened Session.
+   */
+  async startSkill(slug: string): Promise<boolean> {
+    const current = this.store.getSnapshot()
+    const skill = current.phase === 'ready'
+      ? current.catalog.skills.find(candidate => candidate.slug === slug)
+      : undefined
+    if (current.phase !== 'ready' || skill?.installed !== true || current.using !== undefined) return false
+    const sessions = this.ctx.get('sessions')
+    const workspaces = this.ctx.get('workspaces')
+    if (sessions === undefined || workspaces === undefined) throw new Error('Skill launch services are unavailable')
+    const currentSessionId = sessions.list.getSnapshot().current
+    const workspace = currentSessionId === undefined
+      ? undefined
+      : workspaces.list.getSnapshot().items.find(item => item.sessionIds.includes(currentSessionId))
+    if (workspace === undefined) {
+      this.store.set({ ...current, useError: 'no-workspace' })
+      return false
+    }
+    this.store.set({ ...current, using: slug, useError: undefined })
+    try {
+      if (this.pendingSkillSession !== undefined
+        && this.pendingSkillSession.workspaceId !== workspace.workspaceId) {
+        await workspaces.archiveSession(this.pendingSkillSession.sessionId)
+        this.pendingSkillSession = undefined
+      }
+      const sessionId = this.pendingSkillSession?.sessionId
+        ?? await sessions.create({ workspaceId: workspace.workspaceId })
+      this.pendingSkillSession = { workspaceId: workspace.workspaceId, sessionId }
+      const binding = sessions.binding(sessionId)
+      if (binding === undefined) throw new Error(`Skill session "${sessionId}" resolved no binding`)
+      const conversation = binding.ctx.get('conversation')
+      if (conversation === undefined) throw new Error('Skill conversation service is unavailable')
+      conversation.input.for(binding.ctx).setDraft(`/${slug}`)
+      sessions.open(sessionId)
+      this.pendingSkillSession = undefined
+      const latest = this.store.getSnapshot()
+      if (latest.phase === 'ready') this.store.set({ ...latest, using: undefined, useError: undefined })
+      return true
+    } catch {
+      const latest = this.store.getSnapshot()
+      if (latest.phase === 'ready') this.store.set({ ...latest, using: undefined, useError: 'failed' })
+      return false
+    }
   }
 
   /** Begin ManturHub device login from the installation gate. */

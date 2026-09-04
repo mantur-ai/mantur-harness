@@ -291,7 +291,7 @@ export interface Config {
 export type ManturEnvironment = 'production' | 'test'
 ```
 
-来源：[`packages/credentials/authorization-manturhub/src/index.ts:35`](../packages/credentials/authorization-manturhub/src/index.ts)
+来源：[`packages/credentials/authorization-manturhub/src/index.ts:29`](../packages/credentials/authorization-manturhub/src/index.ts)
 
 <a id="deepseek-aidsh-bash-local"></a>
 
@@ -2159,7 +2159,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/skill/skill/src/index.ts:280`](../packages/skill/skill/src/index.ts)
+来源：[`packages/skill/skill/src/index.ts:283`](../packages/skill/skill/src/index.ts)
 
 <a id="deepseek-aidsh-skill-filesystem"></a>
 

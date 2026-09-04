@@ -33,7 +33,7 @@ agent（智能体）可以使用来自仓库、自定义目录或用户 agent �
 
 ### skill 格式
 
-skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也可以是平铺文件 `<name>.md`；刻意不支持发现嵌套的 `**/SKILL.md`。文件以 YAML frontmatter 开头：必填 `name` 与 `description`，另有可选 `whenToUse`、`metadata`、`disable-model-invocation` 与 `user-invocable`。
+skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也可以是平铺文件 `<name>.md`；刻意不支持发现嵌套的 `**/SKILL.md`。文件以 YAML frontmatter 开头：必填 `name` 与 `description`，另有可选的面向用户的 `title`、`whenToUse`、`metadata`、`disable-model-invocation` 与 `user-invocable`。`title` 不会改变 kebab-case 的调用名称。
 
 `disable-model-invocation: true` 会把 skill 从面向模型的目录和 loader 中排除；`user-invocable: false` 会把它从面向用户的命令中排除，省略的字段默认允许对应接口调用。这两个键接受 YAML 布尔值，以及不区分大小写的 `true`/`false`、`yes`/`no`、`on`/`off` 和 `1`/`0` 形式；被拒绝的拼写或非布尔值会让整个 skill 随警告一起被丢弃，而不会静默允许某个接口。
 

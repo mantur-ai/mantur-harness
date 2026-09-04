@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  ManturAccount, ManturEnvironment, ManturEnvironmentStatus, ManturLoginAttemptId, ManturLoginStart,
+  ManturAccount, ManturLoginAttemptId, ManturLoginStart,
 } from '@deepseek-ai/dsh-authorization-manturhub/types'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 
@@ -11,9 +11,6 @@ export interface ManturAccountState {
   phase: 'idle' | 'loading' | 'signed-out' | 'starting' | 'authorizing' | 'signed-in' | 'failed' | 'signing-out'
   account?: ManturAccount
   login?: ManturLoginStart
-  environment?: ManturEnvironmentStatus
-  environmentBusy?: boolean
-  environmentError?: 'missing-test-url' | 'failed'
 }
 
 /** Convert a failed Remote result into a local operation error. */
@@ -29,33 +26,22 @@ export class ManturAccountStore {
   private timer: number | undefined
   private generation = 0
 
-  /**
-   * @param ctx - client context carrying the generated Mantur account Remote.
-   * @param reload - reloads browser controllers after a deployment change.
-   */
-  constructor(
-    private readonly ctx: Context,
-    private readonly reload: () => void = () => { window.location.reload() },
-  ) {}
+  /** @param ctx - client context carrying the generated Mantur account Remote. */
+  constructor(private readonly ctx: Context) {}
 
   /** Read the local Host grant status. */
   async load(): Promise<void> {
     const generation = ++this.generation
     this.clearTimer()
-    this.transition({ phase: 'loading' })
+    this.store.set({ phase: 'loading' })
     try {
       const status = unwrap('manturAccount.status', await this.ctx.remote.manturAccount.status())
       if (generation !== this.generation) return
-      const environment: ManturEnvironmentStatus = {
-        environment: status.environment,
-        baseUrl: status.baseUrl,
-        ...(status.testBaseUrl === undefined ? {} : { testBaseUrl: status.testBaseUrl }),
-      }
       this.store.set(status.status === 'signed-in'
-        ? { phase: 'signed-in', account: status.account, environment }
-        : { phase: 'signed-out', environment })
+        ? { phase: 'signed-in', account: status.account }
+        : { phase: 'signed-out' })
     } catch {
-      if (generation === this.generation) this.transition({ phase: 'failed' })
+      if (generation === this.generation) this.store.set({ phase: 'failed' })
     }
   }
 
@@ -63,14 +49,14 @@ export class ManturAccountStore {
   async start(): Promise<void> {
     const generation = ++this.generation
     this.clearTimer()
-    this.transition({ phase: 'starting' })
+    this.store.set({ phase: 'starting' })
     try {
       const login = unwrap('manturAccount.startLogin', await this.ctx.remote.manturAccount.startLogin())
       if (generation !== this.generation) return
-      this.transition({ phase: 'authorizing', login })
+      this.store.set({ phase: 'authorizing', login })
       this.schedulePoll(login.attemptId, generation)
     } catch {
-      if (generation === this.generation) this.transition({ phase: 'failed' })
+      if (generation === this.generation) this.store.set({ phase: 'failed' })
     }
   }
 
@@ -82,9 +68,9 @@ export class ManturAccountStore {
     this.clearTimer()
     try {
       unwrap('manturAccount.cancelLogin', await this.ctx.remote.manturAccount.cancelLogin(state.login.attemptId))
-      this.transition({ phase: 'signed-out' })
+      this.store.set({ phase: 'signed-out' })
     } catch {
-      this.transition({ phase: 'failed' })
+      this.store.set({ phase: 'failed' })
     }
   }
 
@@ -92,43 +78,14 @@ export class ManturAccountStore {
   async signOut(): Promise<void> {
     const generation = ++this.generation
     this.clearTimer()
-    this.transition({ phase: 'signing-out' })
+    this.store.set({ phase: 'signing-out' })
     try {
       unwrap('manturAccount.signOut', await this.ctx.remote.manturAccount.signOut())
       if (generation === this.generation) {
-        this.transition({ phase: 'signed-out' })
+        this.store.set({ phase: 'signed-out' })
       }
     } catch {
-      if (generation === this.generation) this.transition({ phase: 'failed' })
-    }
-  }
-
-  /**
-   * Persist a deployment selection, then reload every online Mantur controller.
-   * @param environment - named deployment to activate.
-   * @param testBaseUrl - explicit test origin, ignored when empty for production.
-   */
-  async setEnvironment(environment: ManturEnvironment, testBaseUrl: string): Promise<void> {
-    const current = this.store.getSnapshot()
-    const { environmentBusy: _busy, environmentError: _error, ...baseline } = current
-    const normalizedTestBaseUrl = testBaseUrl.trim()
-    if (environment === 'test' && normalizedTestBaseUrl === '') {
-      this.store.set({ ...baseline, environmentError: 'missing-test-url' })
-      return
-    }
-    const generation = ++this.generation
-    this.clearTimer()
-    this.store.set({ ...baseline, environmentBusy: true })
-    try {
-      unwrap('manturAccount.setEnvironment', await this.ctx.remote.manturAccount.setEnvironment({
-        environment,
-        ...(normalizedTestBaseUrl === '' ? {} : { testBaseUrl: normalizedTestBaseUrl }),
-      }))
-      if (generation === this.generation) this.reload()
-    } catch {
-      if (generation === this.generation) {
-        this.store.set({ ...baseline, environmentBusy: false, environmentError: 'failed' })
-      }
+      if (generation === this.generation) this.store.set({ phase: 'failed' })
     }
   }
 
@@ -152,23 +109,15 @@ export class ManturAccountStore {
       if (progress.status === 'pending') {
         this.schedulePoll(attemptId, generation)
       } else if (progress.status === 'authorized') {
-        this.transition({ phase: 'signed-in', account: progress.account })
+        this.store.set({ phase: 'signed-in', account: progress.account })
       } else if (progress.status === 'cancelled') {
-        this.transition({ phase: 'signed-out' })
+        this.store.set({ phase: 'signed-out' })
       } else {
-        this.transition({ phase: 'failed' })
+        this.store.set({ phase: 'failed' })
       }
     } catch {
-      if (generation === this.generation) this.transition({ phase: 'failed' })
+      if (generation === this.generation) this.store.set({ phase: 'failed' })
     }
-  }
-
-  /** Preserve the loaded deployment facts across account-only state changes. */
-  private transition(next: ManturAccountState): void {
-    const environment = this.store.getSnapshot().environment
-    this.store.set(environment === undefined || next.environment !== undefined
-      ? next
-      : { ...next, environment })
   }
 
   private clearTimer(): void {

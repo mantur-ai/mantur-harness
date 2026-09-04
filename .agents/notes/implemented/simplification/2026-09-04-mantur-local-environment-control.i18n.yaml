@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-04-mantur-local-environment-control.md
+2026-09-04-mantur-local-environment-control.md: d8f3b6903d3e54c261dd0b1bf3dbfd9f7a9b3ef7
+2026-09-04-mantur-local-environment-control.zh.md: 9fe9f4fcd87ded709375c4ce4ad56f4e8e08ba3e

@@ -1223,12 +1223,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'signed-out or the sanitized account committed with the grant.',
       },
       {
-        signature: '@Remote async setEnvironment(update: ManturEnvironmentUpdate): Promise<ManturEnvironmentStatus>',
-        description: 'Persist and activate one deployment selection through the settings provider.',
-        parameters: [{ name: 'update', description: 'named environment and optional test origin.' }],
-        returns: 'the active browser-safe deployment after the committed write.',
-      },
-      {
         signature: '@Remote async startLogin(): Promise<ManturLoginStart>',
         description: 'Start one process-local device authorization attempt.',
         parameters: [],
@@ -4418,19 +4412,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ManturAccountStatus',
-    declaration: 'export type ManturAccountStatus = (ManturEnvironmentStatus & {\n    readonly status: \'signed-out\';\n}) | (ManturEnvironmentStatus & {\n    readonly status: \'signed-in\';\n    readonly account: ManturAccount;\n});',
-  },
-  {
-    name: 'ManturEnvironment',
-    declaration: 'export type ManturEnvironment = \'production\' | \'test\';',
-  },
-  {
-    name: 'ManturEnvironmentStatus',
-    declaration: 'export interface ManturEnvironmentStatus {\n    readonly environment: ManturEnvironment;\n    readonly baseUrl: string;\n    readonly testBaseUrl?: string;\n}',
-  },
-  {
-    name: 'ManturEnvironmentUpdate',
-    declaration: 'export interface ManturEnvironmentUpdate {\n    readonly environment: ManturEnvironment;\n    readonly testBaseUrl?: string;\n}',
+    declaration: 'export type ManturAccountStatus = {\n    readonly status: \'signed-out\';\n} | {\n    readonly status: \'signed-in\';\n    readonly account: ManturAccount;\n};',
   },
   {
     name: 'ManturHubRequestOptions',
@@ -5466,7 +5448,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillEntry',
-    declaration: 'export interface SkillEntry {\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
+    declaration: 'export interface SkillEntry {\n    readonly name: string;\n    readonly title?: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
   },
   {
     name: 'SkillInvocationPolicy',
@@ -5510,7 +5492,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillSummary',
-    declaration: 'export interface SkillSummary {\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly invocation: SkillInvocationPolicy;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly resourceBase?: SkillResourceBase;\n}',
+    declaration: 'export interface SkillSummary {\n    readonly name: string;\n    readonly title?: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly invocation: SkillInvocationPolicy;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly resourceBase?: SkillResourceBase;\n}',
   },
   {
     name: 'SkillViewOptions',

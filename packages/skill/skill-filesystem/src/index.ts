@@ -105,6 +105,7 @@ interface SkillRootEntry {
 
 interface ParsedSkill {
   name: string
+  title?: string
   description: string
   whenToUse?: string
   invocation: SkillInvocationPolicy
@@ -209,6 +210,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     if (parsed === undefined) return undefined
     return {
       name: parsed.name,
+      ...parsed.title !== undefined ? { title: parsed.title } : {},
       description: parsed.description,
       ...parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {},
       invocation: parsed.invocation,
@@ -731,6 +733,7 @@ async function discoverRoot(root: SkillRoot, ctx: Context, provider: string): Pr
     if (parsed === undefined) continue
     skills.push({
       name: parsed.name,
+      ...parsed.title !== undefined ? { title: parsed.title } : {},
       description: parsed.description,
       ...parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {},
       invocation: parsed.invocation,
@@ -826,6 +829,7 @@ async function parseSkillFile(path: string, ctx: Context, signal?: AbortSignal, 
   }
   return {
     name,
+    ...optionalString(parsed.data, 'title'),
     description,
     ...optionalString(parsed.data, 'whenToUse'),
     invocation,

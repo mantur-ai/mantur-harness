@@ -15,7 +15,6 @@ function controller() {
     start: vi.fn(() => Promise.resolve()),
     cancel: vi.fn(() => Promise.resolve()),
     signOut: vi.fn(() => Promise.resolve()),
-    setEnvironment: vi.fn(() => Promise.resolve()),
   }
 }
 
@@ -85,54 +84,6 @@ describe('Mantur account components', () => {
     expect((view.getByRole('button', { name: 'Sign in to Mantur' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('edits the test origin and applies the selected environment from Settings', () => {
-    const actions = controller()
-    const view = render(<AccountView
-      state={{
-        phase: 'signed-out',
-        environment: { environment: 'production', baseUrl: 'https://hub.mantur.ai' },
-      }}
-      controller={actions as never}
-      t={t}
-      showEnvironment
-    />)
-
-    expect(view.getByText(/Current URL/)).toBeTruthy()
-    expect(view.getByText(/https:\/\/hub\.mantur\.ai/)).toBeTruthy()
-    fireEvent.change(view.getByLabelText('Current environment'), { target: { value: 'test' } })
-    fireEvent.change(view.getByLabelText('Test environment URL'), {
-      target: { value: 'https://test.mantur.example' },
-    })
-    fireEvent.click(view.getByRole('button', { name: 'Switch and reload' }))
-    expect(actions.setEnvironment).toHaveBeenCalledWith('test', 'https://test.mantur.example')
-
-    view.rerender(<AccountView
-      state={{
-        phase: 'signed-out',
-        environment: { environment: 'production', baseUrl: 'https://hub.mantur.ai' },
-        environmentError: 'missing-test-url',
-      }}
-      controller={actions as never}
-      t={t}
-      showEnvironment
-    />)
-    expect(view.getByText('Enter the test environment URL first.')).toBeTruthy()
-
-    view.rerender(<AccountView
-      state={{
-        phase: 'signed-out',
-        environment: { environment: 'production', baseUrl: 'https://hub.mantur.ai' },
-        environmentBusy: true,
-        environmentError: 'failed',
-      }}
-      controller={actions as never}
-      t={t}
-      showEnvironment
-    />)
-    expect(view.getByText('The environment could not be changed. Check the URL and try again.')).toBeTruthy()
-    expect((view.getByRole('button', { name: 'Switching…' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
   it.each(['idle', 'loading', 'signed-in'] as const)('hides onboarding in %s phase', (phase) => {
     const actions = controller()
     const complete = vi.fn()
@@ -184,7 +135,7 @@ describe('Mantur account components', () => {
       controller: actions,
       t,
       useAccount: useState({
-        phase: 'signed-out', environment: { environment: 'production', baseUrl: 'https://hub.mantur.ai' },
+        phase: 'signed-out',
       }),
     } as unknown as AccountSectionProps
     view.rerender(<AccountSection {...signedOutProps} />)
