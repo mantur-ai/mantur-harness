@@ -61,6 +61,35 @@ function subject(remote: object): ManturMarketplaceStore {
 }
 
 describe('Mantur marketplace store', () => {
+  it('reuses settled catalogs and coalesces the same pending Recipe query', async () => {
+    const list = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { skills: [listed], installedCount: 0, signedIn: false },
+    })
+    const recipeSettlement = Promise.withResolvers<{
+      ok: true
+      value: { recipes: Array<typeof recipe>; total: number; page: number; pageSize: number; totalPages: number; availableTags: string[] }
+    }>()
+    const listRecipes = vi.fn().mockReturnValue(recipeSettlement.promise)
+    const store = subject({ manturMarketplace: { list, listRecipes } })
+
+    await store.ensureSkillCatalog()
+    await store.ensureSkillCatalog()
+    expect(list).toHaveBeenCalledOnce()
+
+    const firstRecipeLoad = store.ensureRecipeCatalog({ page: 1 })
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading', query: { page: 1 } })
+    await store.ensureRecipeCatalog({})
+    expect(listRecipes).toHaveBeenCalledOnce()
+    recipeSettlement.resolve({
+      ok: true,
+      value: { recipes: [recipe], total: 1, page: 1, pageSize: 15, totalPages: 1, availableTags: recipe.tags },
+    })
+    await firstRecipeLoad
+    await store.ensureRecipeCatalog({})
+    expect(listRecipes).toHaveBeenCalledOnce()
+  })
+
   it('loads filtered Recipe pages, details, and retryable failures', async () => {
     const listRecipes = vi.fn()
       .mockResolvedValueOnce({
@@ -720,11 +749,11 @@ describe('Mantur marketplace store', () => {
     store.dispose()
     list.resolve({ ok: false, error: { code: 'gateway/internal', message: 'failed' } })
     await loading
-    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading' })
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading', query: {} })
 
     await store.openRecipeDetail(recipe.slug)
     store.closeRecipeDetail()
-    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading' })
+    expect(store.recipes.getSnapshot()).toEqual({ phase: 'loading', query: {} })
 
     store.recipes.set({
       phase: 'ready',

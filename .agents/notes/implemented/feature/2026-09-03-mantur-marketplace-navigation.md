@@ -22,6 +22,8 @@ An installed Skill exposes a Use action in both its catalog card and detail. The
 
 The Recipe page reads ManturHub's public paginated catalog and detail endpoints through the existing Host marketplace Remote. The Host validates all fields, accepts published timestamps with either UTC `Z` or an explicit numeric timezone offset while rejecting timezone-less values, resolves relative media and non-empty source paths against the configured Hub response origin, omits empty source metadata from its browser result, and returns the published `agent_payload` unchanged. The browser owns search, category selection, list and detail state, and page presentation. A Recipe remains a proven creative example rather than an installable package or general workflow template.
 
+The root-scoped controller retains the settled Skill catalog and the current Recipe query snapshot for its plugin lifetime. Page entry reuses matching state, including Recipe filters and page, and coalesces an identical pending Recipe request. Filter or page changes request fresh data. Retry calls the forced load operation, so a known failure is never hidden behind older data. The cache is memory-only; a client reload or restart remains cold.
+
 “Recreate with Agent” creates a new Session in the current Workspace, submits one ordinary user message through the scoped Conversation service, and opens the Session after that message succeeds. The locale boundary prepares trace lines in the active UI language with the Recipe title, slug, and ManturHub marker; it adds a source URL only when ManturHub publishes one. The store appends the authoritative `agent_payload` unchanged. The model therefore sees the same instructions the publisher supplied, while the transcript retains enough provenance to audit the handoff without inventing missing metadata. Recipe discovery stays public. The UI does not request login because these endpoints do not require it, and it does not report operator execution as started merely because the Session accepted the message.
 
 ## Alternatives considered
@@ -31,6 +33,10 @@ The Recipe page reads ManturHub's public paginated catalog and detail endpoints 
 **Render marketplace pages in `shell.overlay`.** That slot is a click-through floating layer and leaves the conversation reachable behind it. Treating it as primary navigation would give the wrong accessibility and layout behavior.
 
 **Persist the selected marketplace route.** The requested default is the current conversation after every reload. Keeping selection in the existing transient layout store meets that behavior without a second route store.
+
+**Persist marketplace catalogs to disk.** The requested delay occurs when switching pages within one client run. Disk persistence would add expiration, schema migration, and stale-data behavior without solving a demonstrated offline requirement, so the controller keeps only session memory.
+
+**Cache every Recipe query.** Arbitrary text searches would grow controller memory without a demonstrated need. Retaining only the current query removes the re-entry request while keeping memory bounded.
 
 **Download and extract in the browser.** This would expose authorization and filesystem mutation to presentation code. Generated Remotes instead keep both on the Host and return only explicit success or typed failure.
 
@@ -42,4 +48,4 @@ The Recipe page reads ManturHub's public paginated catalog and detail endpoints 
 
 ## Consequences
 
-The shared client gains two generic extension points and one transient page selector, while Mantur copy and page structure remain isolated in product packages. Only one root-page occupant can be composed at a time. Skill catalog reads, safe installation, and unsent draft handoff are available in the Mantur profile. Recipe discovery and durable Agent handoff are also available, but operator execution, quote confirmation, and payment remain owned by Agent and ManturHub after the handoff. Forced overwrite, uninstall, and route persistence remain absent.
+The shared client gains two generic extension points and one transient page selector, while Mantur copy and page structure remain isolated in product packages. Only one root-page occupant can be composed at a time. Skill catalog reads, safe installation, and unsent draft handoff are available in the Mantur profile. Re-entering either marketplace avoids a matching catalog request during the same controller lifetime, and the Recipe page restores its current filters and page. Only the current Recipe query is retained, and reload remains cold. Recipe discovery and durable Agent handoff are also available, but operator execution, quote confirmation, and payment remain owned by Agent and ManturHub after the handoff. Forced overwrite, uninstall, and route persistence remain absent.

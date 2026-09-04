@@ -37,7 +37,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-浏览器插件安装一个本地化导航 occupant、一个“项目”标题 occupant、一个根页面 occupant 和一个根作用域广场 controller。controller 分别管理技能与配方的目录和详情快照，生成的 Remote 让凭据与文件系统访问始终留在 Host。启动技能时，它通过现有 controller 找到当前工作区、创建会话、经该会话的 input facade 写入斜杠命令，并在不提交的情况下打开会话。启动配方使用同一套工作区与会话 controller，但通过作用域化 Conversation 服务发送复刻请求。导航把选中的品牌化页面标识写入布局 store；根页面 occupant 渲染对应页面，并通过所有者操作关闭它。插件卸载或替换导致活跃根页面 occupant 卸载时，它也会清除自己的页面标识，让对话重新可见。卸载插件会让进行中的状态变更失效、清除登录轮询，并移除三个 occupant 与本地化字典。
+浏览器插件安装一个本地化导航 occupant、一个“项目”标题 occupant、一个根页面 occupant 和一个根作用域广场 controller。controller 分别管理技能与配方的目录和详情快照，生成的 Remote 让凭据与文件系统访问始终留在 Host。已完成的技能目录以及当前配方查询、页码和结果会在 controller 生命周期内保留于内存，因此重新进入页面会复用匹配状态，相同且尚未完成的配方请求也只发送一次。更改配方查询或页码会读取新数据，“重新加载”始终强制发起新请求，不会用缓存隐藏已知失败。刷新或重启客户端会创建没有持久目录的全新 controller。启动技能时，它通过现有 controller 找到当前工作区、创建会话、经该会话的 input facade 写入斜杠命令，并在不提交的情况下打开会话。启动配方使用同一套工作区与会话 controller，但通过作用域化 Conversation 服务发送复刻请求。导航把选中的品牌化页面标识写入布局 store；根页面 occupant 渲染对应页面，并通过所有者操作关闭它。插件卸载或替换导致活跃根页面 occupant 卸载时，它也会清除自己的页面标识，让对话重新可见。卸载插件会让进行中的状态变更失效、清除登录轮询，并移除三个 occupant 与本地化字典。
 
 </details>
 

@@ -30,7 +30,8 @@ export type ManturMarketplaceState =
 
 /** Client-visible Recipe catalog, detail, and launch state. */
 export type ManturRecipeMarketplaceState =
-  | { readonly phase: 'idle' | 'loading' }
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'loading'; readonly query: ManturMarketplaceRecipeQuery }
   | { readonly phase: 'failed'; readonly query: ManturMarketplaceRecipeQuery }
   | {
     readonly phase: 'ready'
@@ -55,6 +56,16 @@ export interface ManturRecipeLaunchCopy {
 function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: string; message: string } }): T {
   if (result.ok) return result.value
   throw new Error(`${result.error.code}: ${result.error.message}`)
+}
+
+/** Return a stable identity for one Recipe catalog request. */
+function recipeQueryKey(query: ManturMarketplaceRecipeQuery): string {
+  return JSON.stringify([
+    query.page ?? 1,
+    query.category ?? '',
+    query.tag ?? '',
+    query.query ?? '',
+  ])
 }
 
 /** Root-scoped controller for catalog and detail reads. */
@@ -85,18 +96,40 @@ export class ManturMarketplaceStore {
     }
   }
 
+  /** Load the Skill catalog only when this controller has no settled state. */
+  async ensureSkillCatalog(): Promise<void> {
+    if (this.store.getSnapshot().phase !== 'idle') return
+    await this.load()
+  }
+
+  /**
+   * Reuse the current Recipe catalog when it represents the requested query.
+   * @param query - page and optional category, tag, and text filters.
+   */
+  async ensureRecipeCatalog(query: ManturMarketplaceRecipeQuery = {}): Promise<void> {
+    const key = recipeQueryKey(query)
+    const current = this.recipes.getSnapshot()
+    if (current.phase !== 'idle'
+      && recipeQueryKey(current.query) === key) return
+    await this.loadRecipes(query)
+  }
+
   /**
    * Load one public Recipe page with server-side filters.
    * @param query - page and optional category, tag, and text filters.
    */
   async loadRecipes(query: ManturMarketplaceRecipeQuery = {}): Promise<void> {
     const generation = ++this.recipeGeneration
-    this.recipes.set({ phase: 'loading' })
+    this.recipes.set({ phase: 'loading', query })
     try {
       const catalog = unwrap(await this.ctx.remote.manturMarketplace.listRecipes(query))
-      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'ready', catalog, query })
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ phase: 'ready', catalog, query })
+      }
     } catch {
-      if (generation === this.recipeGeneration) this.recipes.set({ phase: 'failed', query })
+      if (generation === this.recipeGeneration) {
+        this.recipes.set({ phase: 'failed', query })
+      }
     }
   }
 

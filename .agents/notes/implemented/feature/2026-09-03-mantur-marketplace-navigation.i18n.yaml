@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-03-mantur-marketplace-navigation.md
-2026-09-03-mantur-marketplace-navigation.md: 736a925208c0e817c7c413b1a55e9b41d4a4e615
-2026-09-03-mantur-marketplace-navigation.zh.md: 51e6a6f6a6bac0ae56536042e6d45d6c93afb687
+2026-09-03-mantur-marketplace-navigation.md: bc020d50a74dd94bd4bfcd415ff1a4fe8548a7b2
+2026-09-03-mantur-marketplace-navigation.zh.md: 2c8143a10896453f014da90195cc9ebc7b374f38
