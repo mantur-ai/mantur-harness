@@ -143,9 +143,10 @@ export function apply(ctx: ClientContext): void {
       // Superseded keystroke: the shared fetch stays warm, this caller yields.
       if (signal.aborted) return []
       return skills
-        .filter(skill => skill.name.startsWith(query))
+        .filter(skill => skill.name.startsWith(query) || skill.title?.startsWith(query) === true)
         .map(skill => ({
-          name: skill.name,
+          name: skill.title ?? skill.name,
+          ...skill.title === undefined ? {} : { value: skill.name },
           // The user-only marker rides the description (the menu's only
           // secondary text); `hint` is the claim-state ghost text, not a badge.
           description: skill.modelInvocable ? skill.description : `${t('menu.userOnly')} · ${skill.description}`,
@@ -177,7 +178,7 @@ export function apply(ctx: ClientContext): void {
       // injects the rendered body for every entry point. A name shared with a
       // host command still resolves to the command: adjudication claims the
       // line client-side before it ever becomes a prompt.
-      return { text: `/${candidate.name} ` }
+      return { text: `/${candidate.value ?? candidate.name} ` }
     },
   }
   const inputTriggers = ctx.get('inputTriggers') as InputTriggerServiceContract

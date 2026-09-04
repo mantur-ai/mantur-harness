@@ -411,6 +411,7 @@ describe('SkillRegistry registry', () => {
     const invocation = { modelInvocable: true, userInvocable: true }
     const candidate: SkillCandidate = {
       name: 'stable-skill',
+      title: '稳定技能',
       description: 'Stable description',
       whenToUse: 'When stability matters.',
       invocation,
@@ -424,6 +425,7 @@ describe('SkillRegistry registry', () => {
     }
     const definition: SkillDefinition = {
       name: 'stable-skill',
+      title: '稳定技能',
       description: 'Stable description',
       whenToUse: 'When stability matters.',
       invocation,
@@ -451,6 +453,7 @@ describe('SkillRegistry registry', () => {
     const listed = await ctx.skills.list()
     expect(listed).toEqual([expect.objectContaining({
       name: 'stable-skill',
+      title: '稳定技能',
       description: 'Stable description',
       resourceBase: { kind: 'opaque', description: 'candidate resources' },
     })])
@@ -472,6 +475,7 @@ describe('SkillRegistry registry', () => {
     const invocation = { modelInvocable: true, userInvocable: true }
     const registration = {
       name: 'runtime-skill',
+      title: '运行时技能',
       description: 'Runtime',
       whenToUse: 'When runtime data is needed.',
       invocation,
@@ -490,6 +494,7 @@ describe('SkillRegistry registry', () => {
     const listed = await ctx.skills.list()
     const loaded = await ctx.skills.get('runtime-skill')
     expect(listed[0]?.resourceBase).toBe(resourceBase)
+    expect(listed[0]?.title).toBe('运行时技能')
     expect(listed[0]?.invocation).toBe(invocation)
     expect(loaded?.resourceBase).toBe(resourceBase)
     expect(loaded?.metadata).toBe(metadata)

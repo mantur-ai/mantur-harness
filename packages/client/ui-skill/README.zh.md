@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### source 提供什么
 
-普通会话的候选来自 `skills/list` Remote；宿主提供每一个用户可调用的 skill，`modelInvocable: false` 的条目（即 `disable-model-invocation` skill，此路径是其唯一入口）会以当前语言把仅限用户标记作为描述前缀带上。结果按 `startsWith(query)` 过滤。`skills/list` 调用失败时会被记录并静默丢弃该菜单组——菜单只显示 pending/ready 状态。
+普通会话的候选来自 `skills/list` Remote；宿主提供每一个用户可调用的 skill，`modelInvocable: false` 的条目（即 `disable-model-invocation` skill，此路径是其唯一入口）会以当前语言把仅限用户标记作为描述前缀带上。存在 `title` 时菜单显示该标题，并同时按 `title` 与规范 `name` 搜索，但仍插入调用所需的字面文本 `/name `。`skills/list` 调用失败时会被记录并静默丢弃该菜单组——菜单只显示 pending/ready 状态。
 
 ### skill 工具行
 

@@ -29,7 +29,7 @@ Type `/` in the composer and pick a skill from the suggestions, or type `/name` 
 
 ### What the source offers
 
-Ordinary-session candidates come from the `skills/list` Remote; the host serves every user-invocable skill, and a `modelInvocable: false` entry (a `disable-model-invocation` skill, whose only entry point is this path) wears the user-only marker as a description prefix in the active language. Results filter by `startsWith(query)`. A failed `skills/list` call is logged and folded into a silent menu-group drop — the menu shows only pending/ready states.
+Ordinary-session candidates come from the `skills/list` Remote; the host serves every user-invocable skill, and a `modelInvocable: false` entry (a `disable-model-invocation` skill, whose only entry point is this path) wears the user-only marker as a description prefix in the active language. The menu displays a skill's `title` when present, searches both `title` and canonical `name`, and still inserts the literal `/name ` required for invocation. A failed `skills/list` call is logged and folded into a silent menu-group drop — the menu shows only pending/ready states.
 
 ### The skill tool row
 

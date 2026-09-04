@@ -24,7 +24,7 @@ import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-
 import { apply, inject } from '../src/client/index.ts'
 import { SkillRow as SkillToolRow } from '../src/client/SkillRow.tsx'
 
-type SkillRow = { name: string; description: string; whenToUse?: string; modelInvocable?: boolean }
+type SkillRow = { name: string; title?: string; description: string; whenToUse?: string; modelInvocable?: boolean }
 type ListResult =
   | { ok: true; value: { skills: SkillRow[] } }
   | { ok: false; error: RemoteFailure }
@@ -76,7 +76,7 @@ async function bench(list: ListFn, addressed?: SessionId) {
 }
 
 const CATALOG: SkillRow[] = [
-  { name: 'commit-helper', description: 'commit flow', modelInvocable: true },
+  { name: 'commit-helper', title: '提交助手', description: 'commit flow', modelInvocable: true },
   { name: 'code-review', description: 'review flow', whenToUse: 'reviews', modelInvocable: true },
   { name: 'deploy', description: 'deploy flow', modelInvocable: true },
 ]
@@ -174,7 +174,7 @@ describe('candidates: sessionId addressing', () => {
     // Exact payload: session address only — no agent or transport vocabulary.
     expect(payloads).toEqual([{ sessionId: 's1' }])
     expect(items).toEqual([
-      { name: 'commit-helper', description: 'commit flow' },
+      { name: '提交助手', value: 'commit-helper', description: 'commit flow' },
       { name: 'code-review', description: 'review flow' },
     ])
   })
@@ -204,7 +204,7 @@ describe('catalog cache', () => {
     const second = await source.candidates(proj('s1'), req('co'))
     expect(payloads).toHaveLength(1)
     expect(second).toEqual([
-      { name: 'commit-helper', description: 'commit flow' },
+      { name: '提交助手', value: 'commit-helper', description: 'commit flow' },
       { name: 'code-review', description: 'review flow' },
     ])
     // A different session is its own key — one more RPC, not two.
@@ -422,6 +422,19 @@ describe('pick lands plain text', () => {
       via: 'menu',
       action: 'pick',
       span: { start: 0, end: 4, draftRev: 7 },
+    })
+    expect(outcome).toEqual({ text: '/commit-helper ' })
+  })
+
+  it('inserts the canonical name when the menu displays a title', async () => {
+    const { source } = await bench(listOk(CATALOG))
+    const outcome = source.onPick({
+      candidate: { name: '提交助手', value: 'commit-helper', description: 'commit flow' },
+      session: proj('s1'),
+      position: 'leading',
+      via: 'menu',
+      action: 'pick',
+      span: { start: 0, end: 2, draftRev: 7 },
     })
     expect(outcome).toEqual({ text: '/commit-helper ' })
   })

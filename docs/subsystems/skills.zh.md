@@ -91,7 +91,7 @@ type SkillSource = 'project-dsh' | 'project-agents' | 'runtime' | 'user-dsh' | '
 
 ## 摘要、候选项与完整定义
 
-`SkillSummary` 是注册表中与调用策略无关的摘要形状。消费方自行选择渲染哪些条目和字段；模型会话目录仅使用模型可调用 skill 的 `name` 和 `description`，从不使用正文或绝对文件路径。`SkillInvocationPolicy` 将两个独立调用控制规范化为正向布尔值，且每个已解析的摘要、候选项和定义都携带该策略，而不会把任意 frontmatter 纳入领域模型。
+`SkillSummary` 是注册表中与调用策略无关的摘要形状。消费方自行选择渲染哪些条目和字段；面向用户的目录可以显示 `title`，而所有调用仍使用 kebab-case 的 `name`。模型会话目录仅使用模型可调用 skill 的 `name` 和 `description`，从不使用标题、正文或绝对文件路径。`SkillInvocationPolicy` 将两个独立调用控制规范化为正向布尔值，且每个已解析的摘要、候选项和定义都携带该策略，而不会把任意 frontmatter 纳入领域模型。
 
 ```ts type-equiv
 /** Invocation controls shared by skill discovery consumers. */
@@ -108,6 +108,8 @@ interface SkillInvocationPolicy {
 interface SkillSummary {
   /** Kebab-case identifier used to address the skill. */
   readonly name: string
+  /** Optional human-facing title; invocation continues to use {@link name}. */
+  readonly title?: string
   /** Short routing description shown by discovery consumers. */
   readonly description: string
   /** Optional extra routing guidance. */
