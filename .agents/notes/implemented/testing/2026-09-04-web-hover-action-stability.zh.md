@@ -1,4 +1,4 @@
-# Agent Note：Web 悬停操作同步
+# Agent Note：Web 工作区创建完成信号
 
 Status: implemented
 
@@ -6,27 +6,28 @@ Status: implemented
 
 ## Problem
 
-阻塞合并的 Web 快照任务会偶发在 DOM 中找到工作区操作按钮，但在整个 Playwright 超时期间一直判定它处于隐藏状态。该按钮只会在所在行匹配 `:hover` 时显示。投影更新可能在第一次悬停后替换该行，此时指针还留在旧几何位置上，而新解析到的按钮仍保持隐藏。
+阻塞合并的 Web 快照任务会偶发在打开前一个测试创建的工作区操作菜单时失败。创建 helper 在目录完成注册并显示标题后就会返回，但产品此时仍在创建和挂载该工作区的空白 Session 与 Agent。后续投影更新可能在悬停操作按钮显示后、Playwright 点击前替换该行。
 
-该场景验证用户能够显示并触发真实的悬停操作。强制点击或直接选择隐藏按钮会绕过这一行为。
+反复悬停直到按钮可见也无法关闭这个生命周期竞态：下一轮 CI 已经观察到按钮可见，但普通点击完成前 locator 又被替换。
 
 ## Decision
 
-轮询完整的显示前置条件：悬停 Playwright 当前解析到的行，再检查该行当前的操作按钮是否可见。观察到可见后，正常点击按钮。每次轮询都会重新解析 locator，因此投影替换行后，测试不会在未恢复悬停状态的情况下继续等待隐藏的新按钮。
+每个新工作区注册后，创建 helper 还要等待 Agent 数量增加。这是该场景在采用会创建空白 Session 的已有目录时，已经使用的同一个 Host 完成信号。因此，下一个测试会在工作区注册和初始 Session 挂载都完成后才开始。
 
-产品行为、超时设置和浏览器并发度均不变。
+操作交互保持不变：悬停所在行，悬停已显示的按钮，再正常点击。产品行为、超时设置和浏览器并发度均不变。
 
 ## Verification
 
 - `DSH_SNAPSHOT=replay pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/workspace-management.e2e.ts`
+- `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=2 pnpm run test:web:ci`
 - 阻塞合并的 `node 24 / snapshots and artifacts` PR 任务会以仓库 Web 快照并发度运行该场景。
 
 ## Alternatives considered
 
-**强制点击按钮。** 不采用，因为它会触发用户无法看到的控件。
+**重试操作点击。** 不采用，因为观察者看到点击完成之前，点击已可能产生效果；重试有副作用的操作不是安全的同步方式。
 
-**增加 Playwright 超时时间。** 不采用，因为失败状态不会随等待变成可见；当前行必须重新获得悬停。
+**强制点击按钮或增加超时时间。** 不采用，因为两者都没有等待会替换行的工作区创建生命周期完成。
 
 ## Consequences
 
-该场景现在会等待用户触发前同样必需的可见状态，并在投影替换行时继续有效。产品代码不变。
+创建测试现在会等待自己启动的空白 Session 完成，后续重命名测试会与稳定的工作区行交互。产品代码不变。

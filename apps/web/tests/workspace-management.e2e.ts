@@ -64,6 +64,7 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
    * product's only route to a brand-new workspace directory.
    */
   async function addNewFolderWorkspace(parent: string, name: string): Promise<void> {
+    const agentsBefore = scaffold.ctx.agents.list().length
     const dialog = await browseTo(parent)
     await dialog.getByRole('button', { name: 'New folder' }).click()
     await page.getByLabel('Folder name').fill(name)
@@ -75,6 +76,8 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
       () => scaffold.ctx.workspaceRegistry.resolveByPath(join(parent, name)),
       { timeout: 10_000 },
     ).not.toBeUndefined()
+    await expect.poll(() => scaffold.ctx.agents.list().length, { timeout: 10_000 })
+      .toBeGreaterThan(agentsBefore)
   }
 
   /**
@@ -107,10 +110,8 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
    */
   async function clickHoverAction(row: Locator, name: string): Promise<void> {
     const button = row.getByRole('button', { name })
-    await expect.poll(async () => {
-      await row.hover()
-      return await button.isVisible()
-    }, { timeout: 10_000 }).toBe(true)
+    await row.hover()
+    await button.hover()
     await button.click()
   }
 
