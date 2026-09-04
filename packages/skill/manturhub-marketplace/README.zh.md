@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合本包。它依赖 `manturAccount`，读取公开技能与配方目录和详情接口，并把技能安装到 `<DSH_HOME>/skills/<slug>`。配方列表固定使用 Hub 支持的每页 15 条，并接受页码、分类、标签与文本筛选。配置分别限制元数据字节数、压缩字节数、压缩包条目数、解压字节数以及两个请求阶段的超时。默认值与 ManturHub 官方 CLI 策略一致。
+通过 [`dsh-mantur-app`](../../bundle/mantur-app/README.zh.md) 组合本包。它依赖 `manturAccount`，因此公开 Skill 与配方目录、详情和认证下载始终使用账号服务当前选中的线上或测试 origin。它会把 Skill 安装到 `<DSH_HOME>/skills/<slug>`。配方列表固定使用 Hub 支持的每页 15 条，并接受页码、分类、标签与文本筛选。配置分别限制元数据字节数、压缩字节数、压缩包条目数、解压字节数以及两个请求阶段的超时。默认值与 ManturHub 官方 CLI 策略一致。
 
 目录接口接受线上使用的 `{ skills }` 封装和 CLI 兼容的原始数组；详情接受直接 Skill 或 `{ skill }`。`kind: suite` 条目会被排除，缺少 `kind` 时按 `skill` 处理。
 
@@ -65,6 +65,7 @@ ZIP 读取器会在写入每个条目前先校验中央目录元数据。它会�
 <a id="known-limitations-and-deferred-work"></a>
 
 - 不提供强制覆盖、卸载或本地冲突合并操作。
+- 环境切换会隔离远程目录数据、下载与授权。本机实时 Skill 目录与安装器状态仍然共享，因此已安装 Skill 在切换后仍可使用，并继续执行常规版本与冲突检查。
 - Skill 包必须使用 ZIP；解压在进程内完成，不依赖平台归档命令。
 - 配方交接、算子执行、报价确认和支付不属于这个 Host 包；它会把已发布的 `agent_payload` 原样返回给浏览器消费者。
 
