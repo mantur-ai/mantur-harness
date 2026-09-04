@@ -132,8 +132,8 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   useEffect(() => {
-    if (state.phase === 'idle') void controller.load()
-  }, [controller, state.phase])
+    void controller.ensureSkillCatalog()
+  }, [controller])
 
   const skills = state.phase === 'ready' ? state.catalog.skills : []
   const categories = useMemo(
@@ -325,23 +325,35 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
   const ready = state.phase === 'ready' ? state : undefined
   const detail = ready?.detail
   const detailError = ready?.detailError
-  const [query, setQuery] = useState(ready?.query.query ?? '')
-  const [category, setCategory] = useState<(typeof recipeCategories)[number]>(ready?.query.category ?? '')
-  const appliedFilter = useRef({ query, category })
+  const initialQuery = state.phase === 'idle' ? {} : state.query
+  const [query, setQuery] = useState(initialQuery.query ?? '')
+  const [category, setCategory] = useState<(typeof recipeCategories)[number]>(initialQuery.category ?? '')
+  const [page, setPage] = useState(initialQuery.page ?? 1)
+  const appliedQuery = useRef({ query, category, page })
   useEffect(() => {
-    if (state.phase === 'idle') void controller.loadRecipes()
+    if (state.phase === 'idle') void controller.ensureRecipeCatalog()
   }, [controller, state.phase])
   useEffect(() => {
-    if (appliedFilter.current.query === query && appliedFilter.current.category === category) return
-    appliedFilter.current = { query, category }
+    if (appliedQuery.current.query === query
+      && appliedQuery.current.category === category
+      && appliedQuery.current.page === page) return
+    appliedQuery.current = { query, category, page }
     const timer = window.setTimeout(() => {
-      void controller.loadRecipes(currentRecipeQuery(query, category))
+      void controller.ensureRecipeCatalog({
+        ...(page === 1 ? {} : { page }),
+        ...currentRecipeQuery(query, category),
+      })
     }, 250)
     return () => { window.clearTimeout(timer) }
-  }, [category, controller, query])
+  }, [category, controller, page, query])
 
   const loadPage = (page: number): void => {
-    void controller.loadRecipes({ page, ...currentRecipeQuery(query, category) })
+    appliedQuery.current = { query, category, page }
+    setPage(page)
+    void controller.ensureRecipeCatalog({
+      ...(page === 1 ? {} : { page }),
+      ...currentRecipeQuery(query, category),
+    })
   }
   const launch = async (
     selected: NonNullable<Extract<ManturRecipeMarketplaceState, { phase: 'ready' }>['detail']>,
@@ -379,7 +391,7 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
                 <IconSearchOutline16 />
                 <input
                   value={query}
-                  onChange={(event) => { setQuery(event.target.value) }}
+                  onChange={(event) => { setQuery(event.target.value); setPage(1) }}
                   placeholder={t('recipes.search')}
                   aria-label={t('recipes.search')}
                 />
@@ -390,7 +402,7 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
                     key={value || 'all'} type="button"
                     className={category === value ? css.categoryActive : undefined}
                     aria-pressed={category === value}
-                    onClick={() => { setCategory(value) }}
+                    onClick={() => { setCategory(value); setPage(1) }}
                   >
                     {value === '' ? t('recipes.all') : t(`recipes.category.${value}`)}
                   </button>
@@ -433,7 +445,7 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
                                   </div>
                                   <div className={css.recipeMeta}>
                                     <span><IconCopyOutline16 size={14} />{t('recipes.copies').replace('{count}', String(recipe.copies))}</span>
-                                    <span>{recipe.costEstimate || t('recipes.liveQuote')}</span>
+                                    <span className={css.recipeCost}>{recipe.costEstimate || t('recipes.liveQuote')}</span>
                                     <button type="button" onClick={() => { void controller.openRecipeDetail(recipe.slug) }}>
                                       {t('recipes.recreate')}<IconChevronRightOutline14 />
                                     </button>
