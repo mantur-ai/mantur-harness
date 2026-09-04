@@ -233,6 +233,8 @@ describe('SkillRegistry registry', () => {
 
     const cases: { patch: Partial<SkillCandidate>; expected: string }[] = [
       { patch: { name: { value: 'candidate' } as unknown as string }, expected: 'non-string skill name' },
+      { patch: { title: { value: 'title' } as unknown as string }, expected: 'invalid title' },
+      { patch: { title: '' }, expected: 'invalid title' },
       { patch: { whenToUse: 1 as unknown as string }, expected: 'non-string whenToUse' },
       { patch: { source: { value: 'source' } as unknown as string }, expected: 'non-string source' },
       { patch: { rank: '1' as unknown as number }, expected: 'invalid rank' },
@@ -505,6 +507,8 @@ describe('SkillRegistry registry', () => {
     const cases: { patch: Partial<SkillDefinition>; expected: string }[] = [
       { patch: { name: { value: 'loaded' } as unknown as string }, expected: 'loaded skill name must be a string' },
       { patch: { name: 'Bad_Name' }, expected: 'loaded skill has invalid name' },
+      { patch: { title: { value: 'title' } as unknown as string }, expected: 'invalid title' },
+      { patch: { title: '' }, expected: 'invalid title' },
       { patch: { description: { value: 'description' } as unknown as string }, expected: 'description must be a string' },
       { patch: { description: '' }, expected: 'requires a description' },
       { patch: { invocation: null as never }, expected: 'non-object invocation policy' },
