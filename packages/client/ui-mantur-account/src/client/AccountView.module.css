@@ -1,3 +1,9 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -5,7 +11,41 @@
   align-items: stretch;
 }
 
+.environment {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 20px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.environment label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.environment select,
+.environment input {
+  min-height: 38px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  padding: 9px 12px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.environment small {
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.error {
+  color: var(--dsw-alias-label-negative, #b42318);
+}
+
 .stack button,
+.environment button,
 .stack a {
   min-height: 38px;
   border: 0.5px solid var(--dsw-alias-border-l1);
@@ -18,7 +58,8 @@
   cursor: pointer;
 }
 
-.stack button:disabled {
+.stack button:disabled,
+.environment button:disabled {
   cursor: default;
   opacity: 0.55;
 }
