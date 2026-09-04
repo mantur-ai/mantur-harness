@@ -17,7 +17,7 @@ import { buildApplicationMenu } from './update-menu.ts'
 import { startAutoUpdates, type DesktopUpdateController, type DesktopUpdateState } from './updater.ts'
 
 const APP_NAME = '漫途Agent'
-const APP_ICON = fileURLToPath(new URL('../resources/mantur-logo.png', import.meta.url))
+const APP_ICON = fileURLToPath(new URL('../resources/mantur-app-icon.png', import.meta.url))
 const STARTUP_PAGE = fileURLToPath(new URL('../resources/startup.html', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined

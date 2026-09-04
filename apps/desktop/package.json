@@ -53,7 +53,7 @@
     "mac": {
       "artifactName": "Mantur-Agent-macOS-${arch}.${ext}",
       "category": "public.app-category.productivity",
-      "icon": "resources/mantur-logo.png",
+      "icon": "resources/mantur-app-icon.png",
       "notarize": true,
       "target": [
         "dmg",
@@ -62,7 +62,7 @@
     },
     "win": {
       "artifactName": "Mantur-Agent-Windows-${arch}.${ext}",
-      "icon": "resources/mantur-logo.png",
+      "icon": "resources/mantur-app-icon.png",
       "target": [
         "nsis"
       ]
