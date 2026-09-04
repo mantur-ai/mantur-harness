@@ -458,11 +458,6 @@ function RecipeMarketplace({ closePage, controller, useRecipes, t }: {
                                 </button>
                                 <div className={css.recipeCardBody}>
                                   <button type="button" className={css.recipeTitle} onClick={() => { void controller.openRecipeDetail(recipe.slug) }}>{recipe.title}</button>
-                                  <p>{recipe.summary}</p>
-                                  <div className={css.recipeTags}>
-                                    <span>{t(`recipes.category.${recipe.category}`)}</span>
-                                    {recipe.tags.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}
-                                  </div>
                                   <div className={css.recipeMeta}>
                                     <span><IconCopyOutline16 size={14} />{t('recipes.copies').replace('{count}', String(recipe.copies))}</span>
                                     <span className={css.recipeCost}>{recipe.costEstimate || t('recipes.liveQuote')}</span>

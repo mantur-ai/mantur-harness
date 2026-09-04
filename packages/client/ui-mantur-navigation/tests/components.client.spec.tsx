@@ -171,6 +171,8 @@ describe('Mantur marketplace navigation', () => {
 
     expect(screen.getByRole('heading', { name: '配方广场' })).toBeTruthy()
     expect(screen.getByText('电影感旅行 Vlog')).toBeTruthy()
+    expect(screen.queryByText(recipe.summary)).toBeNull()
+    expect(screen.queryByText('旅行')).toBeNull()
     expect(screen.getByText('约 0.16 元')).toBeTruthy()
     expect(screen.getByRole('textbox', { name: '搜索想复刻的画面、风格或用途' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '全部' }).getAttribute('aria-pressed')).toBe('true')
