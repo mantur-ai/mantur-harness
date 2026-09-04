@@ -2259,7 +2259,10 @@ describe('ChatView', () => {
       h.setChat({ nodes: [user(1, 'old'), assistant(2, 'b'), user(5, 'later'), assistant(6, 'a')] })
     })
     expect(scroller.scrollTop).toBe(680) // reader offset 80 + the anchored row's 600px shift
-    // A new trailing user bubble (own words) force-scrolls to the bottom.
+    // A new trailing user bubble (own words) force-scrolls to the bottom even
+    // when a fresh reader position is still waiting for sampled delivery.
+    scroller.scrollTop = 500
+    fireEvent.scroll(scroller)
     act(() => {
       h.setChat({
         nodes: [user(1, 'old'), assistant(2, 'b'), user(5, 'later'), assistant(6, 'a'), user(9, 'mine')],
