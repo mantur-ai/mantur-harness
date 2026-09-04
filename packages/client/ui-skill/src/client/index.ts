@@ -171,7 +171,7 @@ export function apply(ctx: ClientContext): void {
       }
     },
     onPick({ candidate }) {
-      const name = String(candidate.value ?? candidate.name)
+      const name = candidate.value ?? candidate.name
       return {
         insert: {
           source: 'skill',
