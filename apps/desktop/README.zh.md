@@ -59,7 +59,7 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 | Secret | `APPLE_ID` | 用于 notarization 的 Apple ID |
 | Secret | `APPLE_APP_SPECIFIC_PASSWORD` | 该 Apple ID 的 App 专用密码 |
 
-工作流会把两份原生 `latest-mac.yml` 合并为一份可区分架构的更新通道，并把完整候选产物与 `SHA256SUMS` 保留七天。必须从精确匹配 `desktop-v<apps/desktop 版本>` 的 tag 运行。`publish=false` 会在组装候选产物后停止；`publish=true` 会创建 GitHub release，并同时上传 DMG、更新 ZIP、blockmap、更新元数据与哈希。工作流会拒绝使用已有 release 的 tag，不会替换已发布文件；仓库级 Release Immutability 则会继续阻止之后修改 tag 或产物。
+工作流会把两份原生 `latest-mac.yml` 合并为一份可区分架构的更新通道，并把完整候选产物与 `SHA256SUMS` 保留七天。必须从精确匹配 `v<apps/desktop 版本>` 的 tag 运行；electron-updater 可以从 GitHub feed 中选择这种兼容 semver 的预发布 tag。`publish=false` 会在组装候选产物后停止；`publish=true` 会创建 GitHub release，并同时上传 DMG、更新 ZIP、blockmap、更新元数据与哈希。工作流会拒绝使用已有 release 的 tag，不会替换已发布文件；仓库级 Release Immutability 则会继续阻止之后修改 tag 或产物。
 
 ## 运行时设计
 
@@ -71,7 +71,9 @@ smoke 会从解包应用自己的依赖目录启动 `dsh`，把打印出的进�
 
 如果启动错误只识别到过期的 `session_projcache` schema，载体会先关闭失败的子进程并完成日志写入，再由本地化原生对话框在用户明确同意后删除这份可丢弃的投影缓存并重试。它不会删除会话日志、设置、凭据、profile 或 workspace。其他启动错误只提供查看日志与退出，不猜测修复方式。
 
-已打包应用会在启动后与每六小时检查 `mantur-ai/mantur-harness` GitHub Releases feed。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。在任一对话框等待期间关闭 updater，会取消后续下载或安装。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows release 同样需要代码签名与生成的 NSIS 更新产物。
+已打包应用会在 macOS 的原生应用菜单和 Windows 的帮助菜单中显示当前版本与**检查更新…**。菜单会显示检查中、下载进度、可安装、已是最新版与失败状态；手动检查还会打开本地化的结果或错误对话框。应用启动后会开始检查，并每六小时重复。stable 构建只接收 stable release，版本号含 `alpha`、`beta` 或 `rc` 的构建可以接收预发布版本。只有用户确认后才会下载新版本，下载完成后还需第二次确认，才会停止 Harness 并重启安装。选择稍后会在菜单中保留重启安装操作。在任一对话框等待期间关闭 updater，会取消后续下载或安装。
+
+macOS Intel、macOS Apple Silicon 与 Windows 使用同一个更新控制器。macOS release 更新需要已签名并 notarize 的应用，以及生成的 ZIP 与更新元数据；DMG 仍是人工安装产物。Windows 对外更新需要代码签名身份、受保护的发布凭据与生成的 NSIS 更新产物；本仓库不提供或绕过这些前置条件。
 
 ## 已知限制
 

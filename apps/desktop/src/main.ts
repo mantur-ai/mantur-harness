@@ -2,7 +2,7 @@
 
 import { appendFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import {
   canResetProjectionCache,
@@ -13,7 +13,8 @@ import {
 } from './desktop-state.ts'
 import { desktopCopy } from './locales.ts'
 import { startDesktopService, type DesktopService } from './runtime.ts'
-import { startAutoUpdates } from './updater.ts'
+import { buildApplicationMenu } from './update-menu.ts'
+import { startAutoUpdates, type DesktopUpdateController, type DesktopUpdateState } from './updater.ts'
 
 const APP_NAME = '漫途Agent'
 const STARTUP_PAGE = fileURLToPath(new URL('../resources/startup.html', import.meta.url))
@@ -22,7 +23,8 @@ let mainWindow: BrowserWindow | undefined
 let service: DesktopService | undefined
 let serviceUrl: string | undefined
 let quitting = false
-let stopUpdates: (() => void) | undefined
+let updates: DesktopUpdateController | undefined
+let updateState: DesktopUpdateState = { kind: 'idle' }
 
 app.setName(APP_NAME)
 app.setPath('userData', desktopUserDataPath(
@@ -44,6 +46,37 @@ function isQuitting(): boolean {
 function openExternal(url: string): void {
   if (!/^https?:\/\//u.test(url)) return
   void shell.openExternal(url).catch((error: unknown) => { console.error(error) })
+}
+
+function renderApplicationMenu(): void {
+  const copy = desktopCopy(app.getLocale())
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildApplicationMenu({
+    appName: APP_NAME,
+    version: app.getVersion(),
+    platform: process.platform,
+    updatesEnabled: app.isPackaged && updates !== undefined,
+    state: updateState,
+    copy,
+    onCheck: () => { updates?.checkNow() },
+    onInstall: () => { updates?.installReadyUpdate() },
+  })))
+}
+
+function showUpdateFeedback(state: DesktopUpdateState): void {
+  if ((state.kind !== 'up-to-date' && state.kind !== 'error') || !state.requestedByUser) return
+  const copy = desktopCopy(app.getLocale())
+  const error = state.kind === 'error'
+  void dialog.showMessageBox({
+    type: error ? 'error' : 'info',
+    title: error ? copy.updateErrorTitle : copy.upToDateTitle,
+    message: error ? copy.updateErrorMessage(state.detail) : copy.upToDateMessage(app.getVersion()),
+    buttons: [copy.okButton],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  }).catch((dialogError: unknown) => {
+    writeDesktopLog(`desktop update: feedback dialog failed: ${String(dialogError)}`)
+  })
 }
 
 function createWindow(target = STARTUP_PAGE): BrowserWindow {
@@ -150,12 +183,18 @@ async function stopService(): Promise<void> {
 }
 
 function startUpdates(): void {
-  if (!app.isPackaged || stopUpdates !== undefined) return
+  if (!app.isPackaged || updates !== undefined) return
   const copy = desktopCopy(app.getLocale())
   const { autoUpdater } = electronUpdater
-  stopUpdates = startAutoUpdates({
+  updates = startAutoUpdates({
     updater: autoUpdater,
+    currentVersion: app.getVersion(),
     log: writeDesktopLog,
+    onStateChange: (state) => {
+      updateState = state
+      renderApplicationMenu()
+      showUpdateFeedback(state)
+    },
     beforeInstall: async () => {
       quitting = true
       await stopService()
@@ -187,6 +226,7 @@ function startUpdates(): void {
       },
     },
   })
+  renderApplicationMenu()
 }
 
 const singleInstance = app.requestSingleInstanceLock()
@@ -198,7 +238,11 @@ if (!singleInstance) {
     mainWindow?.show()
     mainWindow?.focus()
   })
-  void app.whenReady().then(launch).catch((error: unknown) => {
+  void app.whenReady().then(() => {
+    app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion() })
+    renderApplicationMenu()
+    return launch()
+  }).catch((error: unknown) => {
     writeDesktopLog(`desktop startup: ${String(error)}`)
     void startupRecovery(error).then((action) => {
       if (action === 'show-log') shell.showItemInFolder(paths.logPath)
@@ -219,8 +263,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', (event) => {
   quitting = true
-  stopUpdates?.()
-  stopUpdates = undefined
+  updates?.dispose()
+  updates = undefined
   if (service === undefined) return
   event.preventDefault()
   void stopService().then(() => { app.quit() }).catch((error: unknown) => {
