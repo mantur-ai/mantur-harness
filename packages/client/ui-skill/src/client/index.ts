@@ -171,14 +171,19 @@ export function apply(ctx: ClientContext): void {
       }
     },
     onPick({ candidate }) {
-      // Plain-text-reference decision (web-input-machine note): the pick
-      // lands plain text and the prompt ships the same
-      // literal. Determinism lives host-side — the host's
-      // pre-step boundary (dsh-tool-skill) recognizes the leading /name and
-      // injects the rendered body for every entry point. A name shared with a
-      // host command still resolves to the command: adjudication claims the
-      // line client-side before it ever becomes a prompt.
-      return { text: `/${candidate.value ?? candidate.name} ` }
+      const name = String(candidate.value ?? candidate.name)
+      return {
+        insert: {
+          source: 'skill',
+          ref: name,
+          label: candidate.name,
+          clipboardText: `/${name}`,
+        },
+      }
+    },
+    codec: {
+      clipboardText: name => `/${name}`,
+      serialize: name => Promise.resolve(`/${name}`),
     },
   }
   const inputTriggers = ctx.get('inputTriggers') as InputTriggerServiceContract

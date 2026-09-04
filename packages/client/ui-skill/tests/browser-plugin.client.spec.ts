@@ -412,8 +412,8 @@ describe('lexicon', () => {
   })
 })
 
-describe('pick lands plain text', () => {
-  it('onPick returns the literal /name text with a closing space', async () => {
+describe('pick inserts a skill reference', () => {
+  it('uses the canonical name for a skill without a title', async () => {
     const { source } = await bench(listOk(CATALOG))
     const outcome = source.onPick({
       candidate: { name: 'commit-helper', description: 'commit flow' },
@@ -423,7 +423,14 @@ describe('pick lands plain text', () => {
       action: 'pick',
       span: { start: 0, end: 4, draftRev: 7 },
     })
-    expect(outcome).toEqual({ text: '/commit-helper ' })
+    expect(outcome).toEqual({
+      insert: {
+        source: 'skill',
+        ref: 'commit-helper',
+        label: 'commit-helper',
+        clipboardText: '/commit-helper',
+      },
+    })
   })
 
   it('inserts the canonical name when the menu displays a title', async () => {
@@ -436,14 +443,21 @@ describe('pick lands plain text', () => {
       action: 'pick',
       span: { start: 0, end: 2, draftRev: 7 },
     })
-    expect(outcome).toEqual({ text: '/commit-helper ' })
+    expect(outcome).toEqual({
+      insert: {
+        source: 'skill',
+        ref: 'commit-helper',
+        label: '提交助手',
+        clipboardText: '/commit-helper',
+      },
+    })
   })
 
-  it('keeps the legacy reference codec removed and stays out of adjudication', async () => {
+  it('serializes and copies the reference as the literal canonical name', async () => {
     const { source } = await bench(listOk(CATALOG))
-    // Determinism lives host-side (the pre-step gesture boundary), so the
-    // source neither claims lines nor serializes reference markup.
-    expect(source.codec).toBeUndefined()
+    expect(source.codec?.clipboardText('commit-helper')).toBe('/commit-helper')
+    await expect(source.codec?.serialize('commit-helper', new AbortController().signal))
+      .resolves.toBe('/commit-helper')
     expect(typeof source.matchSpace).toBe('undefined')
     expect(typeof source.matchEnter).toBe('undefined')
   })
