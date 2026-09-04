@@ -135,6 +135,10 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
     if (state.phase === 'idle') void controller.load()
   }, [controller, state.phase])
 
+  const useSkill = async (slug: string): Promise<void> => {
+    if (await controller.startSkill(slug)) closePage()
+  }
+
   const skills = state.phase === 'ready' ? state.catalog.skills : []
   const categories = useMemo(
     () => [...new Set(skills.map(skill => skill.category))].sort((a, b) => a.localeCompare(b)),
@@ -149,7 +153,16 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
   const detailFooter = detail === undefined || ready === undefined
     ? undefined
     : detail.installed
-      ? <button type="button" className={css.install} disabled>{t('skills.installed')}</button>
+      ? (
+        <button
+          type="button"
+          className={css.install}
+          disabled={ready.using !== undefined}
+          onClick={() => { void useSkill(detail.slug) }}
+        >
+          {ready.using === detail.slug ? t('skills.using') : t('skills.use')}
+        </button>
+      )
       : ready.catalog.signedIn
         ? (
           <button
@@ -180,6 +193,13 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
           : ready.installError === 'local-conflict'
             ? t('skills.localConflict')
             : t('skills.installFailed')}
+      </p>
+    )
+  const useErrorNotice = ready?.useError === undefined
+    ? undefined
+    : (
+      <p className={css.installError} role="alert">
+        {ready.useError === 'no-workspace' ? t('skills.noWorkspace') : t('skills.useFailed')}
       </p>
     )
 
@@ -218,6 +238,7 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
         )}
 
         {detail === undefined && installErrorNotice}
+        {detail === undefined && useErrorNotice}
 
         {state.phase === 'idle' || state.phase === 'loading'
           ? <p className={css.status}>{t('skills.loading')}</p>
@@ -241,14 +262,15 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
                         <button
                           type="button"
                           className={css.install}
-                          disabled={skill.installed || ready?.installing !== undefined}
+                          disabled={ready?.installing !== undefined || ready?.using !== undefined}
                           onClick={() => {
-                            if (ready?.catalog.signedIn === true) void controller.install(skill.slug)
+                            if (skill.installed) void useSkill(skill.slug)
+                            else if (ready?.catalog.signedIn === true) void controller.install(skill.slug)
                             else void controller.openDetail(skill.slug)
                           }}
                         >
                           {skill.installed
-                            ? t('skills.installed')
+                            ? ready?.using === skill.slug ? t('skills.using') : t('skills.use')
                             : ready?.installing === skill.slug
                               ? t('skills.installing')
                               : ready?.catalog.signedIn === true
@@ -285,6 +307,7 @@ function SkillMarketplace({ closePage, controller, useMarketplace, t }: {
             </div>
             {detail.introduction !== undefined && <p>{detail.introduction}</p>}
             {installErrorNotice}
+            {useErrorNotice}
             {ready.loginPhase === 'failed' && <p className={css.installError}>{t('skills.loginFailed')}</p>}
             {ready.loginPhase === 'authorizing' && ready.login !== undefined && (
               <div className={css.loginGate}>
